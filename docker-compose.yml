@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: tapi
+      POSTGRES_PASSWORD: tapi
+      POSTGRES_DB: tapi
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333"]
+    volumes: ["qdrantdata:/qdrant/storage"]
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  langfuse:
+    image: langfuse/langfuse:latest
+    depends_on: [postgres]
+    environment:
+      DATABASE_URL: postgresql://tapi:tapi@postgres:5432/tapi
+      NEXTAUTH_SECRET: changeme
+      SALT: changeme
+      NEXTAUTH_URL: http://localhost:3001
+    ports: ["3001:3000"]
+
+  api:
+    build: ./apps/api
+    env_file: .env
+    depends_on: [postgres, qdrant, redis]
+    ports: ["8080:8080"]
+
+  worker:
+    build: ./apps/worker
+    env_file: .env
+    depends_on: [postgres, qdrant, redis]
+
+  frontend:
+    build: ./apps/frontend
+    depends_on: [api]
+    ports: ["3000:3000"]
+
+  # NIM self-hosted na GPU local (F6). Requer NVIDIA Container Toolkit.
+  nim:
+    image: nvcr.io/nim/nvidia/llama-3.1-nemotron-nano-8b:latest
+    profiles: ["gpu"]
+    runtime: nvidia
+    environment:
+      NGC_API_KEY: ${NVIDIA_API_KEY}
+    ports: ["8000:8000"]
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+
+volumes:
+  pgdata:
+  qdrantdata:
