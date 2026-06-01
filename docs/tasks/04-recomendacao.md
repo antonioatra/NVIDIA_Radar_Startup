@@ -8,7 +8,9 @@ estruturada + briefing executivo. **Dependências:** F2, F3. **Marco:** M4.
 - [ ] **F4.2** Nó **recommender** (Nemotron-Super, reasoning ON): consome AIMI + RAG → recomendações.
 - [ ] **F4.3** Saída estruturada (§5.5): tech · justificativa técnica · justificativa de negócio ·
       prioridade · complexidade · próxima ação · **evidências**.
-- [ ] **F4.4** Nó **briefing** (Briefing Agent): relatório executivo (JSON + Markdown).
+- [ ] **F4.4** Nó **briefing** (Briefing Agent): relatório executivo (JSON + Markdown) com
+      próximas-ações nos **três eixos do §2 — comercial, técnica e comunitária** (Inception:
+      onboarding, créditos, comunidade, eventos, GTM).
 - [ ] **F4.5** **NeMo Guardrails** no briefing: rails contra recomendação sem evidência/alucinação.
 - [ ] **F4.6** Export PDF do briefing (server-side).
 - [ ] **F4.7** Persistir `recommendation` + ligação com evidências no Postgres.

@@ -14,6 +14,9 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
 - [ ] **F1.8** `robots.txt` + rate limiting + user-agent identificável (compliance).
 - [ ] **F1.9** Proveniência: salvar `url`, `fetched_at`, hash do conteúdo, snippet → tabela `evidence`.
 - [ ] **F1.10** Persistência: upsert de `company`/`founder` (dedup por domínio/CNPJ quando houver).
+- [ ] **F1.11** Taxonomia de **sinais AI-native** no sourcing (§2 "sinais de uso intensivo de IA"):
+      keywords (LLM/agents/embeddings/RAG/fine-tuning), vagas de ML/AI eng, papers, stack pública.
+      Enviesa termos do `search_planner` e pré-filtra candidatas antes da classificação pós-hoc.
 
 ## Tecnologias
 Tavily · Firecrawl · Playwright · trafilatura · BeautifulSoup · Scrapy · PostgreSQL.

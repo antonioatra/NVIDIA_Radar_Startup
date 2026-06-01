@@ -5,19 +5,24 @@
 
 ## Tasks
 - [ ] **F3.1** Ingestão das fontes do §10 (docs oficiais, blogs, vídeos transcritos) → `data/knowledge_base`.
+- [ ] **F3.1b** **Transcrição dos vídeos do §10.1** (playlist de tecnologias, vídeo da comunidade,
+      live de benefícios Inception) → texto p/ ingestão. Dogfood do **NVIDIA Riva (ASR)** —
+      transforma o Riva de "só recomendável" em tecnologia NVIDIA efetivamente usada pelo TAPI.
+- [ ] **F3.1c** Incluir **MONAI** na base de conhecimento (citado no §5.5 como alvo de
+      recomendação em saúde; sem entrada na KB, o RAG nunca o recuperaria).
 - [ ] **F3.2** Limpeza/normalização + **chunking semântico**.
 - [ ] **F3.3** Embeddings com **NeMo Retriever `nv-embedqa-1b-v2`** (multilíngue).
 - [ ] **F3.4** Indexação no **Qdrant** (dense + sparse/BM25).
 - [ ] **F3.5** **Busca híbrida** (dense + lexical) com fusão de scores.
 - [ ] **F3.6** Interface `Reranker` plugável; impl. **NeMo Reranking NIM** (default no build).
 - [ ] **F3.7** Nó **nvidia_rag** no grafo: retrieve → rerank → resposta **com citações**.
-- [ ] **F3.8** Cobertura: garantir que TODAS as techs do §5.4 estão indexadas e recuperáveis.
+- [ ] **F3.8** Cobertura: garantir que TODAS as techs do §5.4 **+ MONAI** estão indexadas e recuperáveis.
 - [ ] **F3.9** **Avaliação RAGAS** (faithfulness, context precision/recall, answer relevancy).
 
 > Cohere Rerank: **não** aqui. Entra na F7 como comparativo. Ver `docs/COBERTURA-TECNOLOGIAS.md`.
 
 ## Tecnologias
-NeMo Retriever (embed + rerank NIM) · Qdrant · BM25 · RAGAS · PostgreSQL.
+NeMo Retriever (embed + rerank NIM) · Qdrant · BM25 · RAGAS · PostgreSQL · **Riva (ASR p/ transcrição)**.
 
 ## DoD
 - [ ] Pergunta sobre tech NVIDIA retorna resposta correta com ≥2 citações.

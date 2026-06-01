@@ -45,18 +45,22 @@ Verifica que **todas** as tecnologias citadas no brief estão endereçadas, e de
 | **cuDF** | ✅ | ✅ normalização/dedup da coorte | F6 |
 | **cuML** | ✅ | ✅ clustering setorial | F6 |
 | **CUDA** | ✅ | ✅ base de toda execução em GPU | F6 |
-| Riva (voz) | ✅ | recomendável (domínio) | — |
+| **Riva (voz/ASR)** | ✅ | ✅ ASR p/ transcrever os vídeos do §10.1 → KB | F3 |
 | Omniverse (3D) | ✅ | recomendável (domínio) | — |
 | Isaac (robotics) | ✅ | recomendável (domínio) | — |
 | Clara (saúde) | ✅ | recomendável (domínio) | — |
 | Morpheus (cyber) | ✅ | recomendável (domínio) | — |
 | AI Enterprise | ✅ | recomendável (domínio) | — |
 
+> **MONAI** (citado no §5.5 como alvo de recomendação em saúde, junto de Clara/AI Enterprise)
+> entra na **base de conhecimento** (F3.1c) para ser recuperável pelo RAG. Não é dogfooded
+> (o TAPI não faz imagem médica) — vive na KB como recomendável de domínio.
+
 > **Modelos generativos (cérebro):** NVIDIA **Nemotron** (Nano/Super) via `build.nvidia.com`
 > e self-hosted na GPU — usado em todos os nós que chamam LLM. Reforça a narrativa anti-wrapper:
 > o TAPI roda na stack que prescreve.
 
-**Conclusão:** as 6 domain-specific (Riva/Omniverse/Isaac/Clara/Morpheus/AI Enterprise) vivem
-na base de conhecimento como recomendáveis (honesto — o TAPI não faz voz/3D/robótica). Toda a
-**stack de inferência e dados** (NIM, NeMo, Guardrails, Triton, TensorRT-LLM, RAPIDS/cuDF/cuML,
-CUDA, Nemotron) é **dogfooded** pelo próprio TAPI.
+**Conclusão:** as 5 domain-specific restantes (Omniverse/Isaac/Clara+MONAI/Morpheus/AI Enterprise)
+vivem na base de conhecimento como recomendáveis (honesto — o TAPI não faz 3D/robótica/saúde).
+Toda a **stack de inferência e dados** (NIM, NeMo, Guardrails, Triton, TensorRT-LLM,
+RAPIDS/cuDF/cuML, CUDA, Nemotron) **+ Riva (ASR)** é **dogfooded** pelo próprio TAPI.

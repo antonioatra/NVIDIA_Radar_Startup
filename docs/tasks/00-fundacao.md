@@ -10,6 +10,12 @@
 - [ ] **F0.4** NVIDIA Container Toolkit validado (GPU visível no container — `nvidia-smi`).
 - [ ] **F0.5** Schemas Pydantic v2 em `packages/schemas`: `StartupProfile`, `Evidence`,
       `AIMIScore`, `Recommendation`, `Briefing`, `GraphState`.
+      - `StartupProfile` cobre **todas** as dimensões do §2: `empresa`, `produto`, `setor`,
+        `clientes`, `funding`, `founders`, `tecnologias` (cada campo com proveniência/evidência).
+        `funding` alimenta a prontidão de coorte (F6.7); `clientes`/distribuição alimentam os
+        pilares Distribution e Data Moat do AIMI (F6.1).
+      - `Briefing` tem próximas-ações nos **três eixos do §2**: `acao_comercial`, `acao_tecnica`
+        e `acao_comunitaria` (onboarding/créditos/eventos/comunidade do Inception).
 - [ ] **F0.6** Migrações Postgres (SQLModel/Alembic): tabelas `company`, `founder`, `evidence`,
       `score`, `recommendation`, `run`.
 - [ ] **F0.7** Cliente Nemotron via `langchain-nvidia-ai-endpoints` (factory Nano/Super) + smoke test.

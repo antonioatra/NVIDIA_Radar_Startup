@@ -81,7 +81,7 @@ O fluxo linear do §6 do brief vira um grafo com paralelismo, retry condicional 
    → recommender      (Super, reason ON)    gaps (AIMI) × tech NVIDIA → recomendações estruturadas
    → gpu_benchmark    (condicional) ★       diferencial: ROI real (NIM local / matriz de benchmark)
    → [HITL interrupt]                        humano revisa classificação/recomendação
-   → briefing         (NeMo Guardrails)      briefing executivo → JSON + PDF
+   → briefing         (NeMo Guardrails)      briefing executivo (eixos comercial/técnico/comunitário) → JSON + PDF
 ```
 
 ### Saída da recomendação (§5.5)
@@ -92,15 +92,16 @@ próxima ação · evidências — **+ número de ROI** quando há gap de infer�
 
 ## 4. RAG NVIDIA com reranking (§5.3)
 
-Pipeline: ingestão (docs §10) → limpeza → **chunking semântico** → embeddings (`nv-embedqa`) →
-Qdrant (dense + sparse/BM25) → **busca híbrida** → **NeMo rerank** → geração com **citações** →
-**avaliação RAGAS**. Reranker atrás de uma interface (`Reranker.rerank(query, docs)`): durante
-o build/testes usa **NeMo NIM (grátis)**; o **Cohere Rerank entra só na validação final** do
-projeto, num mini-eval comparativo (NeMo vs Cohere) sobre o nosso dataset.
+Pipeline: ingestão (docs §10; **vídeos transcritos via Riva ASR**) → limpeza → **chunking
+semântico** → embeddings (`nv-embedqa`) → Qdrant (dense + sparse/BM25) → **busca híbrida** →
+**NeMo rerank** → geração com **citações** → **avaliação RAGAS**. Reranker atrás de uma interface
+(`Reranker.rerank(query, docs)`): durante o build/testes usa **NeMo NIM (grátis)**; o **Cohere
+Rerank entra só na validação final** do projeto, num mini-eval comparativo (NeMo vs Cohere)
+sobre o nosso dataset.
 
 **Base de conhecimento:** todas as tecnologias do §5.4 (Inception, NIM, NeMo/Guardrails, Triton,
-TensorRT-LLM, RAPIDS/cuDF/cuML, CUDA, Riva, Omniverse, Isaac, Clara, Morpheus, AI Enterprise),
-ingeridas das fontes oficiais do §10.
+TensorRT-LLM, RAPIDS/cuDF/cuML, CUDA, Riva, Omniverse, Isaac, Clara, Morpheus, AI Enterprise)
+**+ MONAI** (alvo de recomendação em saúde citado no §5.5), ingeridas das fontes oficiais do §10.
 
 ---
 

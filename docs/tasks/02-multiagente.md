@@ -14,6 +14,8 @@
 - [ ] **F2.8** **HITL interrupt** antes do briefing (revisão humana da classificação).
 - [ ] **F2.9** Tracing Langfuse em todos os nós + métricas de tokens/custo.
 - [ ] **F2.10** Orquestração assíncrona via worker (Redis/RQ) p/ runs longos + SSE de progresso.
+- [ ] **F2.11** **Guarda de custo/orçamento de LLM** por run (limite de tokens/chamadas) — os
+      créditos grátis do `build.nvidia.com` têm rate limit; evita estouro durante o build.
 
 ## Tecnologias
 LangGraph · checkpointer Postgres · Nemotron (Nano/Super) · Redis/RQ · Langfuse.
