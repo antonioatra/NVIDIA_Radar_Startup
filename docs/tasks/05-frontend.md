@@ -4,17 +4,36 @@
 **Dependências:** F2, F4. **Marco:** M5.
 
 ## Tasks
-- [ ] **F5.1** Setup Next.js (App Router) + TypeScript + Tailwind + shadcn/ui.
-- [ ] **F5.2** API FastAPI: endpoints `POST /runs`, `GET /runs/{id}`, `GET /companies`, `/briefings/{id}`.
-- [ ] **F5.3** Tela de consulta + acompanhamento **ao vivo** do pipeline via **SSE**.
-- [ ] **F5.4** Lista/busca de startups (filtros por setor, AIMI, classificação).
+- [ ] **F5.1** Setup Next.js (App Router) + TypeScript + Tailwind + shadcn/ui. **UI em PT-BR** (F0.13).
+- [ ] **F5.2** API FastAPI: endpoints `POST /runs`, `GET /runs/{id}`, `GET /companies`,
+      `/briefings/{id}` **+ `POST /runs/{id}/resume`** (retoma o grafo após o HITL — F2.8). O SSE
+      de `GET /runs/{id}` lê o canal Redis pub/sub publicado pelo worker (F2.10).
+- [ ] **F5.3** Tela de consulta (**dois modos**: single-company lookup e discovery por setor/região,
+      F2.3) + acompanhamento **ao vivo** do pipeline via **SSE**.
+- [ ] **F5.4** Lista/busca de startups (filtros por setor, AIMI, classificação) **+ ordenação por
+      `inception_priority` (F6.13)** — a fila de outreach do gerente.
 - [ ] **F5.5** Detalhe da startup: **radar AIMI** (4 pilares) + evidências com link à fonte.
-- [ ] **F5.6** Cartões de recomendação (§5.5) + número de ROI (vem do F6).
+- [ ] **F5.6** Cartões de recomendação (§5.5) + número de ROI. **ROI é opcional:** vem do F6, que
+      roda em paralelo a esta fase — a UI degrada graciosamente (mostra a recomendação sem o ROI
+      enquanto a matriz/benchmark do F6 não existir; exibe o número quando disponível).
 - [ ] **F5.7** Trace viewer: passos dos agentes (consome Langfuse/estado do grafo).
 - [ ] **F5.8** Export do briefing em PDF.
+- [ ] **F5.9** **Auth leve (gate interno):** a ferramenta é interna do gerente de Startups & VCs
+      da NVIDIA Brasil — não é público. Proteger a API e a UI com autenticação simples
+      (API key/bearer token via env, ou login único), aplicada como dependência nos endpoints
+      do F5.2. Não expor `POST /runs` nem dados de empresas sem credencial. Mantém-se leve
+      (sem IdP/OAuth completo) — proporcional a uma ferramenta interna de demo, mas fecha o
+      buraco de "endpoint aberto" coerente com a governança/LGPD do projeto (F1.13).
+- [ ] **F5.10** **Tela de revisão/aprovação HITL (modo `sync`):** quando o grafo pausa no interrupt
+      (F2.8), a UI mostra a classificação/AIMI/recomendação para o gerente **aprovar, editar ou
+      rejeitar** e então chama `POST /runs/{id}/resume` (F5.2) com a decisão. Sem essa tela o
+      interrupt fica inalcançável pela UI. Só no *single-company lookup* (`hitl=sync`); em lote o
+      `hitl=auto` (F1.14) não usa esta superfície.
 
 ## Tecnologias
-Next.js · React · TypeScript · Tailwind/shadcn · FastAPI · SSE.
+Next.js · React · TypeScript · Tailwind/shadcn · FastAPI · SSE · auth (API key/bearer).
 
 ## DoD
 - [ ] Fluxo completo navegável: consulta → progresso → empresa → recomendação → export PDF.
+- [ ] API e UI exigem credencial; endpoints não respondem sem auth (F5.9).
+- [ ] No modo `sync`, o run pausa no HITL e só segue após aprovação na UI via `resume` (F5.10).

@@ -56,7 +56,8 @@ TAPI vive.
 | Data eng (GPU) | **RAPIDS/cuDF** (dedup/normalização) + **cuML** (clustering setorial) | Usa GPU, on-narrative, alimenta o Índice |
 | Fila | **Redis + worker** (RQ) | Pipeline longo não cabe em request síncrono |
 | Deploy | **Docker Compose** + NVIDIA Container Toolkit | Postgres/Qdrant/Redis/API/worker/front/NIM |
-| Governança | Tabela de evidências (URL, hash, `fetched_at`) | Só dado público, rastreável (LGPD) |
+| CI | **GitHub Actions** (lint + pytest + smoke RAGAS, sem GPU) | "RAGAS no CI" (§8) + contribuições constantes (§11) |
+| Governança | Tabela de evidências (URL, hash, `fetched_at`); founder só info profissional pública | Só dado público, rastreável (LGPD) |
 
 ---
 
@@ -86,7 +87,17 @@ O fluxo linear do §6 do brief vira um grafo com paralelismo, retry condicional 
 
 ### Saída da recomendação (§5.5)
 tech NVIDIA · justificativa técnica · justificativa de negócio · prioridade · complexidade ·
-próxima ação · evidências — **+ número de ROI** quando há gap de inferência (vem do diferencial).
+próxima ação · **evidências dos dois lados** (`evidencia_gap` do perfil/AIMI da startup +
+`evidencia_nvidia`, citações da KB recuperadas pelo RAG) — **+ número de ROI** quando há gap de
+inferência (vem do diferencial). O Guardrails (F4.5) bloqueia recomendação sem **ambos** os lados.
+
+### Modos de execução e bordas (esclarecimento)
+- **Por-empresa vs coorte:** o grafo roda por empresa (1 consulta → 1 perfil). A **coorte**
+  (clustering §5.2) e o eval set (F1.12) são populados pelo **cohort builder em lote (F1.14)**,
+  que roda o crawl §9 e acumula na tabela `company`. O clustering consome a tabela, não 1 run.
+- **Input em dois modos:** *single-company lookup* e *discovery por setor/região* (F2.3).
+- **Baixa confiança:** evidência insuficiente após retry → **estado terminal "dados insuficientes"**
+  (F2.12), sem alucinar.
 
 ---
 
@@ -121,9 +132,19 @@ Score 0–100, 4 pilares de 0–25, derivados da própria definição AI-native 
 | **Distribution & Moat** | GTM claro, integração enterprise, lock-in | AI Enterprise |
 
 - Cada sub-score **exigido com evidência** (Evidence Validator) → explicável e auditável
-  ("score de crédito de AI-nativeness"). Versionado (AIMI v1).
+  ("score de crédito de AI-nativeness"). Versionado: o classifier (F2) emite **v0 provisória**
+  com o schema `AIMIScore`; a rubrica é refinada para **v1** no diferencial (F6.1), sem quebrar
+  o contrato de saída.
 - O pilar **Technical Optimization baixo dispara as recomendações NVIDIA** → o Índice
   *alimenta* o recommender, não decora. Acoplamento arquitetural limpo.
+- Rubrica **fundamentada** nos materiais de AI-native services do §10.1 (Sequoia/Emergence/
+  5-layer cake), ingeridos em F3.1d — origem conceitual dos 4 pilares, não invenção arbitrária.
+  A **definição** dos pilares/escala é fixada cedo em `docs/RUBRICA-AIMI.md` (F0.11), antes de
+  rotular o eval set (F1.12); só a **heurística de pontuação** evolui (v0 F2.6 → v1 F6.1).
+- **Inception Priority (F6.13):** do AIMI deriva-se um score 0–100 de **prioridade de outreach**
+  por empresa (alto potencial × upside NVIDIA, i.e. Technical Optimization baixo). Dá ao gerente
+  uma **fila priorizada** de startups — serve direto o §1 ("atrair, qualificar e nutrir"), além
+  do diagnóstico. Per-empresa, complementa o ranking de *clusters* da coorte (§5.2).
 
 ### 5.2 Camada de coorte (RAPIDS/cuML)
 `cuDF` normaliza/deduplica a coorte coletada; `cuML` (KMeans + UMAP sobre embeddings de
@@ -140,6 +161,9 @@ Para startups com Technical Optimization baixo + recomendação de NIM/TensorRT-
   não requisito por request.
 - Linha no briefing: *"Migrar atendimento (~Xk tokens/dia) de [API] p/ NIM self-hosted:
   ~Nx throughput, p95 −M%, custo −K%."*
+- **Fallbacks (de-risking):** matriz **sempre pré-computada** (run ao vivo é demo opcional);
+  se NIM/Triton local não subir, medir o lado otimizado com **vLLM** na GPU; clustering cai
+  para **scikit-learn (CPU)** se cuML/UMAP falhar. Detalhe em `tasks/06-diferencial.md`.
 
 ---
 
@@ -164,6 +188,7 @@ tapi/
   data/
     knowledge_base/           fontes NVIDIA (§10) p/ ingestão
     seeds/                    seed lists de startups (§9)
+    eval/                     eval set rotulado (~20–30 startups) — criado em F1.12
   notebooks/                  geração da matriz de benchmark
 ```
 
@@ -178,14 +203,20 @@ tapi/
 | 3 | RAG NVIDIA + rerank | ingestão §10, híbrido Qdrant, NeMo rerank, citações, RAGAS |
 | 4 | Motor de recomendação | AIMI → gaps × tech NVIDIA, saída §5.5 estruturada |
 | 5 | Interface web | Next.js: dashboard, radar AIMI, trace de pipeline, export PDF |
-| 6 | **Diferencial** | AIMI + clustering de coorte + GPU Graduation Engine (ROI real) |
+| 6 | **Diferencial** | AIMI + clustering de coorte + GPU Graduation Engine (ROI real). **MVP:** AIMI v1 + ROI por matriz pré-computada. **Stretch:** clustering GPU + "run ao vivo". Fallbacks em `tasks/06-diferencial.md` |
 
 ---
 
 ## 8. Princípios de engenharia
-- **Tudo com evidência:** nenhuma afirmação/score sem fonte citada e rastreável.
+- **Tudo com evidência:** nenhuma afirmação/score sem fonte citada e rastreável. Recomendação
+  exige evidência **dos dois lados** (gap da startup + citação da KB NVIDIA).
 - **Plugável onde há trade-off:** reranker, LLM endpoint (API ↔ NIM local).
-- **Avaliação contínua:** eval set rotulado (~20–30 startups) + RAGAS no CI.
+- **Avaliação contínua:** eval set rotulado (~20–30 startups) **criado cedo (F1.12)** e consolidado
+  na F7 + RAGAS no CI (F0.10). A **recomendação** (Entregável 4) tem eval held-out (F7.2b), não só
+  os 7 exemplos do §5.5.
+- **Definição estável, heurística evolutiva:** a rubrica AIMI (definição/escala) é fixada cedo
+  (F0.11); só a pontuação evolui (v0 → v1). Prompts versionados (F0.12) com `prompt_version` no trace.
+- **Idioma PT-BR (F0.13):** briefing, recomendações e UI em português (público é o gerente Brasil).
 - **Graduação demonstrável:** mesmo binário roda em API (build.nvidia.com) ou NIM self-hosted.
 - **Contribuições constantes** no repo (§11): commits incrementais por entregável.
 

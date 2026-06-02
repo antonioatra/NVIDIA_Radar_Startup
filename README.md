@@ -17,7 +17,7 @@ FastAPI · Next.js · Langfuse · RAGAS.
 ```
 apps/        api (FastAPI) · worker (LangGraph) · frontend (Next.js)
 packages/    schemas · agents · scraping · rag · scoring · benchmark · eval
-data/        knowledge_base (fontes NVIDIA) · seeds (fontes de startups)
+data/        knowledge_base (fontes NVIDIA) · seeds (fontes de startups) · eval (set rotulado)
 docs/        plano + tasks por fase + cobertura
 notebooks/   geração da matriz de benchmark (GPU)
 ```

@@ -17,8 +17,10 @@ services:
     image: redis:7
     ports: ["6379:6379"]
 
+  # Langfuse pinado em v2: sobe só com Postgres. NÃO usar :latest (v3 exige
+  # ClickHouse + Redis + MinIO e não inicia apenas com DATABASE_URL).
   langfuse:
-    image: langfuse/langfuse:latest
+    image: langfuse/langfuse:2
     depends_on: [postgres]
     environment:
       DATABASE_URL: postgresql://tapi:tapi@postgres:5432/tapi
@@ -44,6 +46,9 @@ services:
     ports: ["3000:3000"]
 
   # NIM self-hosted na GPU local (F6). Requer NVIDIA Container Toolkit.
+  # Triton + TensorRT-LLM (F6.8) NÃO estão neste compose base: o serving de
+  # benchmark roda fora dele (notebook/ad-hoc na GPU), pois o compose base é o
+  # ambiente de build (NIM hospedado). Ver docs/tasks/06-diferencial.md.
   nim:
     image: nvcr.io/nim/nvidia/llama-3.1-nemotron-nano-8b:latest
     profiles: ["gpu"]
