@@ -8,7 +8,7 @@
 - [ ] **F0.2** `docker-compose.yml`: postgres, qdrant, redis, langfuse, api, worker, frontend, nim(GPU).
 - [ ] **F0.3** `.env.example` + carregamento de config (pydantic-settings).
 - [ ] **F0.4** NVIDIA Container Toolkit validado (GPU visível no container — `nvidia-smi`).
-- [ ] **F0.5** Schemas Pydantic v2 em `packages/schemas`: `StartupProfile`, `Evidence`,
+- [x] **F0.5** Schemas Pydantic v2 em `packages/schemas`: `StartupProfile`, `Evidence`,
       `AIMIScore`, `Recommendation`, `Briefing`, `GraphState`.
       - `StartupProfile` cobre **todas** as dimensões do §2: `empresa`, `produto`, `setor`,
         `clientes`, `funding`, `founders`, `tecnologias` (cada campo com proveniência/evidência).
@@ -51,7 +51,7 @@ PostgreSQL · Qdrant · Redis · Docker Compose · NVIDIA Container Toolkit · P
 
 ## DoD
 - [ ] `docker compose up` sobe todos os serviços; GPU acessível no container NIM.
-- [ ] `python -c "from packages.schemas import StartupProfile"` funciona.
+- [x] `python -c "from packages.schemas import StartupProfile"` funciona.
 - [ ] Smoke test de chamada ao Nemotron aparece como trace no Langfuse.
 - [ ] CI verde no push: lint + testes + smoke RAGAS (sem GPU).
 - [x] `docs/RUBRICA-AIMI.md` define os 4 pilares e a escala 0–25 (consumível por F1.12).
