@@ -22,8 +22,9 @@
         e `acao_comunitaria` (onboarding/créditos/eventos/comunidade do Inception).
       - `AIMIScore` inclui `inception_priority` (0–100) — score de prioridade de outreach (F6.13),
         derivado de potencial × upside NVIDIA. Calculado na F6, mas o campo já entra no contrato.
-- [ ] **F0.6** Migrações Postgres (SQLModel/Alembic): tabelas `company`, `founder`, `evidence`,
-      `score`, `recommendation`, `run`.
+- [x] **F0.6** Migrações Postgres (SQLModel/Alembic): tabelas `company`, `founder`, `evidence`,
+      `score`, `recommendation`, `run`. Modelos em `packages/db`; founders normalizados,
+      produtos/clientes/tecnologias/funding em JSON; `evidence` polimórfica (entity_type/id/field).
 - [ ] **F0.7** Cliente Nemotron via `langchain-nvidia-ai-endpoints` (factory Nano/Super) + smoke test.
 - [ ] **F0.8** Bootstrap Langfuse (tracing) + wrapper de callback nos LLMs.
 - [ ] **F0.9** Seeds: carregar listas de fontes do §9 em `data/seeds/`.

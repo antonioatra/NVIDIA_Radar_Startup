@@ -23,6 +23,7 @@ data/knowledge_base/raw/
 data/cache/
 *.duckdb
 *.sqlite
+*.db
 benchmark_results/
 
 # OS / IDE
