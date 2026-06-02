@@ -29,8 +29,8 @@ class Settings(BaseSettings):
 
     # --- LLM / NVIDIA -----------------------------------------------------------
     nvidia_api_key: str = Field(default="", description="Chave build.nvidia.com (Nemotron/NIM).")
-    nemotron_model_fast: str = "nvidia/llama-3.1-nemotron-nano-8b"
-    nemotron_model_reason: str = "nvidia/llama-3.3-nemotron-super-49b"
+    nemotron_model_fast: str = "nvidia/llama-3.1-nemotron-nano-8b-v1"
+    nemotron_model_reason: str = "nvidia/llama-3.3-nemotron-super-49b-v1"
     nv_embed_model: str = "nvidia/llama-3.2-nv-embedqa-1b-v2"
     nv_rerank_model: str = "nvidia/llama-3.2-nv-rerankqa-1b-v2"
 
