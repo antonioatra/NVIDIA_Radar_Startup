@@ -4,8 +4,18 @@ Adapters: Tavily (busca), Firecrawl, Playwright (dinâmico), trafilatura, Beauti
 Respeita robots.txt + rate limiting. Registra url/fetched_at/hash em evidence.
 
 Seeds de fontes do §9 (F0.9): `from packages.scraping import load_sources, allowlist`.
+Busca de URLs candidatas (F1.1): `from packages.scraping import search, SearchResult`.
 """
 
+from .search import SearchResult, search
 from .seeds import Source, allowlist, by_type, denylist, load_sources
 
-__all__ = ["Source", "load_sources", "allowlist", "denylist", "by_type"]
+__all__ = [
+    "Source",
+    "load_sources",
+    "allowlist",
+    "denylist",
+    "by_type",
+    "search",
+    "SearchResult",
+]
