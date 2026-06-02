@@ -33,7 +33,7 @@ nemoguardrails
 rank-bm25
 
 # Observabilidade
-langfuse
+langfuse>=3  # servidor Langfuse v3 (SDK 4.x; langfuse.langchain.CallbackHandler) — F0.8
 
 # Benchmark / GPU (instalar conforme CUDA; ver F6)
 # cudf-cu12, cuml-cu12, tensorrt-llm  -> instalados no ambiente GPU
