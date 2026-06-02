@@ -10,7 +10,7 @@ Cobre os invariantes que o resto do plano depende:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -38,7 +38,7 @@ def _ev(snippet: str = "trecho") -> Evidence:
     return Evidence(
         url="https://exemplo.com/fonte",
         snippet=snippet,
-        fetched_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
     )
 
 

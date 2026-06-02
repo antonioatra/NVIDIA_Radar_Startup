@@ -1,0 +1,13 @@
+# Deps mínimas p/ lint + testes no CI (F0.10) — barato, sem GPU.
+# Subconjunto do requirements.txt de fato exercitado pelos testes atuais; scraping/RAG/
+# API (scrapy, ragas, nemoguardrails, qdrant, fastapi, playwright…) entram quando F1+ os usar.
+pydantic>=2
+pydantic-settings
+sqlmodel
+alembic
+langchain
+langchain-nvidia-ai-endpoints
+langfuse>=3
+pyyaml
+pytest
+ruff

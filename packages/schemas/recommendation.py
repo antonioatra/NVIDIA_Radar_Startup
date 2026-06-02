@@ -71,7 +71,7 @@ class Recommendation(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _require_both_sides(self) -> "Recommendation":
+    def _require_both_sides(self) -> Recommendation:
         # Invariante central: recomendação sem um dos lados é inválida (F4.5).
         if not self.evidencia_gap:
             raise ValueError("recomendação exige `evidencia_gap` (lado startup).")

@@ -44,7 +44,7 @@ class PillarScore(BaseModel):
     band: AIMIBand | None = None
 
     @model_validator(mode="after")
-    def _derive_band_and_enforce_evidence(self) -> "PillarScore":
+    def _derive_band_and_enforce_evidence(self) -> PillarScore:
         # Faixa é sempre função do score (ignora valor recebido — fonte única).
         self.band = band_for(self.score)
         # RUBRICA §0: sem evidência citável, o sub-score não passa de ≤6.
@@ -88,7 +88,7 @@ class AIMIScore(BaseModel):
     total: int = Field(default=0, ge=0, le=100)
 
     @model_validator(mode="after")
-    def _check_pillars_and_total(self) -> "AIMIScore":
+    def _check_pillars_and_total(self) -> AIMIScore:
         # Garante que cada campo carrega o pilar correto (evita troca silenciosa).
         expected = {
             "data_moat": AIMIPillar.DATA_MOAT,

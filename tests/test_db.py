@@ -8,7 +8,7 @@ evidência polimórfica); enums e colunas JSON persistem; e a migração Alembic
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import inspect
@@ -101,7 +101,7 @@ def test_full_profile_roundtrip(session: Session) -> None:
             Evidence(
                 url="https://acme.ai/docs",
                 snippet="100% API externa",
-                fetched_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+                fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
                 entity_type="company",
                 entity_id=company.id,
                 field="descricao",
@@ -109,7 +109,7 @@ def test_full_profile_roundtrip(session: Session) -> None:
             Evidence(
                 url="https://build.nvidia.com/nim",
                 snippet="NIM deploy otimizado",
-                fetched_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+                fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
                 entity_type="recommendation",
                 entity_id=1,
                 field="nvidia",

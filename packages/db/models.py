@@ -17,11 +17,10 @@ Enums vêm de `packages.schemas.enums` e são gravados como VARCHAR+CHECK
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from packages.schemas.enums import (
@@ -37,7 +36,7 @@ from packages.schemas.enums import (
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _enum(enum_cls: type, *, nullable: bool = False) -> Column:
@@ -128,7 +127,9 @@ class Evidence(SQLModel, table=True):
 
     entity_type: str = Field(index=True)
     entity_id: int = Field(index=True)
-    field: str | None = Field(default=None, description="Campo/pilar/lado que a evidência sustenta.")
+    field: str | None = Field(
+        default=None, description="Campo/pilar/lado que a evidência sustenta."
+    )
     created_at: datetime = Field(default_factory=_now)
 
 
@@ -176,7 +177,9 @@ class Recommendation(SQLModel, table=True):
     prioridade: Priority = Field(sa_column=_enum(Priority))
     complexidade: Complexity = Field(sa_column=_enum(Complexity))
     proxima_acao: str = Field(sa_column=Column(Text))
-    pilar_origem: AIMIPillar | None = Field(default=None, sa_column=_enum(AIMIPillar, nullable=True))
+    pilar_origem: AIMIPillar | None = Field(
+        default=None, sa_column=_enum(AIMIPillar, nullable=True)
+    )
     roi: dict | None = Field(default=None, sa_column=Column(JSON))
 
     created_at: datetime = Field(default_factory=_now)
