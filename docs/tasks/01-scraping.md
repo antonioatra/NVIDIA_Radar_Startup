@@ -5,7 +5,7 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
 
 ## Tasks
 - [ ] **F1.1** Busca: integração **Tavily** (free tier) → URLs candidatas a partir de termos.
-- [ ] **F1.2** Adapter **Firecrawl**: extração limpa de páginas p/ RAG.
+- [x] **F1.2** Adapter **Firecrawl**: extração limpa de páginas p/ RAG.
 - [ ] **F1.3** Adapter **Playwright**: sites dinâmicos dependentes de JS.
 - [ ] **F1.4** Adapter **trafilatura**: texto principal de blogs/notícias (§9.2).
 - [ ] **F1.5** Adapter **BeautifulSoup**: parsing de páginas HTML simples.
