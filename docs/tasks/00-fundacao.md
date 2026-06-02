@@ -6,7 +6,7 @@
 ## Tasks
 - [ ] **F0.1** `git init` + `.gitignore` + README + estrutura `apps/packages/data/docs`.
 - [ ] **F0.2** `docker-compose.yml`: postgres, qdrant, redis, langfuse, api, worker, frontend, nim(GPU).
-- [ ] **F0.3** `.env.example` + carregamento de config (pydantic-settings).
+- [x] **F0.3** `.env.example` + carregamento de config (pydantic-settings) em `packages/config`.
 - [ ] **F0.4** NVIDIA Container Toolkit validado (GPU visível no container — `nvidia-smi`).
 - [x] **F0.5** Schemas Pydantic v2 em `packages/schemas`: `StartupProfile`, `Evidence`,
       `AIMIScore`, `Recommendation`, `Briefing`, `GraphState`.
