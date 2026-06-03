@@ -10,11 +10,14 @@ Renderização de página dinâmica (F1.3): `from packages.scraping import rende
 Texto principal de blog/notícia (F1.4): `extract_article`, `fetch_article`, `Article`.
 Parsing estruturado de HTML simples (F1.5): `parse_html`, `fetch_html`, `extract_links`,
 `select_text`, `ParsedPage`, `Link`.
+Varredura em escala dos diretórios §9 (F1.6): `crawl`, `collectable_seeds`,
+`CrawledPage`, `CrawlPlan`.
 """
 
 from .article import Article
 from .article import extract as extract_article
 from .article import fetch as fetch_article
+from .crawler import CrawledPage, CrawlPlan, collectable_seeds, crawl
 from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
 from .search import SearchResult, search
@@ -44,4 +47,8 @@ __all__ = [
     "fetch_html",
     "extract_links",
     "select_text",
+    "crawl",
+    "collectable_seeds",
+    "CrawledPage",
+    "CrawlPlan",
 ]
