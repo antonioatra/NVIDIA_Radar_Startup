@@ -35,6 +35,13 @@
       **incluindo NeMo Evaluator/avaliação** (o §5.5 cita "avaliação com NeMo" como recomendação de
       governança — precisa ser recuperável, não só o Guardrails). Teste de recuperação por tech.
 - [ ] **F3.9** **Avaliação RAGAS** (faithfulness, context precision/recall, answer relevancy).
+- [ ] **F3.10** *(stretch)* **Cohort-RAG (recuperação sobre a coorte de startups):** índice de
+      busca sobre a **tabela `company` acumulada** (F1.14) + perfis/evidências — **distinto** da KB
+      NVIDIA (F3.1), mas **reusa** o mesmo embedder `nv-embedqa` (F3.3), o Qdrant (F3.4, coleção
+      separada), a busca híbrida (F3.5) e o reranker (F3.6). Um nó **Nemotron** extrai filtros
+      estruturados da pergunta (setor, faixa de AIMI, sub-scores, tech) **+** faz busca semântica →
+      empresas com **citação à evidência**. Serve o chat de descoberta da UI (F5.12); Guardrails
+      garante que nenhuma empresa é retornada sem fonte (princípio nº1).
 
 > Cohere Rerank: **não** aqui. Entra na F7 como comparativo. Ver `docs/COBERTURA-TECNOLOGIAS.md`.
 
@@ -44,3 +51,5 @@ NeMo Retriever (embed + rerank NIM) · Qdrant · BM25 · RAGAS · PostgreSQL · 
 ## DoD
 - [ ] Pergunta sobre tech NVIDIA retorna resposta correta com ≥2 citações.
 - [ ] RAGAS roda e gera baseline de qualidade versionado.
+- [ ] *(stretch)* Cohort-RAG (F3.10) responde consultas sobre a coorte com empresas citadas,
+      reusando embedder/Qdrant/reranker da KB.
