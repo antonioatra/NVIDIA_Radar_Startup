@@ -6,8 +6,10 @@ Respeita robots.txt + rate limiting. Registra url/fetched_at/hash em evidence.
 Seeds de fontes do §9 (F0.9): `from packages.scraping import load_sources, allowlist`.
 Busca de URLs candidatas (F1.1): `from packages.scraping import search, SearchResult`.
 Extração limpa de página (F1.2): `from packages.scraping import scrape, ExtractedPage`.
+Renderização de página dinâmica (F1.3): `from packages.scraping import render, RenderedPage`.
 """
 
+from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
 from .search import SearchResult, search
 from .seeds import Source, allowlist, by_type, denylist, load_sources
@@ -22,4 +24,6 @@ __all__ = [
     "SearchResult",
     "scrape",
     "ExtractedPage",
+    "render",
+    "RenderedPage",
 ]
