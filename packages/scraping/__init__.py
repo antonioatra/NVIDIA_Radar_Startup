@@ -8,6 +8,8 @@ Busca de URLs candidatas (F1.1): `from packages.scraping import search, SearchRe
 Extração limpa de página (F1.2): `from packages.scraping import scrape, ExtractedPage`.
 Renderização de página dinâmica (F1.3): `from packages.scraping import render, RenderedPage`.
 Texto principal de blog/notícia (F1.4): `extract_article`, `fetch_article`, `Article`.
+Parsing estruturado de HTML simples (F1.5): `parse_html`, `fetch_html`, `extract_links`,
+`select_text`, `ParsedPage`, `Link`.
 """
 
 from .article import Article
@@ -17,6 +19,9 @@ from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
 from .search import SearchResult, search
 from .seeds import Source, allowlist, by_type, denylist, load_sources
+from .soup import Link, ParsedPage, extract_links, select_text
+from .soup import extract as parse_html
+from .soup import fetch as fetch_html
 
 __all__ = [
     "Source",
@@ -33,4 +38,10 @@ __all__ = [
     "Article",
     "extract_article",
     "fetch_article",
+    "ParsedPage",
+    "Link",
+    "parse_html",
+    "fetch_html",
+    "extract_links",
+    "select_text",
 ]
