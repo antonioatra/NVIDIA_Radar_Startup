@@ -12,6 +12,7 @@ Parsing estruturado de HTML simples (F1.5): `parse_html`, `fetch_html`, `extract
 `select_text`, `ParsedPage`, `Link`.
 Varredura em escala dos diretórios §9 (F1.6): `crawl`, `collectable_seeds`,
 `CrawledPage`, `CrawlPlan`.
+Roteador de fetch estático vs dinâmico (F1.7): `route`, `FetchResult`, `ContentKind`.
 """
 
 from .article import Article
@@ -20,6 +21,8 @@ from .article import fetch as fetch_article
 from .crawler import CrawledPage, CrawlPlan, collectable_seeds, crawl
 from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
+from .router import ContentKind, FetchResult, extract_rendered, is_insufficient
+from .router import fetch as route
 from .search import SearchResult, search
 from .seeds import Source, allowlist, by_type, denylist, load_sources
 from .soup import Link, ParsedPage, extract_links, select_text
@@ -51,4 +54,9 @@ __all__ = [
     "collectable_seeds",
     "CrawledPage",
     "CrawlPlan",
+    "route",
+    "FetchResult",
+    "ContentKind",
+    "extract_rendered",
+    "is_insufficient",
 ]
