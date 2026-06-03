@@ -7,7 +7,7 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
 - [x] **F1.1** Busca: integração **Tavily** (free tier) → URLs candidatas a partir de termos.
 - [x] **F1.2** Adapter **Firecrawl**: extração limpa de páginas p/ RAG.
 - [x] **F1.3** Adapter **Playwright**: sites dinâmicos dependentes de JS.
-- [ ] **F1.4** Adapter **trafilatura**: texto principal de blogs/notícias (§9.2).
+- [x] **F1.4** Adapter **trafilatura**: texto principal de blogs/notícias (§9.2).
 - [ ] **F1.5** Adapter **BeautifulSoup**: parsing de páginas HTML simples.
 - [ ] **F1.6** Crawler **Scrapy**: varredura dos diretórios do §9.1 em escala.
 - [ ] **F1.7** Roteador de fetch (estático vs dinâmico) escolhe o adapter certo.
