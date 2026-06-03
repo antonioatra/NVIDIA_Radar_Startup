@@ -13,11 +13,23 @@ Parsing estruturado de HTML simples (F1.5): `parse_html`, `fetch_html`, `extract
 Varredura em escala dos diretórios §9 (F1.6): `crawl`, `collectable_seeds`,
 `CrawledPage`, `CrawlPlan`.
 Roteador de fetch estático vs dinâmico (F1.7): `route`, `FetchResult`, `ContentKind`.
+Compliance robots/rate limit/UA + guarda de quota de free tier (F1.8): `ComplianceGate`,
+`RobotsCache`, `RateLimiter`, `QuotaGuard`, `USER_AGENT`, `QuotaExceeded`, `RobotsDisallowed`.
 """
 
 from .article import Article
 from .article import extract as extract_article
 from .article import fetch as fetch_article
+from .compliance import (
+    USER_AGENT,
+    ComplianceError,
+    ComplianceGate,
+    QuotaExceeded,
+    QuotaGuard,
+    RateLimiter,
+    RobotsCache,
+    RobotsDisallowed,
+)
 from .crawler import CrawledPage, CrawlPlan, collectable_seeds, crawl
 from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
@@ -59,4 +71,12 @@ __all__ = [
     "ContentKind",
     "extract_rendered",
     "is_insufficient",
+    "ComplianceGate",
+    "ComplianceError",
+    "RobotsCache",
+    "RobotsDisallowed",
+    "RateLimiter",
+    "QuotaGuard",
+    "QuotaExceeded",
+    "USER_AGENT",
 ]

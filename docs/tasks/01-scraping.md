@@ -11,7 +11,7 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
 - [x] **F1.5** Adapter **BeautifulSoup**: parsing de páginas HTML simples.
 - [x] **F1.6** Crawler **Scrapy**: varredura dos diretórios do §9.1 em escala.
 - [x] **F1.7** Roteador de fetch (estático vs dinâmico) escolhe o adapter certo.
-- [ ] **F1.8** `robots.txt` + rate limiting + user-agent identificável (compliance) +
+- [x] **F1.8** `robots.txt` + rate limiting + user-agent identificável (compliance) +
       **guarda de quota de free tier** (Tavily/Firecrawl): contador/limite por run p/ não estourar
       silenciosamente (espelha a guarda de orçamento de LLM em F2.11).
 - [ ] **F1.9** Proveniência: salvar `url`, `fetched_at`, hash do conteúdo, snippet → tabela `evidence`.

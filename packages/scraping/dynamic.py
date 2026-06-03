@@ -27,11 +27,8 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from typing import Any, Literal
 
-# User-agent identificável (compliance F1.8): diz quem somos e como contatar.
-DEFAULT_USER_AGENT = (
-    "TAPI-bot/0.1 (+https://github.com/antonioatra/case_NVIDIA; "
-    "NVIDIA Startup AI Radar; coleta de dados públicos)"
-)
+# User-agent identificável centralizado na compliance (F1.8) — fonte única do UA.
+from .compliance import USER_AGENT as DEFAULT_USER_AGENT
 
 # Quando o Playwright considera a navegação "pronta". `networkidle` espera a rede
 # acalmar (bom p/ SPA que busca dados); `load`/`domcontentloaded` são mais rápidos.

@@ -30,12 +30,8 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-# User-agent identificável (compliance F1.8): diz quem somos e como contatar.
-# Espelha o dos adapters Playwright (F1.3) e trafilatura (F1.4); a F1.8 centraliza.
-DEFAULT_USER_AGENT = (
-    "TAPI-bot/0.1 (+https://github.com/antonioatra/case_NVIDIA; "
-    "NVIDIA Startup AI Radar; coleta de dados públicos)"
-)
+# User-agent identificável centralizado na compliance (F1.8) — fonte única do UA.
+from .compliance import USER_AGENT as DEFAULT_USER_AGENT
 
 # Backend de parsing: o `html.parser` da stdlib evita depender de lxml — o bs4 já
 # normaliza HTML mal-formado por cima dele, que é o ganho deste adapter vs F1.3.

@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
+from .compliance import USER_AGENT as DEFAULT_USER_AGENT
 from .soup import Link
 from .soup import extract as parse_html
 
@@ -43,14 +44,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from .seeds import Source
-
-# User-agent identificável (compliance F1.8): diz quem somos e como contatar.
-# Espelha o dos adapters Playwright (F1.3), trafilatura (F1.4) e bs4 (F1.5).
-DEFAULT_USER_AGENT = (
-    "TAPI-bot/0.1 (+https://github.com/antonioatra/case_NVIDIA; "
-    "NVIDIA Startup AI Radar; coleta de dados públicos)"
-)
-
 
 @dataclass(frozen=True)
 class CrawledPage:

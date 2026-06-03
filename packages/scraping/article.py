@@ -27,12 +27,8 @@ from typing import Any
 from trafilatura import bare_extraction, fetch_url
 from trafilatura.settings import use_config
 
-# User-agent identificável (compliance F1.8): diz quem somos e como contatar.
-# Espelha o do adapter Playwright (F1.3); a F1.8 centraliza ambos num só lugar.
-DEFAULT_USER_AGENT = (
-    "TAPI-bot/0.1 (+https://github.com/antonioatra/case_NVIDIA; "
-    "NVIDIA Startup AI Radar; coleta de dados públicos)"
-)
+# User-agent identificável centralizado na compliance (F1.8) — fonte única do UA.
+from .compliance import USER_AGENT as DEFAULT_USER_AGENT
 
 # Campos do retorno do trafilatura que NÃO viram metadata: ou já são campo de
 # primeira classe do `Article`, ou são objetos lxml/duplicatas não serializáveis
