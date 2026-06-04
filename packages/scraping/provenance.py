@@ -148,6 +148,17 @@ def record_evidence(
         fetched_at=fetched_at,
         snippet_chars=snippet_chars,
     )
+    return persist_evidence(session, evidence, dedup=dedup)
+
+
+def persist_evidence(session: Session, evidence: Evidence, *, dedup: bool = True) -> Evidence:
+    """Persiste uma linha `evidence` já montada na sessão (dedup-or-add); devolve a linha.
+
+    Metade de baixo nível de `record_evidence`, reusada pela persistência de perfil (F1.10):
+    com `dedup=True`, uma linha já existente com a mesma (url, content_hash) para o mesmo
+    alvo (`entity_type`/`entity_id`/`field`) é **reutilizada** em vez de duplicada. Faz
+    `flush` (não `commit`): a transação fica a cargo do caller.
+    """
     if dedup:
         from sqlmodel import select
 
@@ -155,9 +166,9 @@ def record_evidence(
             select(Evidence).where(
                 Evidence.url == evidence.url,
                 Evidence.content_hash == evidence.content_hash,
-                Evidence.entity_type == entity_type,
-                Evidence.entity_id == entity_id,
-                Evidence.field == field,
+                Evidence.entity_type == evidence.entity_type,
+                Evidence.entity_id == evidence.entity_id,
+                Evidence.field == evidence.field,
             )
         ).first()
         if existing is not None:
@@ -174,4 +185,5 @@ __all__ = [
     "make_snippet",
     "to_evidence",
     "record_evidence",
+    "persist_evidence",
 ]

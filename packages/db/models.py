@@ -69,7 +69,7 @@ class Run(SQLModel, table=True):
 
 
 class Company(SQLModel, table=True):
-    """Startup coletada (§2). Upsert por (nome, pais)."""
+    """Startup coletada (§2). Upsert/dedup por CNPJ > domínio > (nome, país) (F1.10)."""
 
     __tablename__ = "company"
     __table_args__ = (UniqueConstraint("nome", "pais", name="uq_company_nome_pais"),)
@@ -77,6 +77,20 @@ class Company(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nome: str = Field(index=True)
     website: str | None = None
+    # Chaves de dedup do cohort builder (F1.10/F1.14). Únicas **quando presentes** (NULLs
+    # distintos em SQLite e Postgres → várias empresas sem chave não colidem).
+    domain: str | None = Field(
+        default=None,
+        index=True,
+        unique=True,
+        description="Host normalizado do website (sem www) — chave de dedup forte (F1.10).",
+    )
+    cnpj: str | None = Field(
+        default=None,
+        index=True,
+        unique=True,
+        description="CNPJ só-dígitos (14, válido) — dedup forte + sinal de operação BR (F1.10).",
+    )
     pais: str = Field(default="BR", index=True)
     descricao: str | None = Field(default=None, sa_column=Column(Text))
     setor: str | None = Field(default=None, index=True)

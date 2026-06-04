@@ -16,7 +16,10 @@ Roteador de fetch estático vs dinâmico (F1.7): `route`, `FetchResult`, `Conten
 Compliance robots/rate limit/UA + guarda de quota de free tier (F1.8): `ComplianceGate`,
 `RobotsCache`, `RateLimiter`, `QuotaGuard`, `USER_AGENT`, `QuotaExceeded`, `RobotsDisallowed`.
 Proveniência (url/fetched_at/hash/snippet → tabela `evidence`, F1.9): `record_evidence`,
-`to_evidence`, `content_hash`, `make_snippet`.
+`persist_evidence`, `to_evidence`, `content_hash`, `make_snippet`.
+Persistência do perfil (upsert company/founder + dedup + escopo BR, F1.10):
+`persist_profile`, `upsert_company`, `upsert_founder`, `br_scope`, `ScopeVerdict`,
+`normalize_domain`, `normalize_cnpj`.
 """
 
 from .article import Article
@@ -35,7 +38,22 @@ from .compliance import (
 from .crawler import CrawledPage, CrawlPlan, collectable_seeds, crawl
 from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
-from .provenance import content_hash, make_snippet, record_evidence, to_evidence
+from .persistence import (
+    ScopeVerdict,
+    br_scope,
+    normalize_cnpj,
+    normalize_domain,
+    persist_profile,
+    upsert_company,
+    upsert_founder,
+)
+from .provenance import (
+    content_hash,
+    make_snippet,
+    persist_evidence,
+    record_evidence,
+    to_evidence,
+)
 from .router import ContentKind, FetchResult, extract_rendered, is_insufficient
 from .router import fetch as route
 from .search import SearchResult, search
@@ -83,7 +101,15 @@ __all__ = [
     "QuotaExceeded",
     "USER_AGENT",
     "record_evidence",
+    "persist_evidence",
     "to_evidence",
     "content_hash",
     "make_snippet",
+    "persist_profile",
+    "upsert_company",
+    "upsert_founder",
+    "br_scope",
+    "ScopeVerdict",
+    "normalize_domain",
+    "normalize_cnpj",
 ]

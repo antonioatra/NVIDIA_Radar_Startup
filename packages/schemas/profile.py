@@ -84,6 +84,9 @@ class StartupProfile(BaseModel):
     nome: str = Field(description="Nome da empresa.")
     website: HttpUrl | None = None
     pais: str = Field(default="BR", description="País-sede (escopo v1 = BR, F1.10).")
+    cnpj: Claim[str] | None = Field(
+        default=None, description="CNPJ (registro BR) — chave de dedup e sinal de escopo (F1.10)."
+    )
 
     # Dimensões do §2 (com proveniência)
     descricao: Claim[str] | None = Field(default=None, description="O que a empresa faz.")
@@ -106,7 +109,7 @@ class StartupProfile(BaseModel):
     def all_evidence(self) -> list[Evidence]:
         """Achata toda a evidência do perfil (auditoria/persistência)."""
         ev: list[Evidence] = []
-        for claim in (self.descricao, self.setor, self.ano_fundacao):
+        for claim in (self.cnpj, self.descricao, self.setor, self.ano_fundacao):
             if claim is not None:
                 ev.extend(claim.evidence)
         for coll in (self.produtos, self.clientes, self.founders, self.tecnologias):
