@@ -1,0 +1,98 @@
+"""Nós do grafo multi-agente (F2) — esqueleto.
+
+Cada função é um **nó** do grafo LangGraph (ARQUITETURA §3): recebe o `GraphState`
+e devolve um *update parcial* (dict só com os campos que muda). A montagem e as
+arestas ficam em `graph.py` (F2.1).
+
+Na F2.1 os corpos são **placeholders deterministas** (sem rede/LLM): provam que o
+grafo roda ponta a ponta e produz um briefing rascunho (M2 / DoD "grafo end-to-end
+sem RAG ainda"). Cada nó é preenchido pela sua task, anotada no docstring:
+
+- search_planner    → F2.3 (Nemotron-Nano: query → termos + fontes priorizadas)
+- scraper           → F2.4 (map paralelo sobre fontes; usa F1)
+- extractor         → F2.5 (Nemotron-Super: docs → StartupProfile + persist)
+- classifier        → F2.6 (classe §5.1 + AIMI v0)
+- evidence_validator → F2.7 (regra de N fontes; aresta condicional de retry)
+- nvidia_rag        → F3   (RAG híbrido Qdrant + NeMo rerank → citações)
+- recommender       → F4   (gaps do AIMI × tech NVIDIA)
+- gpu_benchmark     → F6   (ROI real na GPU; condicional ★)
+- briefing          → F4.4 (briefing executivo; Guardrails F4.5)
+
+Os updates parciais usam a semântica default do LangGraph (sobrescrita por canal).
+Reducers de acumulação (ex.: `raw_docs` no map do scraper) entram com o nó dono.
+"""
+
+from __future__ import annotations
+
+from packages.schemas import GraphState, RunStatus
+
+
+def search_planner(state: GraphState) -> dict:
+    """F2.3 — Nemotron-Nano planeja termos/fontes a partir da query.
+
+    Placeholder F2.1: marca o run como RUNNING e garante ao menos um termo de
+    busca (a própria query) p/ o backbone ter o que carregar.
+    """
+    update: dict = {"status": RunStatus.RUNNING}
+    if not state.search_terms:
+        update["search_terms"] = [state.query]
+    return update
+
+
+def scraper(state: GraphState) -> dict:
+    """F2.4 — map paralelo sobre as fontes priorizadas (usa adapters F1)."""
+    return {}
+
+
+def extractor(state: GraphState) -> dict:
+    """F2.5 — Nemotron-Super estrutura os docs num StartupProfile (+ persist Postgres)."""
+    return {}
+
+
+def classifier(state: GraphState) -> dict:
+    """F2.6 — classe (AI-native|AI-enabled|non-AI) + AIMI v0 (RUBRICA/F0.11)."""
+    return {}
+
+
+def evidence_validator(state: GraphState) -> dict:
+    """F2.7 — regra de N fontes; a aresta condicional de retry → scraper entra na F2.7."""
+    return {}
+
+
+def nvidia_rag(state: GraphState) -> dict:
+    """F3 — RAG híbrido (dense + BM25 Qdrant) → NeMo rerank → citações da KB."""
+    return {}
+
+
+def recommender(state: GraphState) -> dict:
+    """F4 — cruza gaps do AIMI com tech NVIDIA; recomendações com evidência dos 2 lados."""
+    return {}
+
+
+def gpu_benchmark(state: GraphState) -> dict:
+    """F6 — GPU Graduation Engine: ROI real (NIM local / matriz). Condicional ★."""
+    return {}
+
+
+def briefing(state: GraphState) -> dict:
+    """F4.4 — briefing executivo (Guardrails F4.5).
+
+    Placeholder F2.1: fecha o run com status COMPLETED — o backbone produz um
+    rascunho terminal (M2). Os caminhos terminais alternativos (dados insuficientes
+    F2.12, fora de escopo F2.13) entram com suas tasks.
+    """
+    return {"status": RunStatus.COMPLETED}
+
+
+# Registro nome → função, consumido pela montagem do grafo (graph.py).
+NODES = {
+    "search_planner": search_planner,
+    "scraper": scraper,
+    "extractor": extractor,
+    "classifier": classifier,
+    "evidence_validator": evidence_validator,
+    "nvidia_rag": nvidia_rag,
+    "recommender": recommender,
+    "gpu_benchmark": gpu_benchmark,
+    "briefing": briefing,
+}

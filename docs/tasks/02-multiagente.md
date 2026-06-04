@@ -4,7 +4,16 @@
 **Dependências:** F0, F1. **Marco:** M2.
 
 ## Tasks
-- [ ] **F2.1** `GraphState` (Pydantic) + montagem do grafo em `packages/agents`.
+- [x] **F2.1** `GraphState` (Pydantic) + montagem do grafo em `packages/agents`.
+      → `GraphState` já vinha de F0.5 (`schemas/state.py`); aqui entra a **montagem**:
+      `packages/agents/graph.py` (`build_graph` monta o `StateGraph(GraphState)` com o
+      backbone linear da ARQUITETURA §3 — search_planner→…→briefing; `compile_graph(checkpointer=)`
+      deixa o hook da F2.2; `run_pipeline` roda ponta a ponta e devolve o `GraphState` final)
+      + `packages/agents/nodes.py` (os 9 nós como **placeholders deterministas**, cada um
+      anotado com a task que o preenche: F2.3–F2.7 · F3 · F4 · F6 · F4.4). As arestas
+      condicionais (retry F2.7, terminais F2.12/F2.13, HITL F2.8) e o tracing (F2.9) têm
+      hook documentado e **não** reordenam a espinha. Teste `tests/test_graph.py`: nós exatos,
+      linearidade do backbone, e run end-to-end → rascunho `COMPLETED` sem alucinar campos.
 - [ ] **F2.2** Checkpointer Postgres (`langgraph-checkpoint-postgres`) p/ resume/retry.
 - [ ] **F2.3** Nó **search_planner** (Nemotron-Nano): consulta → termos + fontes priorizadas.
       **Contrato de input (esclarecimento):** dois modos — (a) *single-company lookup* (nome/domínio
