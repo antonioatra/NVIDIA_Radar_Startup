@@ -98,13 +98,16 @@ def to_evidence(
     around: str | None = None,
     fetched_at: datetime | None = None,
     snippet_chars: int = DEFAULT_SNIPPET_CHARS,
+    source_policy: str | None = None,
 ) -> Evidence:
     """Converte um `FetchResult` (F1.7) numa linha `evidence` (sem persistir).
 
     `entity_type`/`entity_id`/`field` ligam a evidência ao alvo (company/founder/score/
     recommendation + campo/pilar/lado). `around` opcionalmente centra o snippet na
     afirmação. `fetched_at` deve ser o instante real do fetch (default = agora, UTC).
-    Levanta `ValueError` se o resultado veio vazio — sem texto não há o que citar.
+    `source_policy` (F1.15) anota sob qual decisão de ToS a fonte foi coletada — o caller
+    passa a anotação do gate de fonte (`source_policy.annotate(url)`). Levanta `ValueError`
+    se o resultado veio vazio — sem texto não há o que citar.
     """
     if result.is_empty:
         raise ValueError("FetchResult sem texto não vira evidência (nada a citar)")
@@ -117,6 +120,7 @@ def to_evidence(
         entity_type=entity_type,
         entity_id=entity_id,
         field=field,
+        source_policy=source_policy,
     )
 
 
@@ -130,14 +134,16 @@ def record_evidence(
     around: str | None = None,
     fetched_at: datetime | None = None,
     snippet_chars: int = DEFAULT_SNIPPET_CHARS,
+    source_policy: str | None = None,
     dedup: bool = True,
 ) -> Evidence:
     """Monta a evidência (F1.9) e a persiste na sessão (`flush`); devolve a linha.
 
     Com `dedup=True` (default), uma evidência já existente com a mesma (url, content_hash)
     para o mesmo alvo (`entity_type`/`entity_id`/`field`) é **reutilizada** em vez de
-    duplicada — idempotente entre runs sobre a mesma fonte/conteúdo. Faz `flush` (não
-    `commit`): a transação fica a cargo do caller (nó do grafo / cohort builder F1.14).
+    duplicada — idempotente entre runs sobre a mesma fonte/conteúdo. `source_policy` (F1.15)
+    anota a decisão de ToS da fonte. Faz `flush` (não `commit`): a transação fica a cargo do
+    caller (nó do grafo / cohort builder F1.14).
     """
     evidence = to_evidence(
         result,
@@ -147,6 +153,7 @@ def record_evidence(
         around=around,
         fetched_at=fetched_at,
         snippet_chars=snippet_chars,
+        source_policy=source_policy,
     )
     return persist_evidence(session, evidence, dedup=dedup)
 

@@ -249,6 +249,20 @@ def test_persist_redacts_founder_background(session: Session) -> None:
     assert "Líder de operações" in founder.background
 
 
+def test_persist_evidence_annotates_source_policy(session: Session) -> None:
+    # F1.15: toda evidência carrega a decisão de ToS da fonte (site oficial → unlisted:allow).
+    profile = StartupProfile(
+        nome="Acme AI",
+        website="https://acme.com.br",
+        descricao=Claim(value="copiloto", evidence=[_ev("desc")]),
+        founders=[FounderSchema(nome="Jane Doe", cargo="CEO", evidence=[_ev("é CEO")])],
+    )
+    persist_profile(session, profile)
+    session.commit()
+    rows = session.exec(select(Evidence)).all()
+    assert rows and all(e.source_policy == "unlisted:allow" for e in rows)
+
+
 def test_persist_profile_filters_out_of_scope(session: Session) -> None:
     foreign = StartupProfile(nome="Acme Inc", pais="US", website="https://acme.com")
     result = persist_profile(session, foreign)

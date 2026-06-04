@@ -24,6 +24,8 @@ Taxonomia de sinais AI-native (enviesa a busca + pré-filtra candidatas, F1.11):
 `scan`, `prefilter`, `bias_query`, `Signal`, `SignalScan`, `TAXONOMY`, `BIAS_TERMS`.
 Guarda LGPD de founder (minimização de dado + base legal, F1.13): `sanitize_founder`,
 `scan_sensitive`, `redact`, `FounderResult`, `SensitiveHit`, `FOUNDER_LEGAL_BASIS`.
+Política de ToS por fonte (allowlist/denylist, F1.15): `SourcePolicyGate`, `SourceVerdict`,
+`ToSProhibited`, `source_allowed`, `source_guard`, `source_verdict`.
 """
 
 from .article import Article
@@ -82,6 +84,10 @@ from .signals import (
 from .soup import Link, ParsedPage, extract_links, select_text
 from .soup import extract as parse_html
 from .soup import fetch as fetch_html
+from .source_policy import SourcePolicyGate, SourceVerdict, ToSProhibited
+from .source_policy import allowed as source_allowed
+from .source_policy import guard as source_guard
+from .source_policy import verdict as source_verdict
 
 __all__ = [
     "Source",
@@ -146,4 +152,10 @@ __all__ = [
     "FounderResult",
     "SensitiveHit",
     "FOUNDER_LEGAL_BASIS",
+    "SourcePolicyGate",
+    "SourceVerdict",
+    "ToSProhibited",
+    "source_allowed",
+    "source_guard",
+    "source_verdict",
 ]

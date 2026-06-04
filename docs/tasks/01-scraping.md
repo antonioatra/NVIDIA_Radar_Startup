@@ -55,13 +55,19 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
       **Política de HITL em lote:** runs batch rodam com `hitl=auto` — o interrupt humano (F2.8)
       **não** bloqueia a fila; empresas de baixa confiança caem no estado terminal (F2.12) e são
       marcadas para revisão posterior. HITL síncrono fica só no *single-company lookup*.
-- [ ] **F1.15** **Política de ToS por fonte (robots ≠ ToS):** o DoD promete "nenhuma fonte
+- [x] **F1.15** **Política de ToS por fonte (robots ≠ ToS):** o DoD promete "nenhuma fonte
       fechada/violação de ToS", mas o §9.1 lista plataformas de dados (Distrito, Cubo, StartSe,
       100 Open Startups) cujos **Termos de Uso** podem proibir scraping mesmo quando o `robots.txt`
       permite. Decisão travada: **priorizar sites/blogs/carreiras oficiais das startups + notícias
       (§9.2)**; usar os diretórios §9.1 **só** onde houver API pública/permissão. Manter uma
       allowlist/denylist de fontes em `data/seeds/` com a base (robots + ToS + base legal) anotada
       por fonte na tabela `evidence` (estende F1.8/F1.13). Fonte sem permissão clara → não coletada.
+      → allowlist/denylist já nas seeds (`data/seeds/`, policy/robots/tos_scraping/legal_basis por
+      fonte). `packages/scraping/source_policy.py`: gate de ToS por URL (`SourcePolicyGate`,
+      `guard`/`verdict`) p/ o caminho do roteador (F1.7) — bloqueia §9.1 `api_only`/`deny`, libera
+      `allow` + site oficial não-listado; espelha o `collectable_seeds` do crawler (F1.6). Coluna
+      `evidence.source_policy` (migração `d4b3a2c1e0f5`): a persistência carimba `<fonte>:<policy>`
+      por evidência (ex.: `unlisted:allow`, `brazil-journal:allow`). Robots/rate-limit segue F1.8.
 
 > **Fora de escopo (v1):** re-crawl periódico / detecção de mudança / frescor das empresas e
 > entity resolution avançada ficam para depois — a v1 coleta **sob demanda**. Ver nota em `PLANO.md`.
@@ -71,8 +77,8 @@ Tavily · Firecrawl · Playwright · trafilatura · BeautifulSoup · Scrapy · P
 
 ## DoD
 - [ ] Dada uma consulta, coleta e persiste ≥1 startup com ≥3 evidências rastreáveis.
-- [ ] Respeita `robots.txt`; nenhuma fonte fechada/violação de ToS.
+- [x] Respeita `robots.txt` (F1.8); nenhuma fonte fechada/violação de ToS (F1.15).
 - [x] `data/eval/` tem o conjunto rotulado inicial (≥20 startups) versionado.
 - [x] Coleta de founder limitada a dado profissional público, com base LGPD registrada.
 - [ ] Cohort builder roda o crawl §9 em lote e popula a tabela `company` p/ alimentar a coorte.
-- [ ] Cada fonte tem decisão de ToS registrada (allowlist/denylist); nenhuma fonte sem permissão é coletada (F1.15).
+- [x] Cada fonte tem decisão de ToS registrada (allowlist/denylist); nenhuma fonte sem permissão é coletada (F1.15).

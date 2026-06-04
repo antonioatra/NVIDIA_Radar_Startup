@@ -36,6 +36,7 @@ from packages.db.models import Company, Evidence, Founder
 
 from .lgpd import FOUNDER_LEGAL_BASIS, sanitize_founder
 from .provenance import persist_evidence
+from .source_policy import annotate as source_policy_for
 
 if TYPE_CHECKING:
     from sqlmodel import Session
@@ -332,6 +333,8 @@ def _evidence_row(
         entity_id=entity_id,
         field=field,
         legal_basis=legal_basis or (ev.legal_basis.value if ev.legal_basis else None),
+        # F1.15: carimba sob qual decisão de ToS a fonte foi coletada (auditável por linha).
+        source_policy=ev.source_policy or source_policy_for(str(ev.url)),
     )
 
 

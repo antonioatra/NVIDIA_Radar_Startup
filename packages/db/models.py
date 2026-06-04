@@ -148,6 +148,10 @@ class Evidence(SQLModel, table=True):
         default=None,
         description="Base legal LGPD da coleta (F1.13, `LegalBasis`); preenchida p/ founder.",
     )
+    source_policy: str | None = Field(
+        default=None,
+        description="Política de ToS da fonte (F1.15): '<fonte>:<policy>' (allowlist/denylist).",
+    )
     created_at: datetime = Field(default_factory=_now)
 
 

@@ -42,6 +42,10 @@ class Evidence(BaseModel):
         default=None,
         description="Base legal LGPD da coleta (F1.13); preenchida p/ dado de founder.",
     )
+    source_policy: str | None = Field(
+        default=None,
+        description="Política de ToS da fonte sob a qual foi coletada (F1.15): '<fonte>:<policy>'.",
+    )
 
 
 class Claim(BaseModel, Generic[T]):
