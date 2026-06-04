@@ -193,6 +193,62 @@ def test_persist_profile_persists_company_founders_and_evidence(session: Session
     assert len(founder_ev) == 1
 
 
+def test_persist_founder_stamps_legal_basis(session: Session) -> None:
+    # F1.13: toda evidência de founder carrega a base legal LGPD.
+    profile = StartupProfile(
+        nome="Acme AI",
+        website="https://acme.com.br",
+        founders=[FounderSchema(nome="Jane Doe", cargo="CEO", evidence=[_ev("é CEO")])],
+    )
+    company = persist_profile(session, profile)
+    session.commit()
+    founder_ev = session.exec(select(Evidence).where(Evidence.entity_type == "founder")).all()
+    assert founder_ev and all(e.legal_basis == "legitimo_interesse" for e in founder_ev)
+    # Evidência de company não recebe base legal (não é dado pessoal).
+    company_ev = session.exec(
+        select(Evidence).where(Evidence.entity_type == "company", Evidence.entity_id == company.id)
+    ).all()
+    assert all(e.legal_basis is None for e in company_ev)
+
+
+def test_persist_drops_founder_with_sensitive_core(session: Session) -> None:
+    # F1.13: founder com dado sensível no núcleo (cargo) não é coletado.
+    profile = StartupProfile(
+        nome="Acme AI",
+        website="https://acme.com.br",
+        founders=[
+            FounderSchema(nome="Jane Doe", cargo="CEO", evidence=[_ev("é CEO")]),
+            FounderSchema(nome="John Roe", cargo="CTO (evangélico)", evidence=[_ev("perfil")]),
+        ],
+    )
+    company = persist_profile(session, profile)
+    session.commit()
+    founders = session.exec(select(Founder).where(Founder.company_id == company.id)).all()
+    assert [f.nome for f in founders] == ["Jane Doe"]  # John Roe descartado
+    # Sem founder persistido, não há evidência dele.
+    assert len(session.exec(select(Evidence).where(Evidence.entity_type == "founder")).all()) == 1
+
+
+def test_persist_redacts_founder_background(session: Session) -> None:
+    profile = StartupProfile(
+        nome="Acme AI",
+        website="https://acme.com.br",
+        founders=[
+            FounderSchema(
+                nome="Ana Lima",
+                cargo="COO",
+                background="Casada, 40 anos de idade. Líder de operações há 12 anos.",
+                evidence=[_ev("bio")],
+            )
+        ],
+    )
+    company = persist_profile(session, profile)
+    session.commit()
+    founder = session.exec(select(Founder).where(Founder.company_id == company.id)).one()
+    assert "[removido: LGPD]" in founder.background
+    assert "Líder de operações" in founder.background
+
+
 def test_persist_profile_filters_out_of_scope(session: Session) -> None:
     foreign = StartupProfile(nome="Acme Inc", pais="US", website="https://acme.com")
     result = persist_profile(session, foreign)

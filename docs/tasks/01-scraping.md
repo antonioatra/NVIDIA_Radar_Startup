@@ -38,10 +38,16 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
       `packages/eval/dataset.py` (`load_eval_set`, valida coerência direcional) + enum `PlaneRegion`.
       Inclui `expected_nvidia_techs` (contrato do eval de recomendação, F7.2b). Entradas reais
       (`synthetic: false`) exigem `evidence_urls` e entram via revisão humana (F1.14 + F7.1).
-- [ ] **F1.13** **LGPD / dado de founder:** restringir coleta de `founders` a **informação
+- [x] **F1.13** **LGPD / dado de founder:** restringir coleta de `founders` a **informação
       profissional pública** (nome, cargo, empresa, perfil público). Registrar base legal
       (interesse legítimo, dado público) na tabela `evidence`; não coletar dado sensível.
       Honra robots.txt/ToS das fontes (§9.1, perfis públicos de founders).
+      → `packages/scraping/lgpd.py`: `sanitize_founder` descarta founder com dado sensível
+      (Art. 5, II) no núcleo (nome/cargo) e **redige** o `background` (CPF/contato/idade/
+      estado civil/religião/etc.); `upsert_founder` aplica o guard (devolve `None` = não
+      coleta). Enum `LegalBasis` + coluna `evidence.legal_basis` (migração `c3a2f1b4d5e6`):
+      evidência de founder carimba `legitimo_interesse` (Art. 7 IX/§4). Compliance de fetch
+      (robots/ToS) segue em F1.8/F1.15; aqui é a camada de **minimização de dado**.
 - [ ] **F1.14** **Cohort builder (batch sourcing):** transforma o crawl dos diretórios §9 (F1.6)
       numa **fila de empresas candidatas** e roda o grafo em lote, acumulando na tabela `company`.
       É essa tabela acumulada que alimenta o clustering de coorte (F6.5–F6.7) e o eval set (F1.12)
@@ -67,6 +73,6 @@ Tavily · Firecrawl · Playwright · trafilatura · BeautifulSoup · Scrapy · P
 - [ ] Dada uma consulta, coleta e persiste ≥1 startup com ≥3 evidências rastreáveis.
 - [ ] Respeita `robots.txt`; nenhuma fonte fechada/violação de ToS.
 - [x] `data/eval/` tem o conjunto rotulado inicial (≥20 startups) versionado.
-- [ ] Coleta de founder limitada a dado profissional público, com base LGPD registrada.
+- [x] Coleta de founder limitada a dado profissional público, com base LGPD registrada.
 - [ ] Cohort builder roda o crawl §9 em lote e popula a tabela `company` p/ alimentar a coorte.
 - [ ] Cada fonte tem decisão de ToS registrada (allowlist/denylist); nenhuma fonte sem permissão é coletada (F1.15).

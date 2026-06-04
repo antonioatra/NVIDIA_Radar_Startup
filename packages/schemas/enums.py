@@ -48,6 +48,16 @@ class PlaneRegion(str, Enum):
     MADURO = "maduro"  # AI-native + alto em todos — já defensável (foco P4)
 
 
+class LegalBasis(str, Enum):
+    """Base legal LGPD registrada na evidência (F1.13). Coleta de dado de founder se
+    apoia em **legítimo interesse** (Art. 7, IX) sobre **dado profissional manifestamente
+    público** (Art. 7, §4). Dado sensível (Art. 5, II) nunca é coletado."""
+
+    LEGITIMO_INTERESSE = "legitimo_interesse"  # Art. 7, IX — dado profissional público
+    DADO_PUBLICO = "dado_publico"  # Art. 7, §4 — manifestamente tornado público pelo titular
+    CONSENTIMENTO = "consentimento"  # Art. 7, I — não usado no sourcing público (reservado)
+
+
 class Priority(str, Enum):
     """Prioridade de uma recomendação (§5.5)."""
 

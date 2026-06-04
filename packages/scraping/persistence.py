@@ -34,6 +34,7 @@ from sqlmodel import select
 
 from packages.db.models import Company, Evidence, Founder
 
+from .lgpd import FOUNDER_LEGAL_BASIS, sanitize_founder
 from .provenance import persist_evidence
 
 if TYPE_CHECKING:
@@ -179,20 +180,28 @@ def upsert_company(
     return company
 
 
-def upsert_founder(session: Session, company_id: int, founder: FounderSchema) -> Founder:
+def upsert_founder(session: Session, company_id: int, founder: FounderSchema) -> Founder | None:
     """Upsert de um `founder` — só info profissional pública (§2 / LGPD / F1.13).
 
-    Dedup dentro da empresa por `linkedin_url` (quando houver), senão por nome normalizado
-    (case-insensitive). Em hit preenche campos vazios; em miss insere. `flush` p/ o `id`.
+    Passa pela **guarda LGPD** (`sanitize_founder`) antes de gravar: founder com dado
+    sensível no núcleo (nome/cargo) é **descartado** (devolve `None`, não coletado); o
+    `background` livre é **redigido** (spans sensíveis/pessoais removidos). Dedup dentro da
+    empresa por `linkedin_url` (quando houver), senão por nome normalizado (case-insensitive).
+    Em hit preenche campos vazios; em miss insere. `flush` p/ o `id`.
     """
-    linkedin = str(founder.linkedin_url) if founder.linkedin_url else None
-    row = _find_founder(session, company_id=company_id, linkedin=linkedin, nome=founder.nome)
+    clean = sanitize_founder(founder)
+    if not clean.kept:
+        return None  # dado sensível no núcleo → não coleta (LGPD F1.13)
+    safe = clean.founder
+
+    linkedin = str(safe.linkedin_url) if safe.linkedin_url else None
+    row = _find_founder(session, company_id=company_id, linkedin=linkedin, nome=safe.nome)
     if row is None:
-        row = Founder(company_id=company_id, nome=founder.nome)
+        row = Founder(company_id=company_id, nome=safe.nome)
         session.add(row)
-    row.cargo = row.cargo or founder.cargo
+    row.cargo = row.cargo or safe.cargo
     row.linkedin_url = row.linkedin_url or linkedin
-    row.background = row.background or founder.background
+    row.background = row.background or safe.background
     session.flush()
     return row
 
@@ -222,6 +231,8 @@ def persist_profile(
 
     for founder in profile.founders:
         row = upsert_founder(session, company.id, founder)
+        if row is None:
+            continue  # descartado pela guarda LGPD (F1.13)
         _record_founder_evidence(session, row, founder)
 
     return company
@@ -280,17 +291,37 @@ def _record_company_evidence(session: Session, company: Company, profile: Startu
 
 
 def _record_founder_evidence(session: Session, row: Founder, founder: FounderSchema) -> None:
-    """Registra a evidência de um founder na tabela `evidence`."""
+    """Registra a evidência de um founder na tabela `evidence`, com base legal LGPD (F1.13).
+
+    Toda evidência de founder carrega `legal_basis` = legítimo interesse sobre dado
+    profissional público (Art. 7 IX/§4) — o registro auditável que a F1.13 exige.
+    """
     for ev in founder.evidence:
         persist_evidence(
-            session, _evidence_row(ev, entity_type="founder", entity_id=row.id, field=None)
+            session,
+            _evidence_row(
+                ev,
+                entity_type="founder",
+                entity_id=row.id,
+                field=None,
+                legal_basis=FOUNDER_LEGAL_BASIS.value,
+            ),
         )
 
 
 def _evidence_row(
-    ev: EvidenceSchema, *, entity_type: str, entity_id: int, field: str | None
+    ev: EvidenceSchema,
+    *,
+    entity_type: str,
+    entity_id: int,
+    field: str | None,
+    legal_basis: str | None = None,
 ) -> Evidence:
-    """Converte a `Evidence` do schema (proveniência do perfil) numa linha da tabela."""
+    """Converte a `Evidence` do schema (proveniência do perfil) numa linha da tabela.
+
+    `legal_basis` (F1.13) é carimbado pela política de coleta (founder = legítimo interesse);
+    para os demais alvos preserva o que a própria evidência já trouxe (ou None).
+    """
     return Evidence(
         url=str(ev.url),
         snippet=ev.snippet,
@@ -300,6 +331,7 @@ def _evidence_row(
         entity_type=entity_type,
         entity_id=entity_id,
         field=field,
+        legal_basis=legal_basis or (ev.legal_basis.value if ev.legal_basis else None),
     )
 
 

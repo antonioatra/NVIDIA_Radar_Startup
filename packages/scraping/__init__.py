@@ -22,6 +22,8 @@ Persistência do perfil (upsert company/founder + dedup + escopo BR, F1.10):
 `normalize_domain`, `normalize_cnpj`.
 Taxonomia de sinais AI-native (enviesa a busca + pré-filtra candidatas, F1.11):
 `scan`, `prefilter`, `bias_query`, `Signal`, `SignalScan`, `TAXONOMY`, `BIAS_TERMS`.
+Guarda LGPD de founder (minimização de dado + base legal, F1.13): `sanitize_founder`,
+`scan_sensitive`, `redact`, `FounderResult`, `SensitiveHit`, `FOUNDER_LEGAL_BASIS`.
 """
 
 from .article import Article
@@ -40,6 +42,14 @@ from .compliance import (
 from .crawler import CrawledPage, CrawlPlan, collectable_seeds, crawl
 from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
+from .lgpd import (
+    FOUNDER_LEGAL_BASIS,
+    FounderResult,
+    SensitiveHit,
+    redact,
+    sanitize_founder,
+    scan_sensitive,
+)
 from .persistence import (
     ScopeVerdict,
     br_scope,
@@ -130,4 +140,10 @@ __all__ = [
     "SignalScan",
     "TAXONOMY",
     "BIAS_TERMS",
+    "sanitize_founder",
+    "scan_sensitive",
+    "redact",
+    "FounderResult",
+    "SensitiveHit",
+    "FOUNDER_LEGAL_BASIS",
 ]

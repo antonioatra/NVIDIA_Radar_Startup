@@ -144,6 +144,10 @@ class Evidence(SQLModel, table=True):
     field: str | None = Field(
         default=None, description="Campo/pilar/lado que a evidência sustenta."
     )
+    legal_basis: str | None = Field(
+        default=None,
+        description="Base legal LGPD da coleta (F1.13, `LegalBasis`); preenchida p/ founder.",
+    )
     created_at: datetime = Field(default_factory=_now)
 
 

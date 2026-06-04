@@ -14,6 +14,8 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
+from .enums import LegalBasis
+
 T = TypeVar("T")
 
 
@@ -35,6 +37,10 @@ class Evidence(BaseModel):
     )
     source_title: str | None = Field(
         default=None, description="Título/identificação humana da fonte."
+    )
+    legal_basis: LegalBasis | None = Field(
+        default=None,
+        description="Base legal LGPD da coleta (F1.13); preenchida p/ dado de founder.",
     )
 
 
