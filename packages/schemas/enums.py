@@ -36,6 +36,18 @@ class AIMIBand(str, Enum):
     FORTE = "forte"  # 19–25
 
 
+class PlaneRegion(str, Enum):
+    """Regiões do plano `classe × AIMI` — o "Mapa de decisão" canônico (RUBRICA §6 /
+    `ALINHAMENTO-CRITERIOS-E-DECISAO.md`). Rótulo de anotação do eval set (F1.12) e
+    leitura de prioridade para o Inception. **Wrapper não é classe, é região.**"""
+
+    FORA_ESCOPO = "fora_escopo"  # non-AI — não é alvo (briefing fora_de_escopo, F2.13)
+    PERIFERICO = "periferico"  # AI-enabled — IA não é o núcleo, baixa prioridade
+    WRAPPER = "wrapper"  # AI-native + AIMI baixo em ~todos — frágil/substituível
+    ALVO_GRADUACAO = "alvo_graduacao"  # ★ AI-native + P1/P2 alto · P3 baixo = maior upside (F6.13)
+    MADURO = "maduro"  # AI-native + alto em todos — já defensável (foco P4)
+
+
 class Priority(str, Enum):
     """Prioridade de uma recomendação (§5.5)."""
 

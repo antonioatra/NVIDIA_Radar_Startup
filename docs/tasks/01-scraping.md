@@ -26,13 +26,18 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
       → `packages/scraping/signals.py`: léxico em 4 categorias (`model_ai`/`ml_hiring`/`research`/
       `public_stack`) com peso e dica de pilar AIMI; `bias_query` (enviesa a busca) + `prefilter`
       (descarta non-AI óbvias antes do F2.6, poupa quota F2.11). Prompt `search_planner` reforça o viés.
-- [ ] **F1.12** **Eval set rotulado inicial (~20–30 startups)** em `data/eval/` — cada entrada com
+- [x] **F1.12** **Eval set rotulado inicial (~20–30 startups)** em `data/eval/` — cada entrada com
       classificação esperada (AI-native | AI-enabled | non-AI) + AIMI esperado (4 pilares).
       Criado **aqui, cedo**, porque **F6.4** (correlação do índice) e **F7.1/F7.2** (métricas)
       o consomem; F7 apenas **consolida/expande**, não cria do zero. Rótulos por revisão humana
       sobre evidências coletadas (rastreável). **Usa a definição de pilares/escala de
       `docs/RUBRICA-AIMI.md` (F0.11)** como referência de rotulagem — assim o ground-truth não
       depende da heurística de pontuação (v0 F2.6 / v1 F6.1), que pode mudar sem invalidar os rótulos.
+      → `data/eval/labeled_startups.yaml` (24 fixtures-semente `synthetic: true`, cobrindo as 5
+      regiões do plano `classe × AIMI`; AIMI total 14–79; classes 15/5/4) + loader Pydantic em
+      `packages/eval/dataset.py` (`load_eval_set`, valida coerência direcional) + enum `PlaneRegion`.
+      Inclui `expected_nvidia_techs` (contrato do eval de recomendação, F7.2b). Entradas reais
+      (`synthetic: false`) exigem `evidence_urls` e entram via revisão humana (F1.14 + F7.1).
 - [ ] **F1.13** **LGPD / dado de founder:** restringir coleta de `founders` a **informação
       profissional pública** (nome, cargo, empresa, perfil público). Registrar base legal
       (interesse legítimo, dado público) na tabela `evidence`; não coletar dado sensível.
@@ -61,7 +66,7 @@ Tavily · Firecrawl · Playwright · trafilatura · BeautifulSoup · Scrapy · P
 ## DoD
 - [ ] Dada uma consulta, coleta e persiste ≥1 startup com ≥3 evidências rastreáveis.
 - [ ] Respeita `robots.txt`; nenhuma fonte fechada/violação de ToS.
-- [ ] `data/eval/` tem o conjunto rotulado inicial (≥20 startups) versionado.
+- [x] `data/eval/` tem o conjunto rotulado inicial (≥20 startups) versionado.
 - [ ] Coleta de founder limitada a dado profissional público, com base LGPD registrada.
 - [ ] Cohort builder roda o crawl §9 em lote e popula a tabela `company` p/ alimentar a coorte.
 - [ ] Cada fonte tem decisão de ToS registrada (allowlist/denylist); nenhuma fonte sem permissão é coletada (F1.15).
