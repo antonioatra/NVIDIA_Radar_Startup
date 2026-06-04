@@ -14,7 +14,7 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
 - [x] **F1.8** `robots.txt` + rate limiting + user-agent identificável (compliance) +
       **guarda de quota de free tier** (Tavily/Firecrawl): contador/limite por run p/ não estourar
       silenciosamente (espelha a guarda de orçamento de LLM em F2.11).
-- [ ] **F1.9** Proveniência: salvar `url`, `fetched_at`, hash do conteúdo, snippet → tabela `evidence`.
+- [x] **F1.9** Proveniência: salvar `url`, `fetched_at`, hash do conteúdo, snippet → tabela `evidence`.
 - [ ] **F1.10** Persistência: upsert de `company`/`founder` (dedup por domínio/CNPJ quando houver).
       **Escopo geográfico = Brasil:** o sourcing já é BR por construção (seeds §9 são diretórios
       brasileiros), mas registrar `country=BR` explícito no perfil e **filtrar** candidatas

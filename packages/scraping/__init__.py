@@ -15,6 +15,8 @@ Varredura em escala dos diretórios §9 (F1.6): `crawl`, `collectable_seeds`,
 Roteador de fetch estático vs dinâmico (F1.7): `route`, `FetchResult`, `ContentKind`.
 Compliance robots/rate limit/UA + guarda de quota de free tier (F1.8): `ComplianceGate`,
 `RobotsCache`, `RateLimiter`, `QuotaGuard`, `USER_AGENT`, `QuotaExceeded`, `RobotsDisallowed`.
+Proveniência (url/fetched_at/hash/snippet → tabela `evidence`, F1.9): `record_evidence`,
+`to_evidence`, `content_hash`, `make_snippet`.
 """
 
 from .article import Article
@@ -33,6 +35,7 @@ from .compliance import (
 from .crawler import CrawledPage, CrawlPlan, collectable_seeds, crawl
 from .dynamic import RenderedPage, render
 from .firecrawl import ExtractedPage, scrape
+from .provenance import content_hash, make_snippet, record_evidence, to_evidence
 from .router import ContentKind, FetchResult, extract_rendered, is_insufficient
 from .router import fetch as route
 from .search import SearchResult, search
@@ -79,4 +82,8 @@ __all__ = [
     "QuotaGuard",
     "QuotaExceeded",
     "USER_AGENT",
+    "record_evidence",
+    "to_evidence",
+    "content_hash",
+    "make_snippet",
 ]
