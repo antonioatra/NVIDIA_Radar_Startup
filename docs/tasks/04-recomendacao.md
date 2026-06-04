@@ -3,6 +3,25 @@
 **Objetivo:** cruzar o perfil/gaps da startup com as tecnologias NVIDIA e gerar a recomendação
 estruturada + briefing executivo. **Dependências:** F2, F3. **Marco:** M4.
 
+## Enquadramento — a camada de apoio à decisão (DSS)
+
+Este entregável é o **núcleo do apoio à decisão** do TAPI: converte o diagnóstico (perfil + AIMI,
+F2/F6.1) em **ação para o gerente de Startups & VCs / Inception**. Opera no **nível 1** de um
+sistema de apoio à decisão de três níveis (visão completa em
+[`../ALINHAMENTO-CRITERIOS-E-DECISAO.md`](../ALINHAMENTO-CRITERIOS-E-DECISAO.md)):
+
+| Nível | Pergunta de decisão | Método | Onde |
+|---|---|---|---|
+| **1. Por empresa** | *O que ofereço a esta startup?* | gap (AIMI) × tech NVIDIA (RAG) → `Recommendation` + ROI | **F4 (aqui)** + F6.11 |
+| 2. Priorização | *Quem abordo primeiro?* | Inception Priority 0–100 | F6.13 |
+| 3. Portfólio | *Onde está o ecossistema?* | clustering de coorte → radar | F6.5–F6.7 |
+
+O método do nível 1 é o loop **diagnosticar → prescrever → quantificar**: o pilar fraco do AIMI
+(sobretudo **P3 Technical Optimization**) **dispara** a recomendação (F6.3); o RAG traz a evidência
+NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilidade da decisão vem de
+**evidência dos dois lados** (invariante de schema + Guardrails F4.5): nenhuma recomendação sem
+`evidencia_gap` **E** `evidencia_nvidia`.
+
 ## Tasks
 - [ ] **F4.1** Mapa de regras gap → tech NVIDIA (base nos exemplos do §5.5).
 - [ ] **F4.2** Nó **recommender** (Nemotron-Super, reasoning ON): consome AIMI + RAG → recomendações.

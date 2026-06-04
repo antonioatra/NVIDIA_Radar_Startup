@@ -3,6 +3,11 @@
 Plano de tasks dividido por fase/entregável. Cada fase tem um documento próprio em `docs/tasks/`.
 IDs de task são estáveis (ex.: `F2.3`) e referenciados em commits.
 
+> **Referência narrativa (caracterização & decisão):** a visão consolidada de **como o TAPI
+> caracteriza uma startup** (plano `classe × AIMI`) e dos **métodos/sistemas de apoio à decisão**
+> (DSS de 3 níveis) vive em [`ALINHAMENTO-CRITERIOS-E-DECISAO.md`](ALINHAMENTO-CRITERIOS-E-DECISAO.md)
+> — fonte de verdade para apresentação e para amarrar brief ↔ artefatos ↔ tasks.
+
 ## Fases e dependências
 
 ```

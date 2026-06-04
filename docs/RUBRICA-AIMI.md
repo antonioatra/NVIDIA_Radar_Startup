@@ -125,8 +125,37 @@ go-to-market → **NVIDIA Inception**.
 
 ## 6. Da rubrica ao produto
 
-- **Classificação (§5.1):** a classe `AI-native | AI-enabled | non-AI` é coerente com o AIMI
-  total — faixas de corte ajustadas no eval (F6.4), não fixadas arbitrariamente aqui.
+A caracterização final cruza **dois eixos** — e **não** os confunde (visão completa em
+[`ALINHAMENTO-CRITERIOS-E-DECISAO.md`](ALINHAMENTO-CRITERIOS-E-DECISAO.md)):
+
+- **Eixo qualitativo — classe (§5.1): o *papel* da IA no produto.** `AI-native` (IA é o núcleo do
+  resultado) · `AI-enabled` (IA periférica sobre produto não-IA) · `non-AI` (sem IA material).
+  Decidido sobretudo pela **descrição do produto** e por **Workflow Depth** (a IA *entrega* o
+  resultado ou só assiste?), **não** pelo total do AIMI.
+- **Eixo quantitativo — AIMI (0–100): a *maturidade/defensabilidade* dessa AI-nativeness.**
+
+**Por que separar os eixos (coração do case).** Um *wrapper* se **posiciona** como AI-native (a IA é
+o núcleo), mas tem **AIMI baixo** — sobretudo **P1** (sem dado proprietário) e **P3** (100% API
+externa). Logo, *wrapper não é uma classe*: é uma **região** do plano `classe × AIMI` (`AI-native` +
+AIMI baixo). É exatamente o público do §1 do brief — empresas ameaçadas pelos labs, que a NVIDIA
+quer **identificar** e **ajudar a graduar** a stack.
+
+**Mapa de decisão (plano `classe × AIMI`):**
+
+| Região | classe | AIMI | Leitura para o Inception |
+|---|---|---|---|
+| Fora de escopo | `non-AI` | — | não é alvo (briefing `fora_de_escopo`, F2.13) |
+| Periférico | `AI-enabled` | qualquer | baixa prioridade (IA não é o núcleo) |
+| **Wrapper frágil** | `AI-native` | baixo em ~todos os pilares | risco de substituição; potencial não comprovado |
+| **Alvo de graduação ★** | `AI-native` | **P1/P2 alto · P3 baixo** | **maior upside NVIDIA** → topo da fila (F6.13) |
+| Maduro / defensável | `AI-native` | alto em todos | já forte; foco em comunidade/enterprise (P4) |
+
+- **Cortes classe ↔ AIMI:** os limiares numéricos são **calibrados no eval (F6.4)**, não fixados
+  arbitrariamente. Guia **provisória/ilustrativa** (a ser substituída pelo eval): `non-AI` sem sinal
+  de IA no produto; `AI-enabled` quando há IA mas **Workflow Depth ≲ 8** sobre produto não-IA;
+  `AI-native` quando a IA é o núcleo da descrição **e** há sinal em Workflow Depth — **independente
+  do total** (um `AI-native` pode ter AIMI baixo: é o wrapper). A coerência exigida é **direcional**
+  (um `non-AI` não pode ter Workflow Depth alto *por IA*), não um corte rígido no total.
 - **Inception Priority (F6.13):** derivado do AIMI = **potencial AI-native × upside NVIDIA**
   (alto P1/P2 com **P3 baixo** = maior prioridade de outreach). Usa esta definição; não a redefine.
 - **Explicabilidade:** cada sub-score sai com as evidências que o sustentam ("score de crédito de
@@ -136,5 +165,10 @@ go-to-market → **NVIDIA Inception**.
 
 ## 7. Changelog de definição
 - **v1 (F0.11, kickoff 2026-06-01):** definição inicial dos 4 pilares e escala 0–25.
+- **Alinhamento classe × AIMI (2026-06-03):** §6 reescrita para separar explicitamente o eixo
+  qualitativo (classe = papel da IA) do quantitativo (AIMI = maturidade), introduzindo o **plano
+  `classe × AIMI`**, a **região wrapper** e a **guia provisória de cortes** (calibração final no
+  eval F6.4). **Não** altera a escala 0–25 nem a semântica dos pilares (§§2–5) — só explicita como a
+  rubrica vira classe/produto. Origem: [`ALINHAMENTO-CRITERIOS-E-DECISAO.md`](ALINHAMENTO-CRITERIOS-E-DECISAO.md).
 - **Reconciliação §10.1 (F3.1d):** _pendente_ — registrar aqui qualquer ajuste de redação após
   ingerir Sequoia/Emergence/5-layer cake, confirmando que a escala 0–25 permaneceu intacta.
