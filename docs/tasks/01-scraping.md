@@ -20,9 +20,12 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
       brasileiros), mas registrar `country=BR` explícito no perfil e **filtrar** candidatas
       claramente estrangeiras (ex.: sem CNPJ/operação no BR e sem sinal de mercado brasileiro),
       para o discovery por setor/região (F2.3) não vazar empresas fora de escopo.
-- [ ] **F1.11** Taxonomia de **sinais AI-native** no sourcing (§2 "sinais de uso intensivo de IA"):
+- [x] **F1.11** Taxonomia de **sinais AI-native** no sourcing (§2 "sinais de uso intensivo de IA"):
       keywords (LLM/agents/embeddings/RAG/fine-tuning), vagas de ML/AI eng, papers, stack pública.
       Enviesa termos do `search_planner` e pré-filtra candidatas antes da classificação pós-hoc.
+      → `packages/scraping/signals.py`: léxico em 4 categorias (`model_ai`/`ml_hiring`/`research`/
+      `public_stack`) com peso e dica de pilar AIMI; `bias_query` (enviesa a busca) + `prefilter`
+      (descarta non-AI óbvias antes do F2.6, poupa quota F2.11). Prompt `search_planner` reforça o viés.
 - [ ] **F1.12** **Eval set rotulado inicial (~20–30 startups)** em `data/eval/` — cada entrada com
       classificação esperada (AI-native | AI-enabled | non-AI) + AIMI esperado (4 pilares).
       Criado **aqui, cedo**, porque **F6.4** (correlação do índice) e **F7.1/F7.2** (métricas)

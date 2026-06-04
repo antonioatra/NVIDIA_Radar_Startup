@@ -6,10 +6,11 @@ extração (Firecrawl/Playwright/trafilatura/BeautifulSoup, F1.2–F1.5) process
 Não coleta o conteúdo das páginas nem registra evidência — isso é F1.9; aqui é só
 **descoberta**.
 
-Usa o free tier do Tavily (`TAVILY_API_KEY`, F0.3). A guarda de quota por run
-(F1.8) e o enviesamento por sinais AI-native (F1.11) entram depois; este módulo é
-o adapter de busca puro. O client é importado de forma preguiçosa para que o
-parsing (`_parse`) seja testável sem `tavily-python` instalado nem rede.
+Usa o free tier do Tavily (`TAVILY_API_KEY`, F0.3). Este módulo é o adapter de busca
+puro: o enviesamento da query e o pré-filtro por sinais AI-native ficam em `signals`
+(F1.11, `bias_query`/`prefilter` sobre estes `SearchResult`); a guarda de quota por run
+é F1.8. O client é importado de forma preguiçosa para que o parsing (`_parse`) seja
+testável sem `tavily-python` instalado nem rede.
 """
 
 from __future__ import annotations

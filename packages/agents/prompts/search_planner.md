@@ -14,7 +14,8 @@ Dada a consulta do usuário (nome de empresa, setor ou tese), produza um plano d
 Regras:
 - Foco geográfico **Brasil** (`country=BR`); descarte homônimas estrangeiras.
 - Combine termos em PT e EN (o site/produto pode estar em inglês).
-- Priorize fontes confiáveis: site oficial, LinkedIn, Crunchbase/Tracxn, releases, e os diretórios de fomento do §9 (Distrito, ABStartups, aceleradoras, editais).
+- **Enviese para sinais AI-native** (F1.11): em consultas por setor/tese, inclua termos que façam aflorar empresas de uso intensivo de IA — inteligência artificial / IA generativa, LLM, RAG, agentes, machine learning, vagas de ML/AI eng, papers (arXiv), stack pública (PyTorch/Hugging Face/LangChain). Não force em busca por nome próprio de empresa.
+- Priorize fontes confiáveis: site oficial, LinkedIn, Crunchbase/Tracxn, releases, e os diretórios de fomento do §9 (Distrito, ABStartups, aceleradoras, editais). Páginas de **carreiras** (vagas de ML) e **engenharia/blog técnico** são alvo de alto sinal.
 - Não invente domínios; se não houver certeza do site oficial, sinalize para descoberta via busca.
 
 Responda **somente** com JSON válido:

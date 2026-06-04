@@ -20,6 +20,8 @@ Proveniência (url/fetched_at/hash/snippet → tabela `evidence`, F1.9): `record
 Persistência do perfil (upsert company/founder + dedup + escopo BR, F1.10):
 `persist_profile`, `upsert_company`, `upsert_founder`, `br_scope`, `ScopeVerdict`,
 `normalize_domain`, `normalize_cnpj`.
+Taxonomia de sinais AI-native (enviesa a busca + pré-filtra candidatas, F1.11):
+`scan`, `prefilter`, `bias_query`, `Signal`, `SignalScan`, `TAXONOMY`, `BIAS_TERMS`.
 """
 
 from .article import Article
@@ -58,6 +60,15 @@ from .router import ContentKind, FetchResult, extract_rendered, is_insufficient
 from .router import fetch as route
 from .search import SearchResult, search
 from .seeds import Source, allowlist, by_type, denylist, load_sources
+from .signals import (
+    BIAS_TERMS,
+    TAXONOMY,
+    Signal,
+    SignalScan,
+    bias_query,
+    prefilter,
+    scan,
+)
 from .soup import Link, ParsedPage, extract_links, select_text
 from .soup import extract as parse_html
 from .soup import fetch as fetch_html
@@ -112,4 +123,11 @@ __all__ = [
     "ScopeVerdict",
     "normalize_domain",
     "normalize_cnpj",
+    "scan",
+    "prefilter",
+    "bias_query",
+    "Signal",
+    "SignalScan",
+    "TAXONOMY",
+    "BIAS_TERMS",
 ]
