@@ -8,6 +8,7 @@ Cliente Nemotron (F0.7), prompts versionados (F0.12) e a montagem do grafo (F2.1
 expostos aqui: `from packages.agents import get_chat, get_prompt, run_pipeline`.
 """
 
+from .checkpoint import postgres_checkpointer, run_pipeline_persisted, state_serde
 from .graph import PIPELINE, build_graph, compile_graph, run_pipeline
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
@@ -29,4 +30,8 @@ __all__ = [
     "run_pipeline",
     "PIPELINE",
     "NODES",
+    # checkpointer Postgres (F2.2)
+    "postgres_checkpointer",
+    "run_pipeline_persisted",
+    "state_serde",
 ]

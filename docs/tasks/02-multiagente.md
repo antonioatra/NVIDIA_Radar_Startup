@@ -14,7 +14,19 @@
       condicionais (retry F2.7, terminais F2.12/F2.13, HITL F2.8) e o tracing (F2.9) têm
       hook documentado e **não** reordenam a espinha. Teste `tests/test_graph.py`: nós exatos,
       linearidade do backbone, e run end-to-end → rascunho `COMPLETED` sem alucinar campos.
-- [ ] **F2.2** Checkpointer Postgres (`langgraph-checkpoint-postgres`) p/ resume/retry.
+- [x] **F2.2** Checkpointer Postgres (`langgraph-checkpoint-postgres`) p/ resume/retry.
+      → `packages/agents/checkpoint.py`: `postgres_checkpointer()` (context manager sobre
+      `PostgresSaver.from_conn_string` + `setup()`) persiste o estado por *thread* = `run_id`;
+      `checkpointer_conn_string` normaliza a URL p/ o esquema psycopg (tira o `+psycopg` da
+      forma SQLAlchemy F0.6). `run_pipeline(checkpointer=)` (F2.1) passa o `thread_id=run_id`;
+      `run_pipeline_persisted` é o caminho de produção (worker F2.10). `state_serde()` fixa
+      `allowed_msgpack_modules=True` (allow-all) — o checkpoint é dado nosso e confiável, e
+      isso evita que um futuro default *strict* do LangGraph bloqueie os submodelos do estado
+      (`StartupProfile`/`AIMIScore`/`Briefing`). **As tabelas de checkpoint são geridas pelo
+      `setup()` do LangGraph, fora do `SQLModel.metadata`/Alembic (F0.6)** — dois esquemas de
+      migração no mesmo banco. Teste `tests/test_checkpoint.py`: round-trip do serde,
+      `thread_id=run_id`, e **interrupt→resume** via checkpoint (DoD F2); o caminho Postgres
+      real é teste de integração que pula sem banco no ar (`connect_timeout` curto).
 - [ ] **F2.3** Nó **search_planner** (Nemotron-Nano): consulta → termos + fontes priorizadas.
       **Contrato de input (esclarecimento):** dois modos — (a) *single-company lookup* (nome/domínio
       de uma empresa) e (b) *discovery por setor/região* (ex.: "fintechs AI em SP"). O planner

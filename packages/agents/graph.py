@@ -73,17 +73,19 @@ def run_pipeline(
     run_id: str | None = None,
     mode: ExecutionMode = ExecutionMode.SINGLE_COMPANY,
     hitl: HITLMode = HITLMode.SYNC,
+    checkpointer: BaseCheckpointSaver | None = None,
 ) -> GraphState:
     """Roda o grafo ponta a ponta e devolve o `GraphState` final (rascunho — M2).
 
-    Helper síncrono, sem checkpointer (a orquestração assíncrona worker/SSE é F2.10).
-    Na F2.1 os nós são placeholders deterministas, então não há rede nem LLM.
+    Helper síncrono (a orquestração assíncrona worker/SSE é F2.10). Na F2.1 os nós são
+    placeholders deterministas, então não há rede nem LLM.
+
+    Com `checkpointer` (F2.2), o estado é persistido por *thread* (`thread_id=run_id`),
+    habilitando resume/retry — use `run_pipeline_persisted` p/ abrir o saver Postgres.
     """
-    init = GraphState(
-        run_id=run_id or uuid.uuid4().hex,
-        query=query,
-        mode=mode,
-        hitl=hitl,
-    )
-    result = compile_graph().invoke(init)
+    run_id = run_id or uuid.uuid4().hex
+    init = GraphState(run_id=run_id, query=query, mode=mode, hitl=hitl)
+
+    config = {"configurable": {"thread_id": run_id}} if checkpointer is not None else None
+    result = compile_graph(checkpointer=checkpointer).invoke(init, config)
     return result if isinstance(result, GraphState) else GraphState.model_validate(result)
