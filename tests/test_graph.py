@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from langgraph.graph import END, START
 
-from packages.agents import PIPELINE, build_graph, compile_graph, run_pipeline
+from packages.agents import CONDITIONAL_OUT, PIPELINE, build_graph, compile_graph, run_pipeline
 from packages.schemas import ExecutionMode, GraphState, HITLMode, RunStatus
 
 
@@ -26,9 +26,22 @@ def test_graph_has_exactly_the_pipeline_nodes() -> None:
 
 
 def test_backbone_is_linear() -> None:
+    # A espinha segue linear, exceto a saída do evidence_validator, que roteia por Command
+    # (F2.7): retry→scraper ou segue→nvidia_rag — logo sem aresta estática de saída.
     expected = {(START, PIPELINE[0]), (PIPELINE[-1], END)}
-    expected |= set(zip(PIPELINE, PIPELINE[1:], strict=False))
+    expected |= {
+        (src, dst)
+        for src, dst in zip(PIPELINE, PIPELINE[1:], strict=False)
+        if src not in CONDITIONAL_OUT
+    }
     assert build_graph().edges == expected
+
+
+def test_evidence_validator_has_no_static_out_edge() -> None:
+    # F2.7: a saída do evidence_validator é condicional (Command goto), não estática.
+    edges = build_graph().edges
+    assert "evidence_validator" in CONDITIONAL_OUT
+    assert not any(src == "evidence_validator" for src, _ in edges)
 
 
 def test_compile_without_checkpointer() -> None:

@@ -6,7 +6,7 @@ linear do §6 do brief vira grafo — o paralelismo, o retry condicional e o HIT
 nas tasks seguintes, com hooks já documentados aqui:
 
 - checkpointer Postgres (resume/retry)        → F2.2 (param `checkpointer` de `compile_graph`)
-- aresta condicional de retry evidence→scraper → F2.7
+- retry condicional evidence→scraper           → F2.7 (via `Command` do nó; ver `CONDITIONAL_OUT`)
 - estado terminal de baixa confiança           → F2.12
 - saída non-AI fora de escopo                   → F2.13
 - HITL interrupt antes do briefing              → F2.8
@@ -44,6 +44,11 @@ PIPELINE: tuple[str, ...] = (
     "briefing",
 )
 
+# Nós que roteiam a própria saída por `Command` (F2.7): o evidence_validator decide entre
+# voltar ao scraper (retry de evidência) e seguir ao nvidia_rag, então NÃO recebe aresta
+# estática de saída — as duas pontas são alcançadas pelo `goto` do nó (ver evidence_validator.py).
+CONDITIONAL_OUT: frozenset[str] = frozenset({"evidence_validator"})
+
 
 def build_graph() -> StateGraph:
     """Monta (sem compilar) o `StateGraph` sobre `GraphState` com o backbone linear.
@@ -57,6 +62,8 @@ def build_graph() -> StateGraph:
 
     g.add_edge(START, PIPELINE[0])
     for src, dst in zip(PIPELINE, PIPELINE[1:], strict=False):
+        if src in CONDITIONAL_OUT:
+            continue  # saída condicional via Command (F2.7) — sem aresta estática
         g.add_edge(src, dst)
     g.add_edge(PIPELINE[-1], END)
     return g

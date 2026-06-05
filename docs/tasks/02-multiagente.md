@@ -131,7 +131,33 @@
       `classify_with_llm` (degradação None em JSON ruim/adapter que levanta); `make_aimi` (heurística
       default, LLM injetado, fallback, flag ligada); e o nó (no-op sem perfil, `aimi` com perfil,
       `classify=` injetado). Caminho LLM real é opt-in (sem teste de rede, padrão da fase).
-- [ ] **F2.7** Nó **evidence_validator**: regra de N fontes; aresta condicional de retry → scraper.
+- [x] **F2.7** Nó **evidence_validator**: regra de N fontes; aresta condicional de retry → scraper.
+      → `packages/agents/evidence_validator.py`: quinto nó (entre classifier/F2.6 e nvidia_rag/F3).
+      A **regra de N fontes** é um gate de **largura** — `is_sufficient` exige ≥ `MIN_SOURCES`
+      (=2) **hosts independentes** sustentando o diagnóstico (`evidence_sources` une
+      `profile.all_evidence` + `source_urls`, normaliza host por `www.`/minúsculo: `site.com` e
+      `www.site.com` contam como **uma** fonte; auto-relato não corrobora). Complementa, sem
+      sobrepor, a trava de **profundidade** do classifier (`PillarScore` >6 exige evidência) —
+      juntas realizam o princípio nº1 §8. **Decisão de design (b/d):** o nó roteia por
+      `langgraph.types.Command` (atualiza estado **e** decide a rota atomicamente), não por
+      `add_conditional_edges`: assim `retry_count` fica **limpo** (incrementa só na re-coleta,
+      limitado por `can_retry` ⇒ nunca passa de `max_retries`) e some a ambiguidade de fronteira
+      (uma aresta releria `can_retry` já pós-incremento, confundindo a última tentativa com o
+      esgotamento). Por isso o `evidence_validator` **não** recebe aresta estática de saída na
+      montagem (`graph.CONDITIONAL_OUT`): as duas pontas — retry→`scraper` (re-amplia a coleta,
+      F2.4 substitui `raw_docs`) e segue→`nvidia_rag` — vêm do `goto` do nó. **Offline é o
+      default** (igual F2.3–F2.6): sem `profile` (espinha sem extração) **segue limpo** — nada a
+      corroborar, e re-coletar sem rede seria loop sem ganho (M2/DoD verde, sem alucinar). Quando
+      o retry esgota e a evidência segue insuficiente, **não trava nem alucina**: segue com uma
+      **nota rastreável** em `errors` — a F2.12 fará desse caso o briefing terminal "dados
+      insuficientes" e a F2.13 a saída `non-AI`, ambas lendo o veredito/erro daqui sem mudar a
+      regra. `nodes.py` importa o nó real (some o placeholder F2.1); o pacote expõe
+      `evidence_sources`/`is_sufficient`/`MIN_SOURCES` (o nó via `NODES`, evitando shadowing).
+      Teste `tests/test_evidence_validator.py`: contagem de hosts (dedup `www`, união
+      evidência+`source_urls`, limiar), roteamento nos 4 ramos (sem perfil, suficiente, retry com
+      orçamento, esgotado com nota), o **loop terminando** em exatamente `max_retries` re-coletas
+      (DoD F2), e coerência das constantes de rota com a espinha; `tests/test_graph.py` ganha a
+      saída condicional (sem aresta estática do evidence_validator).
 - [ ] **F2.8** **HITL interrupt** antes do briefing (revisão humana da classificação/recomendação).
       Controlado por flag de modo: `hitl=sync` no *single-company lookup* (interrupt bloqueante);
       `hitl=auto` no **batch/cohort builder (F1.14)** — não bloqueia a fila, só marca para revisão.

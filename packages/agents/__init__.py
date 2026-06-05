@@ -10,8 +10,13 @@ expostos aqui: `from packages.agents import get_chat, get_prompt, run_pipeline`.
 
 from .checkpoint import postgres_checkpointer, run_pipeline_persisted, state_serde
 from .classifier import classify_with_llm, heuristic_score, make_aimi, parse_score
+from .evidence_validator import (
+    MIN_SOURCES,
+    evidence_sources,
+    is_sufficient,
+)
 from .extractor import extract_profile, parse_profile
-from .graph import PIPELINE, build_graph, compile_graph, run_pipeline
+from .graph import CONDITIONAL_OUT, PIPELINE, build_graph, compile_graph, run_pipeline
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
 from .prompts import PROMPT_NODES, Prompt, get_prompt
@@ -39,6 +44,7 @@ __all__ = [
     "compile_graph",
     "run_pipeline",
     "PIPELINE",
+    "CONDITIONAL_OUT",
     "NODES",
     # search_planner (F2.3)
     "SearchPlan",
@@ -55,6 +61,10 @@ __all__ = [
     "parse_score",
     "classify_with_llm",
     "make_aimi",
+    # evidence_validator (F2.7) — o nó é acessado via NODES (evita shadowing do submódulo)
+    "evidence_sources",
+    "is_sufficient",
+    "MIN_SOURCES",
     # checkpointer Postgres (F2.2)
     "postgres_checkpointer",
     "run_pipeline_persisted",

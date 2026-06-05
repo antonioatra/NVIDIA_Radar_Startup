@@ -12,7 +12,7 @@ sem RAG ainda"). Cada nó é preenchido pela sua task, anotada no docstring:
 - scraper           → F2.4 (map paralelo sobre fontes; usa F1)
 - extractor         → F2.5 (Nemotron-Super: docs → StartupProfile + persist)
 - classifier        → F2.6 (classe §5.1 + AIMI v0)
-- evidence_validator → F2.7 (regra de N fontes; aresta condicional de retry)
+- evidence_validator → F2.7 (regra de N fontes; retry via Command; ver `evidence_validator.py`)
 - nvidia_rag        → F3   (RAG híbrido Qdrant + NeMo rerank → citações)
 - recommender       → F4   (gaps do AIMI × tech NVIDIA)
 - gpu_benchmark     → F6   (ROI real na GPU; condicional ★)
@@ -27,14 +27,10 @@ from __future__ import annotations
 from packages.schemas import GraphState, RunStatus
 
 from .classifier import classifier  # F2.6 — implementação real do nó
+from .evidence_validator import evidence_validator  # F2.7 — implementação real do nó
 from .extractor import extractor  # F2.5 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
-
-
-def evidence_validator(state: GraphState) -> dict:
-    """F2.7 — regra de N fontes; a aresta condicional de retry → scraper entra na F2.7."""
-    return {}
 
 
 def nvidia_rag(state: GraphState) -> dict:
