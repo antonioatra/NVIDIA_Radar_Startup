@@ -20,7 +20,7 @@ from langfuse.langchain import CallbackHandler
 
 from packages.config import get_settings
 
-from .cost import USAGE_RECORDER
+from .cost import BUDGET_GUARD, USAGE_RECORDER
 
 
 @lru_cache
@@ -78,9 +78,10 @@ def traced_config(
     if run_id is not None:
         meta["run_id"] = run_id
 
-    # USAGE_RECORDER (F2.9) sempre presente — mede tokens/custo mesmo sem Langfuse no ar;
+    # USAGE_RECORDER (F2.9) + BUDGET_GUARD (F2.11) sempre presentes — medem/limitam tokens
+    # mesmo sem Langfuse no ar (inócuos offline: sem LLM nada dispara, sem budget nada barra);
     # os handlers do Langfuse só entram quando o tracing está ligado (duas chaves, F0.3).
-    callbacks: list[Any] = [USAGE_RECORDER, *langfuse_callbacks()]
+    callbacks: list[Any] = [USAGE_RECORDER, BUDGET_GUARD, *langfuse_callbacks()]
     config: dict[str, Any] = {"callbacks": callbacks, "metadata": meta}
     if node is not None:
         config["run_name"] = node

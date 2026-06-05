@@ -29,13 +29,15 @@ from redis.exceptions import RedisError
 
 from packages.schemas import ExecutionMode, GraphState, HITLMode, RunStatus
 
-from .graph import PIPELINE, RUN_NAME, compile_graph
+from .graph import PIPELINE, RUN_NAME, compile_graph, stamp_usage
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from langgraph.checkpoint.base import BaseCheckpointSaver
     from redis import Redis
+
+    from packages.observability import LLMBudget
 
 #: Nó sentinela do **evento terminal** (run encerrou/pausou). O consumidor SSE (F5.3) o
 #: lê para fechar o stream; `status` carrega o desfecho real (completed/awaiting_review/…).
@@ -93,13 +95,15 @@ def stream_pipeline(
     hitl: HITLMode = HITLMode.SYNC,
     checkpointer: BaseCheckpointSaver | None = None,
     on_event: Callable[[ProgressEvent], None] | None = None,
+    budget: LLMBudget | None = None,
 ) -> GraphState:
     """Roda o grafo com `.stream()`, emitindo um `ProgressEvent` por nó, e devolve o estado.
 
     Variante streaming do `run_pipeline` (F2.1) para o worker (F2.10): reusa o mesmo
-    `traced_config` (span por nó, F2.9) e o `capture_usage` (rollup de tokens em
-    `trace["usage"]`). Usa `stream_mode=["updates","values"]`: o **updates** dá o nome do
-    nó que acabou (→ evento por nó, `status="running"`), o **values** acumula o estado
+    `traced_config` (span por nó, F2.9), o `capture_usage` (rollup de tokens em
+    `trace["usage"]`) e a guarda de orçamento (F2.11 — `budget`/`budget_from_settings`,
+    estampada por `stamp_usage`). Usa `stream_mode=["updates","values"]`: o **updates** dá o
+    nome do nó que acabou (→ evento por nó, `status="running"`), o **values** acumula o estado
     cheio (→ estado final + estampa de custo). Sentinelas do LangGraph (`__interrupt__`,
     …) são puladas.
 
@@ -109,10 +113,11 @@ def stream_pipeline(
     (`completed`/`insufficient_data`/`out_of_scope`, F2.12/F2.13). Sem `on_event` nada é
     publicado (offline default); o grafo roda igual ao `run_pipeline`.
     """
-    from packages.observability import capture_usage, traced_config
+    from packages.observability import budget_from_settings, capture_usage, traced_config
 
     run_id = run_id or uuid.uuid4().hex
     init = GraphState(run_id=run_id, query=query, mode=mode, hitl=hitl)
+    budget = budget if budget is not None else budget_from_settings()
 
     config = traced_config(node=RUN_NAME, run_id=run_id)
     if checkpointer is not None:
@@ -124,7 +129,7 @@ def stream_pipeline(
 
     compiled = compile_graph(checkpointer=checkpointer)
     latest: dict[str, Any] | None = None
-    with capture_usage() as usage:
+    with capture_usage(budget=budget) as usage:
         for stream_mode, chunk in compiled.stream(init, config, stream_mode=["updates", "values"]):
             if stream_mode == "values":
                 # No interrupt (F2.8) o chunk de values carrega um `__interrupt__` extra; o
@@ -141,8 +146,7 @@ def stream_pipeline(
     interrupted = checkpointer is not None and bool(compiled.get_state(config).next)
 
     state = GraphState.model_validate(latest) if latest is not None else init
-    if total.calls:
-        state = state.model_copy(update={"trace": {**state.trace, "usage": total.as_dict()}})
+    state = stamp_usage(state, total, budget)
 
     final_status = RunStatus.AWAITING_REVIEW.value if interrupted else state.status.value
     _emit(END_NODE, final_status, 100)

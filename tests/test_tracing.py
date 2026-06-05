@@ -11,7 +11,7 @@ import pytest
 
 from packages.config import get_settings
 from packages.observability import tracing
-from packages.observability.cost import USAGE_RECORDER
+from packages.observability.cost import BUDGET_GUARD, USAGE_RECORDER
 from packages.observability.tracing import (
     flush_tracing,
     get_callback_handler,
@@ -48,8 +48,9 @@ def test_disabled_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_traced_config_stamps_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tracing, "get_langfuse", lambda: None)
     cfg = traced_config(node="extractor", prompt_version="extractor@v3", run_id="run-1")
-    # Langfuse off → sem handler do Langfuse, mas o medidor de tokens (F2.9) sempre presente.
-    assert cfg["callbacks"] == [USAGE_RECORDER]
+    # Langfuse off → sem handler do Langfuse, mas o medidor (F2.9) e a guarda de orçamento
+    # (F2.11) acompanham sempre (inócuos offline).
+    assert cfg["callbacks"] == [USAGE_RECORDER, BUDGET_GUARD]
     assert cfg["run_name"] == "extractor"
     assert cfg["metadata"]["prompt_version"] == "extractor@v3"
     assert cfg["metadata"]["run_id"] == "run-1"
@@ -64,7 +65,8 @@ def test_traced_config_carries_usage_recorder_when_enabled(monkeypatch: pytest.M
     get_langfuse.cache_clear()
     cfg = traced_config(node="classifier")
     assert USAGE_RECORDER in cfg["callbacks"]
-    assert len(cfg["callbacks"]) == 2  # medidor + handler do Langfuse
+    assert BUDGET_GUARD in cfg["callbacks"]
+    assert len(cfg["callbacks"]) == 3  # medidor + guarda de orçamento + handler do Langfuse
 
 
 def test_extra_metadata_passes_through(monkeypatch: pytest.MonkeyPatch) -> None:

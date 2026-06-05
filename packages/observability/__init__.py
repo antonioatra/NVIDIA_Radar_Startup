@@ -4,8 +4,12 @@ Uso: `from packages.observability import traced_config, capture_usage, flush_tra
 """
 
 from .cost import (
+    BUDGET_GUARD,
     USAGE_RECORDER,
+    BudgetExceeded,
+    LLMBudget,
     TokenUsage,
+    budget_from_settings,
     capture_usage,
     estimate_cost,
     extract_usage,
@@ -33,4 +37,9 @@ __all__ = [
     "capture_usage",
     "record_usage",
     "USAGE_RECORDER",
+    # guarda de orçamento (F2.11)
+    "LLMBudget",
+    "BudgetExceeded",
+    "budget_from_settings",
+    "BUDGET_GUARD",
 ]

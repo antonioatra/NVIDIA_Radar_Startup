@@ -112,6 +112,63 @@ class TokenUsage:
 EMPTY_USAGE = TokenUsage()
 
 
+@dataclass(frozen=True)
+class LLMBudget:
+    """Teto de gasto de LLM **por run** (F2.11): nº de chamadas, tokens e/ou custo (USD).
+
+    Um limite `None` = sem teto naquela dimensão. `check` devolve o **motivo** (str) quando o
+    uso acumulado JÁ atingiu algum limite — sinal para barrar a PRÓXIMA chamada (poupa o rate
+    limit do free tier do `build.nvidia.com`) — ou `None` se ainda há orçamento.
+    """
+
+    max_calls: int | None = None
+    max_tokens: int | None = None
+    max_cost_usd: float | None = None
+
+    def check(self, usage: TokenUsage) -> str | None:
+        """Motivo do estouro se `usage` atingiu algum teto, senão `None`."""
+        if self.max_calls is not None and usage.calls >= self.max_calls:
+            return f"chamadas {usage.calls}/{self.max_calls}"
+        if self.max_tokens is not None and usage.total_tokens >= self.max_tokens:
+            return f"tokens {usage.total_tokens}/{self.max_tokens}"
+        if self.max_cost_usd is not None and usage.cost_usd >= self.max_cost_usd:
+            return f"custo US$ {usage.cost_usd}/{self.max_cost_usd}"
+        return None
+
+    @property
+    def is_unbounded(self) -> bool:
+        """True se nenhum teto está definido (equivale a não ter orçamento)."""
+        return self.max_calls is None and self.max_tokens is None and self.max_cost_usd is None
+
+
+class BudgetExceeded(RuntimeError):
+    """Levantada para abortar uma chamada de LLM que estouraria o orçamento do run (F2.11)."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"orcamento de LLM atingido: {reason}")
+        self.reason = reason
+
+
+def budget_from_settings() -> LLMBudget | None:
+    """Orçamento de LLM a partir do settings (F0.3); `None` quando o gate está off (default).
+
+    Cada teto `0` no settings vira `None` (dimensão sem limite). Devolve `None` (sem guarda)
+    quando `llm_budget_enabled` está desligado ou nenhum teto foi definido — espinha verde
+    por default (M2/DoD), igual às demais flags da fase.
+    """
+    from packages.config import get_settings
+
+    s = get_settings()
+    if not s.llm_budget_enabled:
+        return None
+    budget = LLMBudget(
+        max_calls=s.llm_max_calls or None,
+        max_tokens=s.llm_max_tokens or None,
+        max_cost_usd=s.llm_max_cost_usd or None,
+    )
+    return None if budget.is_unbounded else budget
+
+
 def _model_of(result: LLMResult) -> str:
     """Id do modelo de um `LLMResult` (p/ a tabela de preço); vazio se indisponível."""
     out = result.llm_output or {}
@@ -151,25 +208,39 @@ def extract_usage(result: LLMResult) -> TokenUsage:
 #: Bucket por contexto/thread; `None` fora de um `capture_usage` (record vira no-op).
 _SINK: ContextVar[list[TokenUsage] | None] = ContextVar("tapi_usage_sink", default=None)
 
+#: Orçamento do escopo ativo (F2.11); `None` = sem teto (o `BudgetGuard` nunca barra).
+_BUDGET: ContextVar[LLMBudget | None] = ContextVar("tapi_usage_budget", default=None)
+
+
+def _scope_total() -> TokenUsage:
+    """Soma o uso registrado no escopo ativo até o momento (vazio fora de um `capture_usage`)."""
+    total = EMPTY_USAGE
+    for usage in _SINK.get() or []:
+        total = total.merge(usage)
+    return total
+
 
 class _UsageScope:
     """Handle do escopo: `.total()` soma o que foi registrado até o momento."""
 
     def total(self) -> TokenUsage:
-        total = EMPTY_USAGE
-        for usage in _SINK.get() or []:
-            total = total.merge(usage)
-        return total
+        return _scope_total()
 
 
 @contextmanager
-def capture_usage() -> Iterator[_UsageScope]:
-    """Abre um escopo de captura; dentro dele `record_usage` acumula. Reset ao sair (sem leak)."""
-    token = _SINK.set([])
+def capture_usage(*, budget: LLMBudget | None = None) -> Iterator[_UsageScope]:
+    """Abre um escopo de captura; dentro dele `record_usage` acumula. Reset ao sair (sem leak).
+
+    `budget` (F2.11) arma o `BudgetGuard`: quando o uso acumulado atinge o teto, a próxima
+    chamada de LLM no escopo é abortada (`BudgetExceeded`). `None` = sem teto.
+    """
+    sink_token = _SINK.set([])
+    budget_token = _BUDGET.set(budget)
     try:
         yield _UsageScope()
     finally:
-        _SINK.reset(token)
+        _SINK.reset(sink_token)
+        _BUDGET.reset(budget_token)
 
 
 def record_usage(usage: TokenUsage) -> None:
@@ -195,6 +266,43 @@ class UsageRecorder(BaseCallbackHandler):
 USAGE_RECORDER = UsageRecorder()
 
 
+class BudgetGuard(BaseCallbackHandler):
+    """Callback que **aborta** a próxima chamada de LLM quando o run estourou o orçamento (F2.11).
+
+    Mesma mecânica do `UsageRecorder` (F2.9): singleton injetado no `traced_config`, lê o total
+    acumulado e o teto do escopo ativo (`capture_usage(budget=)`, via `ContextVar`). Antes de
+    cada chamada (`on_chat_model_start`/`on_llm_start`) compara o uso com o teto e, se já
+    atingido, levanta `BudgetExceeded` — a chamada **nunca chega à rede**, poupando o rate limit
+    do free tier. `raise_error = True` faz o LangChain **propagar** a exceção (em vez de só logar);
+    os nós LLM (F2.3/F2.5/F2.6) já degradam para o caminho determinista a qualquer falha, então o
+    run segue offline, sem alucinar, e o `run_pipeline`/`stream_pipeline` carimba a nota rastreável.
+
+    Fora de um escopo com `budget` (default), é **no-op** — nunca barra (espinha verde, M2/DoD).
+    `raise_error` fica isolado aqui (e **não** no `UsageRecorder`): uma falha de *medição* nunca
+    deve derrubar um run; só a guarda de *orçamento* aborta de propósito.
+    """
+
+    raise_error = True
+
+    def _enforce(self) -> None:
+        budget = _BUDGET.get()
+        if budget is None:
+            return
+        reason = budget.check(_scope_total())
+        if reason is not None:
+            raise BudgetExceeded(reason)
+
+    def on_chat_model_start(self, *args: Any, **kwargs: Any) -> None:  # noqa: ARG002
+        self._enforce()
+
+    def on_llm_start(self, *args: Any, **kwargs: Any) -> None:  # noqa: ARG002
+        self._enforce()
+
+
+#: Singleton compartilhado (ver `BudgetGuard`).
+BUDGET_GUARD = BudgetGuard()
+
+
 __all__ = [
     "ModelPrice",
     "MODEL_PRICES",
@@ -202,9 +310,14 @@ __all__ = [
     "estimate_cost",
     "TokenUsage",
     "EMPTY_USAGE",
+    "LLMBudget",
+    "BudgetExceeded",
+    "budget_from_settings",
     "extract_usage",
     "capture_usage",
     "record_usage",
     "UsageRecorder",
     "USAGE_RECORDER",
+    "BudgetGuard",
+    "BUDGET_GUARD",
 ]

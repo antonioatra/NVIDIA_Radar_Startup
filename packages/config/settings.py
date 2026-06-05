@@ -78,6 +78,24 @@ class Settings(BaseSettings):
         default=False, description="human_review (F2.8) pausa p/ revisão humana antes do briefing."
     )
 
+    # --- Guarda de orçamento de LLM por run (F2.11) -----------------------------
+    # Os créditos grátis do build.nvidia.com têm rate limit; este teto **aborta a próxima
+    # chamada** quando o run atinge o limite (os nós degradam p/ o determinista, sem estourar).
+    # Off por default (espinha verde/M2); ligue + defina ao menos um teto (0 = sem teto naquela
+    # dimensão). A guarda só arma se `llm_budget_enabled` e algum teto > 0.
+    llm_budget_enabled: bool = Field(
+        default=False, description="Guarda de orçamento de LLM por run (F2.11)."
+    )
+    llm_max_calls: int = Field(
+        default=0, ge=0, description="Máx. de chamadas de LLM por run (0 = sem teto)."
+    )
+    llm_max_tokens: int = Field(
+        default=0, ge=0, description="Máx. de tokens (in+out) por run (0 = sem teto)."
+    )
+    llm_max_cost_usd: float = Field(
+        default=0.0, ge=0, description="Máx. de custo estimado por run em USD (0 = sem teto)."
+    )
+
     # --- Dados ------------------------------------------------------------------
     postgres_url: str = "postgresql://tapi:tapi@localhost:5432/tapi"
     qdrant_url: str = "http://localhost:6333"

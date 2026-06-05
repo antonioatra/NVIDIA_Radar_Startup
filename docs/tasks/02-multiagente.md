@@ -253,8 +253,38 @@
       de `mode`/`hitl` string, run_id gerado; `enqueue_run` enfileira `run_graph_job` com
       `job_id=run_id` só com argumentos planos). Worker/Redis/Postgres reais ficam opt-in (sem
       teste de broker/banco, padrão da fase).
-- [ ] **F2.11** **Guarda de custo/orçamento de LLM** por run (limite de tokens/chamadas) — os
+- [x] **F2.11** **Guarda de custo/orçamento de LLM** por run (limite de tokens/chamadas) — os
       créditos grátis do `build.nvidia.com` têm rate limit; evita estouro durante o build.
+      → Estende o rollup de custo da F2.9 (`packages/observability/cost.py`): `LLMBudget`
+      (teto por `max_calls`/`max_tokens`/`max_cost_usd`; `check(usage)` devolve o **motivo** do
+      estouro ou `None`; `is_unbounded`), `BudgetExceeded` e o callback `BudgetGuard`/`BUDGET_GUARD`.
+      `capture_usage(budget=)` arma o guard no escopo (novo `ContextVar` `_BUDGET`, irmão do
+      `_SINK`); `budget_from_settings` lê os 4 campos novos do settings (F0.3, `llm_budget_enabled`
+      + tetos, **off por default**, `0` = sem teto naquela dimensão). **Decisão de design (b/d,
+      mesma mecânica da F2.9):** o guard é **singleton injetado no `traced_config`** (junto do
+      `USAGE_RECORDER`) — então **mede e limita sem refatorar os nós**; antes de cada chamada
+      (`on_chat_model_start`/`on_llm_start`) compara o uso acumulado do escopo com o teto e, se já
+      atingido, levanta `BudgetExceeded` ⇒ **a chamada nunca chega à rede** (poupa o rate limit do
+      free tier). `raise_error = True` faz o LangChain **propagar** (em vez de só logar) — e fica
+      **isolado no guard, não no `UsageRecorder`**: uma falha de *medição* nunca deve derrubar um
+      run, só a guarda de *orçamento* aborta de propósito. Os nós LLM (F2.3/F2.5/F2.6) já degradam
+      para o determinista a qualquer falha, então o run **segue offline, sem alucinar** — a guarda
+      **não trava nem força um terminal** (isso é F2.12/F2.13): o estouro vira **nota rastreável**
+      via `stamp_usage` (novo helper em `graph.py`, compartilhado por `run_pipeline`/`stream_pipeline`),
+      que carimba `trace["usage"]` (F2.9) e, no estouro, `trace["budget"]={limited,reason}` + uma
+      linha em `errors`. **Offline é o default (igual F2.3–F2.10):** sem teto (gate off / `budget=None`)
+      o guard é no-op e a espinha roda verde ponta a ponta (M2/DoD); `run_pipeline`/`stream_pipeline`
+      ganham o param injetável `budget` (`None` → `budget_from_settings`). O teto é **soft na chamada
+      que cruza** (só sabido no `on_llm_end`) e **hard na seguinte** — barra a *próxima*, então o
+      gasto fica em ~teto, não estoura. Exports novos em `packages/observability`
+      (`LLMBudget`/`BudgetExceeded`/`budget_from_settings`/`BUDGET_GUARD`). Teste
+      `tests/test_budget.py`: `LLMBudget.check` (3 dimensões + `None` sob o teto + `is_unbounded`),
+      `budget_from_settings` (off default, liga com teto, ligado-sem-teto → `None`), `BudgetGuard`
+      (no-op fora de escopo/sob o teto, aborta ao atingir em `on_chat_model_start`/`on_llm_start`,
+      `raise_error`), e integração `run_pipeline`/`stream_pipeline` com um nó "guloso" (simula
+      chamadas atrás do guard) → chamadas **limitadas** ao teto + `trace["budget"]`/`errors`
+      carimbados, caso sem estouro só `usage`, e offline-com-teto não carimba nada; `tests/test_tracing.py`
+      passa a contar o guard na lista de callbacks do `traced_config`.
 - [ ] **F2.12** **Estado terminal de baixa confiança:** se após o retry limitado (F2.7) as
       evidências seguem insuficientes, o grafo **não alucina** — encerra num briefing marcado
       "dados insuficientes" (com o que foi achado + lacunas) ou descarte rastreável. Caminho
