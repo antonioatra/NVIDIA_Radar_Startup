@@ -20,6 +20,13 @@ from .graph import CONDITIONAL_OUT, PIPELINE, build_graph, compile_graph, run_pi
 from .human_review import review_payload
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
+from .progress import (
+    ProgressEvent,
+    RedisProgressPublisher,
+    progress_channel,
+    stream_pipeline,
+    subscribe_progress,
+)
 from .prompts import PROMPT_NODES, Prompt, get_prompt
 from .search_planner import (
     PrioritizedSource,
@@ -68,6 +75,12 @@ __all__ = [
     "MIN_SOURCES",
     # human_review (F2.8) — o nó é acessado via NODES (evita shadowing do submódulo)
     "review_payload",
+    # progresso ao vivo + worker async (F2.10)
+    "stream_pipeline",
+    "ProgressEvent",
+    "progress_channel",
+    "RedisProgressPublisher",
+    "subscribe_progress",
     # checkpointer Postgres (F2.2)
     "postgres_checkpointer",
     "run_pipeline_persisted",

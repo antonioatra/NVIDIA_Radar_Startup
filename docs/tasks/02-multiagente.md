@@ -211,11 +211,48 @@
       `record_usage` acumulam no escopo e no-op fora dele + reset entre escopos, `UsageRecorder.
       on_llm_end`, e `run_pipeline` offline sem uso × com uso carimbado via nó fake); `tests/test_tracing.py`
       ganha o medidor no `traced_config` (ligado e desligado).
-- [ ] **F2.10** Orquestração assíncrona via worker (Redis/RQ) p/ runs longos + SSE de progresso.
+- [x] **F2.10** Orquestração assíncrona via worker (Redis/RQ) p/ runs longos + SSE de progresso.
       **Transporte worker → SSE (esclarecimento):** o worker **publica** eventos num canal
       **Redis pub/sub por `run_id`**; o endpoint SSE da API (F5.2/F5.3) **assina** o canal e
       repassa ao front. Contrato de evento mínimo: `{run_id, node, status, pct, ts}` (+ payload
       opcional). Sem esse canal, o run assíncrono não consegue alimentar o "ao vivo" do F5.3.
+      → Duas peças. **(1) `packages/agents/progress.py`** — a fronteira worker↔SSE: `ProgressEvent`
+      (contrato tipado `{run_id, node, status, pct, ts}` + `extra`, `extra="forbid"`),
+      `stream_pipeline` (irmão *streaming* do `run_pipeline`/F2.1) e o transporte Redis
+      (`progress_channel`, `RedisProgressPublisher`, `subscribe_progress`). O `stream_pipeline`
+      roda o grafo com `.stream(stream_mode=["updates","values"])`: o **updates** dá o nó que
+      acabou → um `ProgressEvent` por nó (`status="running"`, `pct` pela posição na espinha) num
+      hook injetável `on_event`; o **values** acumula o estado cheio → estado final devolvido (e
+      a estampa de custo, reusando o `traced_config`+`capture_usage` da F2.9, span por nó +
+      `trace["usage"]`). Sentinelas (`__interrupt__`) são puladas no updates e tiradas do values
+      (estado é `extra="forbid"`). Ao fim, **um evento terminal** `node="__end__"`/`pct=100` com o
+      desfecho real — e aqui entra a responsabilidade que a F2.8 delegou ao worker: **interrupt
+      HITL sync pendente → `awaiting_review`** (detectado por `compiled.get_state(config).next`
+      não-vazio, que só existe com checkpointer); senão o `status` do estado final
+      (`completed`/`insufficient_data`/`out_of_scope`, F2.12/F2.13). **(2) `apps/worker/jobs.py`**
+      — `run_graph_job` (o job que o `rq worker tapi` puxa: roda o grafo **persistido**/F2.2
+      publicando no canal), `enqueue_run` (a API/F5.2 só enfileira e responde o `run_id`;
+      `job_id=run_id` casa job RQ ↔ checkpointer ↔ canal) e `default_queue`. **Decisão de design
+      (b/d, igual F2.3–F2.9):** **offline é o default** — sem `on_event` o `stream_pipeline` só
+      roda o grafo (já offline/reproduzível, M2/DoD), o Redis só entra quando um cliente é passado,
+      e publicar é **best-effort** (engole `RedisError` — progresso é telemetria, não pode derrubar
+      o run). **Conexões nascem dentro do job, não viajam na fila:** o RQ serializa os argumentos
+      (pickle), então só argumentos planos (`query`/`run_id`/`mode`/`hitl` como string) vão no
+      enqueue; o job abre Redis/Postgres do `settings` (F0.3) ao rodar — e recebe esses recursos
+      **injetados** (`redis_client`/`open_checkpointer`/`runner`) p/ teste offline sem broker nem
+      banco. **Fronteira de escopo travada (não invade F5.3):** o worker fica com o lado *publish*
+      + o consumidor `subscribe_progress` (gerador que itera o canal até o `__end__`); o **endpoint
+      SSE** `GET /runs/{id}` que o embrulha é da F5.3. Exports novos no pacote (`stream_pipeline`,
+      `ProgressEvent`, `progress_channel`, `RedisProgressPublisher`, `subscribe_progress`) e em
+      `apps/worker`. Testes `tests/test_progress.py` (round-trip do evento, `progress_channel` por
+      run, `_pct` pela espinha, `stream_pipeline` offline → evento por nó + terminal `completed`/
+      estado COMPLETED + sem-sink não quebra, interrupt HITL → terminal `awaiting_review` parando
+      antes do briefing, `RedisProgressPublisher` publica JSON no canal + engole erro de broker,
+      `subscribe_progress` itera até o terminal e fecha o pubsub) e `tests/test_worker.py`
+      (`run_graph_job` roda o grafo + publica progresso com Redis stub e checkpointer nulo, coerção
+      de `mode`/`hitl` string, run_id gerado; `enqueue_run` enfileira `run_graph_job` com
+      `job_id=run_id` só com argumentos planos). Worker/Redis/Postgres reais ficam opt-in (sem
+      teste de broker/banco, padrão da fase).
 - [ ] **F2.11** **Guarda de custo/orçamento de LLM** por run (limite de tokens/chamadas) — os
       créditos grátis do `build.nvidia.com` têm rate limit; evita estouro durante o build.
 - [ ] **F2.12** **Estado terminal de baixa confiança:** se após o retry limitado (F2.7) as
