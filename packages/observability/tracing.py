@@ -20,6 +20,8 @@ from langfuse.langchain import CallbackHandler
 
 from packages.config import get_settings
 
+from .cost import USAGE_RECORDER
+
 
 @lru_cache
 def get_langfuse() -> Langfuse | None:
@@ -65,8 +67,10 @@ def traced_config(
     """RunnableConfig com callback Langfuse + metadata carimbado no trace.
 
     `node` vira o nome do span/run e uma tag; `prompt_version` (F0.12) e `run_id`
-    entram no metadata p/ correlacionar trace ↔ `run`. Sem tracing, devolve só o
-    metadata (callbacks vazio) — inócuo, então os nós chamam isto incondicionalmente.
+    entram no metadata p/ correlacionar trace ↔ `run`. Sem Langfuse, os callbacks ficam
+    só com o `USAGE_RECORDER` (medição de tokens/custo local, F2.9) — inócuo offline,
+    então os nós chamam isto incondicionalmente. O recorder é singleton: aparecendo nos
+    níveis aninhados do grafo, o LangChain o deduplica por identidade (sem dupla contagem).
     """
     meta: dict[str, Any] = dict(metadata)
     if prompt_version is not None:
@@ -74,7 +78,10 @@ def traced_config(
     if run_id is not None:
         meta["run_id"] = run_id
 
-    config: dict[str, Any] = {"callbacks": langfuse_callbacks(), "metadata": meta}
+    # USAGE_RECORDER (F2.9) sempre presente — mede tokens/custo mesmo sem Langfuse no ar;
+    # os handlers do Langfuse só entram quando o tracing está ligado (duas chaves, F0.3).
+    callbacks: list[Any] = [USAGE_RECORDER, *langfuse_callbacks()]
+    config: dict[str, Any] = {"callbacks": callbacks, "metadata": meta}
     if node is not None:
         config["run_name"] = node
         meta.setdefault("langfuse_tags", []).append(node)

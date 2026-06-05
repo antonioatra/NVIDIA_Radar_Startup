@@ -26,8 +26,9 @@ proprietários §9.1 entram **só como pista de descoberta** (`api_only`), nunca
 `deny`. O viés AI-native (F1.11) é aplicado só no modo discovery (no single-company
 não se força viés sobre nome próprio, conforme o prompt v1).
 
-Hooks de tasks futuras: tracing/custo por nó (F2.9) — aqui já se passa `traced_config`
-(inócuo sem Langfuse); cache de inferência por `prompt_version` (F2.14).
+Tracing/custo (F2.9): o `traced_config` que este nó já passa carrega o medidor de tokens
+(USAGE_RECORDER) — inócuo sem Langfuse. Hook de task futura: cache de inferência por
+`prompt_version` (F2.14).
 """
 
 from __future__ import annotations

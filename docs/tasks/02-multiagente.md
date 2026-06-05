@@ -187,7 +187,30 @@
       bloquear (+ run ponta a ponta completa e marcado), `sync` via grafo compilado + `InMemorySaver`
       (pausa antes do briefing com o payload no interrupt → resume com a decisão no `trace`, DoD F2),
       e a posição estática na espinha; `tests/test_graph.py`/`test_checkpoint.py` seguem verdes.
-- [ ] **F2.9** Tracing Langfuse em todos os nós + métricas de tokens/custo.
+- [x] **F2.9** Tracing Langfuse em todos os nós + métricas de tokens/custo.
+      → Duas camadas sobre o bootstrap da F0.8 (`packages/observability/`). **(1) Tracing de
+      todos os nós:** `run_pipeline` (graph.py) passa o `traced_config(node=RUN_NAME, run_id=...)`
+      no `.invoke` do grafo — sob o trace raiz `tapi_pipeline`, o callback do Langfuse cria **um
+      span por nó** (inclui os nós sem LLM: scraper, evidence_validator, human_review, …), não só
+      as 3 chamadas LLM que a F0.8 já traçava por `traced_config` (F2.3/F2.5/F2.6). **(2) Métricas
+      de tokens/custo:** novo `packages/observability/cost.py` — `TokenUsage` (input/output/total/
+      calls/cost_usd, `merge`/`for_call`), `MODEL_PRICES` + `estimate_cost` (tabela de **referência**
+      por substring do modelo — estimativa p/ orçamento/ROI, não cobrança; free tier), `extract_usage`
+      (lê `usage_metadata` do LangChain **ou** `token_usage` OpenAI-like), e um `UsageRecorder`
+      (callback `on_llm_end`) que soma o uso no escopo ativo. **Decisão de design:** o recorder é
+      **embutido no `traced_config`** (`USAGE_RECORDER`, singleton) — então **mede sem refatorar os
+      nós**: toda chamada que os adapters disparam por `traced_config` é contabilizada; o escopo é
+      aberto por `run_pipeline` (`capture_usage`, via `ContextVar` — reset por run, sem leak) e o
+      rollup vai p/ `trace["usage"]`. Singleton + dedup por identidade do LangChain evita dupla
+      contagem nos níveis aninhados do grafo. **Offline é o default (M2/DoD):** sem LLM não há
+      `on_llm_end` → `trace` fica intacto; os callbacks ficam só com o medidor local (inócuo sem
+      Langfuse). O detalhe por nó é autoritativo no Langfuse; o rollup em estado é a **base do gate
+      de orçamento (F2.11)**. `traced_config` passou a sempre carregar o `USAGE_RECORDER` (Langfuse
+      só quando ligado). Testes: `tests/test_cost.py` (estimate_cost por tabela/default/embeddings,
+      `TokenUsage` merge/for_call, `extract_usage` nos 2 formatos + calls=1 sem tokens, `capture_usage`/
+      `record_usage` acumulam no escopo e no-op fora dele + reset entre escopos, `UsageRecorder.
+      on_llm_end`, e `run_pipeline` offline sem uso × com uso carimbado via nó fake); `tests/test_tracing.py`
+      ganha o medidor no `traced_config` (ligado e desligado).
 - [ ] **F2.10** Orquestração assíncrona via worker (Redis/RQ) p/ runs longos + SSE de progresso.
       **Transporte worker → SSE (esclarecimento):** o worker **publica** eventos num canal
       **Redis pub/sub por `run_id`**; o endpoint SSE da API (F5.2/F5.3) **assina** o canal e

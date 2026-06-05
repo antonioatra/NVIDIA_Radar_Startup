@@ -11,6 +11,7 @@ import pytest
 
 from packages.config import get_settings
 from packages.observability import tracing
+from packages.observability.cost import USAGE_RECORDER
 from packages.observability.tracing import (
     flush_tracing,
     get_callback_handler,
@@ -47,11 +48,23 @@ def test_disabled_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_traced_config_stamps_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tracing, "get_langfuse", lambda: None)
     cfg = traced_config(node="extractor", prompt_version="extractor@v3", run_id="run-1")
-    assert cfg["callbacks"] == []  # tracing off → sem callback
+    # Langfuse off → sem handler do Langfuse, mas o medidor de tokens (F2.9) sempre presente.
+    assert cfg["callbacks"] == [USAGE_RECORDER]
     assert cfg["run_name"] == "extractor"
     assert cfg["metadata"]["prompt_version"] == "extractor@v3"
     assert cfg["metadata"]["run_id"] == "run-1"
     assert "extractor" in cfg["metadata"]["langfuse_tags"]
+
+
+def test_traced_config_carries_usage_recorder_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Mesmo com Langfuse ligado, o medidor (F2.9) acompanha junto do handler.
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-test")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-test")
+    get_settings.cache_clear()
+    get_langfuse.cache_clear()
+    cfg = traced_config(node="classifier")
+    assert USAGE_RECORDER in cfg["callbacks"]
+    assert len(cfg["callbacks"]) == 2  # medidor + handler do Langfuse
 
 
 def test_extra_metadata_passes_through(monkeypatch: pytest.MonkeyPatch) -> None:

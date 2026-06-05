@@ -51,6 +51,9 @@ PIPELINE: tuple[str, ...] = (
 # estática de saída — as duas pontas são alcançadas pelo `goto` do nó (ver evidence_validator.py).
 CONDITIONAL_OUT: frozenset[str] = frozenset({"evidence_validator"})
 
+#: Nome do trace raiz do run no Langfuse (F2.9) — sob ele aparecem os spans por nó.
+RUN_NAME = "tapi_pipeline"
+
 
 def build_graph() -> StateGraph:
     """Monta (sem compilar) o `StateGraph` sobre `GraphState` com o backbone linear.
@@ -86,15 +89,34 @@ def run_pipeline(
 ) -> GraphState:
     """Roda o grafo ponta a ponta e devolve o `GraphState` final (rascunho — M2).
 
-    Helper síncrono (a orquestração assíncrona worker/SSE é F2.10). Na F2.1 os nós são
-    placeholders deterministas, então não há rede nem LLM.
+    Helper síncrono (a orquestração assíncrona worker/SSE é F2.10). Os nós são offline por
+    default (sem rede/LLM), então o tracing é inócuo localmente.
+
+    **Tracing + custo (F2.9):** o `.invoke` leva o `traced_config` do run — sob o trace raiz
+    `RUN_NAME`, o callback do Langfuse (F0.8) cria **um span por nó** quando ligado; offline,
+    os callbacks ficam só com o medidor local. O `capture_usage` abre o escopo onde o
+    `USAGE_RECORDER` (embutido no `traced_config` que os nós LLM usam) soma tokens/custo;
+    o rollup do run é carimbado em `trace["usage"]`. Sem LLM (espinha offline) não há uso —
+    `trace` fica intacto (M2/DoD verde). O detalhe por nó é autoritativo no Langfuse; o
+    rollup em estado é a base do gate de orçamento (F2.11).
 
     Com `checkpointer` (F2.2), o estado é persistido por *thread* (`thread_id=run_id`),
     habilitando resume/retry — use `run_pipeline_persisted` p/ abrir o saver Postgres.
     """
+    from packages.observability import capture_usage, traced_config
+
     run_id = run_id or uuid.uuid4().hex
     init = GraphState(run_id=run_id, query=query, mode=mode, hitl=hitl)
 
-    config = {"configurable": {"thread_id": run_id}} if checkpointer is not None else None
-    result = compile_graph(checkpointer=checkpointer).invoke(init, config)
-    return result if isinstance(result, GraphState) else GraphState.model_validate(result)
+    config = traced_config(node=RUN_NAME, run_id=run_id)
+    if checkpointer is not None:
+        config["configurable"] = {"thread_id": run_id}
+
+    with capture_usage() as usage:
+        result = compile_graph(checkpointer=checkpointer).invoke(init, config)
+        total = usage.total()
+
+    state = result if isinstance(result, GraphState) else GraphState.model_validate(result)
+    if total.calls:
+        state = state.model_copy(update={"trace": {**state.trace, "usage": total.as_dict()}})
+    return state
