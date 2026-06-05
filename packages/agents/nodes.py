@@ -26,13 +26,9 @@ from __future__ import annotations
 
 from packages.schemas import GraphState, RunStatus
 
+from .extractor import extractor  # F2.5 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
-
-
-def extractor(state: GraphState) -> dict:
-    """F2.5 — Nemotron-Super estrutura os docs num StartupProfile (+ persist Postgres)."""
-    return {}
 
 
 def classifier(state: GraphState) -> dict:

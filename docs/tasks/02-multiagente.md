@@ -68,7 +68,36 @@
       ToS (deny+api_only), intent por tipo, termo→top-K, dedup, falhas de fetch/busca não-fatais, e o
       nó (no-op offline, update parcial, acúmulo de erros). Caminho de rede real fica opt-in (sem
       teste de rede, padrão da fase).
-- [ ] **F2.5** Nó **extractor** (Nemotron-Super): conteúdo → `StartupProfile` estruturado.
+- [x] **F2.5** Nó **extractor** (Nemotron-Super): conteúdo → `StartupProfile` estruturado.
+      → `packages/agents/extractor.py`: `parse_profile` (núcleo puro/offline) converte o JSON do
+      Super num `StartupProfile` (F0.5) tipado, cobrindo as dimensões do §2 (empresa/produto/setor/
+      clientes/funding/founders/tecnologias) com **proveniência por campo** (`Claim`/`Evidence`,
+      princípio nº1 §8). A proveniência **não** é confiada ao LLM: ele cita `(url, trecho)`; o
+      `fetched_at`/`content_hash` vêm do `raw_doc` casado (real, F1.9) e o `source_policy` da
+      política de ToS travada (F1.15, `source_policy.annotate`) — auditável mesmo se o modelo errar
+      datas; o snippet passa por `make_snippet` (cita, não copia). Parser **tolerante** (no padrão do
+      `_parse_plan` F2.3): escalar aceita valor cru **ou** `{value, evidence, confidence}`, campos
+      desconhecidos são ignorados (montagem campo a campo apesar do `extra="forbid"`), itens
+      malformados pulados (url inválida de founder/evidência descartada sem derrubar), e `nome` cai
+      na query se faltar; `source_urls` é a proveniência **agregada** das fontes realmente coletadas,
+      não o que o modelo alegar. **Decisão de design (b/d, igual F2.3/F2.4):** **offline é o
+      default** — sem `raw_docs` (espinha sem rede) **ou** com o LLM off, o nó é no-op limpo (`{}`,
+      `profile=None`) → grafo verde ponta a ponta (M2/DoD, `test_graph` exige `profile is None`) e
+      runs reprodutíveis (F2.14); a peça LLM (Nemotron-Super, **reasoning ON**, `extractor@v1`/F0.12)
+      é **plugável** atrás de `settings.extractor_use_llm`+chave (flag nova) **ou** de um adapter
+      `extract=` injetado (testes/worker F2.10), com **degradação p/ `None`** sem alucinar a qualquer
+      falha de rede/JSON/validação — a suficiência de evidência fica para o evidence_validator (regra
+      de N fontes, F2.7), não aqui. A **persistência** que o scraper (F2.4) anota como "do extractor"
+      entra como **hook injetável `persist=`** desligado por padrão (o backbone não toca o banco); o
+      worker liga `persist_profile` (F1.10, dedup CNPJ>domínio>nome + escopo BR) a uma `Session`,
+      e a falha de persistência vira erro rastreável sem perder o perfil. `nodes.py` importa o nó
+      real (some o placeholder F2.1); exposto só `parse_profile`/`extract_profile` no pacote (o nó
+      via `NODES`, evitando shadowing do submódulo). Teste `tests/test_extractor.py`: mapeamento de
+      todas as dimensões, proveniência ancorada nos docs, tolerância (campo desconhecido, url de
+      founder/evidência inválida, nome ausente→query, evidência sem url/snippet, url não-coletada),
+      `extract_profile` (sucesso + degradação None em JSON ruim/adapter que levanta), e o nó (no-op
+      offline, update com `extract` injetado, acúmulo de erro na não-extração, hook de persist
+      chamado, falha de persist não-fatal). Caminho LLM real é opt-in (sem teste de rede, padrão da fase).
 - [ ] **F2.6** Nó **classifier** (Super, reasoning ON): AI-native | AI-enabled | non-AI + sub-scores.
       Emite os 4 sub-scores no schema `AIMIScore` (F0.5) usando uma **rubrica AIMI provisória v0**
       (heurística simples por evidência), sobre a **definição de pilares/escala de `docs/RUBRICA-AIMI.md`

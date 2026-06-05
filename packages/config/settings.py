@@ -43,6 +43,12 @@ class Settings(BaseSettings):
         default=False, description="search_planner (F2.3) usa o Nano p/ refinar o plano."
     )
 
+    # extractor (F2.5): por padrão offline (no-op limpo — espinha reproduzível sem rede).
+    # Ligue p/ o nó estruturar os docs com o Nemotron-Super (requer nvidia_api_key).
+    extractor_use_llm: bool = Field(
+        default=False, description="extractor (F2.5) usa o Super p/ estruturar o StartupProfile."
+    )
+
     # Reranker: nemo (default no build) | cohere (somente validação F7).
     reranker_provider: RerankerProvider = "nemo"
     cohere_api_key: str = Field(default="", description="Só na F7 (trial).")
