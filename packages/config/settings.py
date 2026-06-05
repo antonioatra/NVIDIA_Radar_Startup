@@ -49,6 +49,12 @@ class Settings(BaseSettings):
         default=False, description="extractor (F2.5) usa o Super p/ estruturar o StartupProfile."
     )
 
+    # classifier (F2.6): por padrão usa a heurística AIMI v0 determinista/offline (reproduzível).
+    # Ligue p/ o nó diagnosticar classe+AIMI com o Nemotron-Super (requer nvidia_api_key).
+    classifier_use_llm: bool = Field(
+        default=False, description="classifier (F2.6) usa o Super p/ pontuar classe + AIMI."
+    )
+
     # Reranker: nemo (default no build) | cohere (somente validação F7).
     reranker_provider: RerankerProvider = "nemo"
     cohere_api_key: str = Field(default="", description="Só na F7 (trial).")

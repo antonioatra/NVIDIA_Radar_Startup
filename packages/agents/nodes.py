@@ -26,14 +26,10 @@ from __future__ import annotations
 
 from packages.schemas import GraphState, RunStatus
 
+from .classifier import classifier  # F2.6 — implementação real do nó
 from .extractor import extractor  # F2.5 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
-
-
-def classifier(state: GraphState) -> dict:
-    """F2.6 — classe (AI-native|AI-enabled|non-AI) + AIMI v0 (RUBRICA/F0.11)."""
-    return {}
 
 
 def evidence_validator(state: GraphState) -> dict:

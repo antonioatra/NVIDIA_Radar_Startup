@@ -9,6 +9,7 @@ expostos aqui: `from packages.agents import get_chat, get_prompt, run_pipeline`.
 """
 
 from .checkpoint import postgres_checkpointer, run_pipeline_persisted, state_serde
+from .classifier import classify_with_llm, heuristic_score, make_aimi, parse_score
 from .extractor import extract_profile, parse_profile
 from .graph import PIPELINE, build_graph, compile_graph, run_pipeline
 from .llm import Profile, get_chat, reasoning_system_message, smoke
@@ -49,6 +50,11 @@ __all__ = [
     # extractor (F2.5) — o nó é acessado via NODES (evita shadowing do submódulo)
     "extract_profile",
     "parse_profile",
+    # classifier (F2.6) — o nó é acessado via NODES (evita shadowing do submódulo)
+    "heuristic_score",
+    "parse_score",
+    "classify_with_llm",
+    "make_aimi",
     # checkpointer Postgres (F2.2)
     "postgres_checkpointer",
     "run_pipeline_persisted",

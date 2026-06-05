@@ -98,10 +98,39 @@
       `extract_profile` (sucesso + degradação None em JSON ruim/adapter que levanta), e o nó (no-op
       offline, update com `extract` injetado, acúmulo de erro na não-extração, hook de persist
       chamado, falha de persist não-fatal). Caminho LLM real é opt-in (sem teste de rede, padrão da fase).
-- [ ] **F2.6** Nó **classifier** (Super, reasoning ON): AI-native | AI-enabled | non-AI + sub-scores.
+- [x] **F2.6** Nó **classifier** (Super, reasoning ON): AI-native | AI-enabled | non-AI + sub-scores.
       Emite os 4 sub-scores no schema `AIMIScore` (F0.5) usando uma **rubrica AIMI provisória v0**
       (heurística simples por evidência), sobre a **definição de pilares/escala de `docs/RUBRICA-AIMI.md`
       (F0.11)**. **F6.1 refina** a heurística para a v1 — não muda a definição nem o contrato de saída.
+      → `packages/agents/classifier.py`: `heuristic_score` (núcleo puro/offline) lê os sinais
+      estruturados do `StartupProfile` (F2.5) e emite o `AIMIScore` — a **classe** (§5.1) pelo
+      *papel* da IA (descrição/produtos + Workflow Depth, **não** pelo total) e os **4 pilares
+      0–25** pela RUBRICA, **cada sub-score colado à evidência** do próprio perfil. A trava de
+      evidência (RUBRICA §0, princípio nº1 §8) é honrada de duas formas: o `PillarScore` já levanta
+      se `score>6` sem evidência, e a heurística **rebaixa proativamente a ≤6** quando não há fonte
+      relevante (`_band_score(has_evidence=...)`). **"Wrapper" emerge como região**, não classe:
+      P3 (Technical Optimization) cai a ≤6 quando só há sinal de **API externa crua** (sem stack
+      própria) — o gatilho de graduação (RUBRICA §4) — enquanto a classe segue `AI-native`. Teto de
+      humildade da **v0**: nenhum pilar entra na faixa Forte/Defensável (19–25) — esse julgamento é
+      da v1/eval (F6.1/F6.4); a escala 0–25 do schema fica intacta (`V0_SCORE_CEILING=18`). **Decisão
+      de design (b/d, igual F2.3/F2.4/F2.5):** **offline é o default** — a heurística determinista é a
+      própria v0 (sem rede/LLM/GPU, runs reprodutíveis, F2.14); sem `profile` (espinha sem extração)
+      o nó é **no-op limpo** (`{}`, `aimi=None`) → grafo verde ponta a ponta (M2/DoD), sem alucinar
+      score sem entrada. A peça LLM (Nemotron-Super, **reasoning ON**, `classifier@v1`/F0.12) é
+      **plugável** atrás de `settings.classifier_use_llm`+chave (flag nova) **ou** de um adapter
+      `classify=` injetado (testes/worker F2.10), **com fallback à heurística** a qualquer falha de
+      rede/JSON/validação (`make_aimi` → `classify_with_llm` degrada p/ `None`). No caminho LLM,
+      `parse_score` **ancora a evidência citada na proveniência real do perfil** (reusa a `Evidence`
+      existente por url; url nova ganha `source_policy`/F1.15) e rebaixa a ≤6 o sub-score que o modelo
+      alegar sem citar. `nodes.py` importa o nó real (some o placeholder F2.1); o pacote expõe
+      `heuristic_score`/`parse_score`/`classify_with_llm`/`make_aimi` (o nó via `NODES`, evitando
+      shadowing do submódulo). Teste `tests/test_classifier.py`: classe nos 3 cenários (AI-native com
+      stack própria, wrapper AI-native + P3 baixo, non-AI), trava de evidência (>6 sem fonte → ≤6, e a
+      classe cai p/ AI-enabled sem confiança), teto v0, P4 por enterprise+captação; `parse_score`
+      (grounding na proveniência do perfil, url nova com policy, cap sem evidência, alias de classe);
+      `classify_with_llm` (degradação None em JSON ruim/adapter que levanta); `make_aimi` (heurística
+      default, LLM injetado, fallback, flag ligada); e o nó (no-op sem perfil, `aimi` com perfil,
+      `classify=` injetado). Caminho LLM real é opt-in (sem teste de rede, padrão da fase).
 - [ ] **F2.7** Nó **evidence_validator**: regra de N fontes; aresta condicional de retry → scraper.
 - [ ] **F2.8** **HITL interrupt** antes do briefing (revisão humana da classificação/recomendação).
       Controlado por flag de modo: `hitl=sync` no *single-company lookup* (interrupt bloqueante);
