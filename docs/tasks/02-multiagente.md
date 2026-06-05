@@ -158,9 +158,35 @@
       orçamento, esgotado com nota), o **loop terminando** em exatamente `max_retries` re-coletas
       (DoD F2), e coerência das constantes de rota com a espinha; `tests/test_graph.py` ganha a
       saída condicional (sem aresta estática do evidence_validator).
-- [ ] **F2.8** **HITL interrupt** antes do briefing (revisão humana da classificação/recomendação).
+- [x] **F2.8** **HITL interrupt** antes do briefing (revisão humana da classificação/recomendação).
       Controlado por flag de modo: `hitl=sync` no *single-company lookup* (interrupt bloqueante);
       `hitl=auto` no **batch/cohort builder (F1.14)** — não bloqueia a fila, só marca para revisão.
+      → `packages/agents/human_review.py`: novo nó de **controle HITL** (penúltimo da espinha,
+      entre `gpu_benchmark`/F6 e `briefing`/F4.4 — revisão *antes* de o briefing ser escrito).
+      `review_payload` monta o resumo que o humano revisa (classe §5.1 + AIMI + recs), só com o
+      que já está no estado e **sem alucinar** campos ausentes (run offline → `None`/`[]`). O
+      **modo** vem de `state.hitl` (F2.3): `auto` (batch/cohort F1.14) **não bloqueia** — marca o
+      novo campo `GraphState.needs_review` (revisão assíncrona do lote) e segue; `sync`
+      (single-company) chama `langgraph.types.interrupt(payload)` — **pausa bloqueante** que
+      retoma via `Command(resume=<decisão>)`, com a decisão registrada em `trace["human_review"]`
+      (auditável). **Decisão de design (b/d, igual F2.3–F2.7):** **offline é o default** — o gate
+      `settings.hitl_enabled` (flag nova) nasce **off**, então o nó é **no-op limpo** (`{}`) e a
+      espinha roda ponta a ponta sem pausa (M2/DoD; os testes da fase seguem verdes, inclusive o
+      `interrupt_before=["briefing"]` da F2.2). A pausa é **plugável** pela flag **ou** pelo param
+      injetável `enabled=` (testes/worker F2.10). **Gatear por flag — não pela mera presença do
+      checkpointer (F2.2):** o checkpointer habilita resume/retry sozinho, então um run persistido
+      **sem** revisão (CI, reprocesso em lote) não deve travar à espera de gente — a flag separa
+      "persisto o estado" de "exijo um humano no loop" (e mantém verde o teste do F2.2 que persiste
+      em modo `sync`). O nó **não roteia** (sem `Command goto`): saída estática p/ o `briefing` em
+      todo caminho (offline, auto, pós-resume do sync); mapear "interrupt pendente → status
+      `awaiting_review`" na tabela `run` é do worker (F2.10), e os terminais alternativos (dados
+      insuficientes F2.12, fora de escopo F2.13) ramificam antes. `nodes.py` registra o nó (10
+      entradas: 9 agentes + controle HITL) e `graph.py` o insere na `PIPELINE`; o pacote expõe
+      `review_payload` (o nó via `NODES`, evitando shadowing). Teste `tests/test_human_review.py`:
+      payload (resumo + não-alucinação), no-op desligado (param e default), `auto` marca sem
+      bloquear (+ run ponta a ponta completa e marcado), `sync` via grafo compilado + `InMemorySaver`
+      (pausa antes do briefing com o payload no interrupt → resume com a decisão no `trace`, DoD F2),
+      e a posição estática na espinha; `tests/test_graph.py`/`test_checkpoint.py` seguem verdes.
 - [ ] **F2.9** Tracing Langfuse em todos os nós + métricas de tokens/custo.
 - [ ] **F2.10** Orquestração assíncrona via worker (Redis/RQ) p/ runs longos + SSE de progresso.
       **Transporte worker → SSE (esclarecimento):** o worker **publica** eventos num canal

@@ -1,8 +1,8 @@
 """Grafo LangGraph e nós dos agentes (F2).
 
 Nós: search_planner, scraper, extractor, classifier, evidence_validator,
-nvidia_rag, recommender, gpu_benchmark, briefing. Estado em GraphState; backbone
-montado em `graph.py` (F2.1); checkpointer Postgres (F2.2) e HITL via interrupt (F2.8).
+nvidia_rag, recommender, gpu_benchmark, human_review (HITL/F2.8), briefing. Estado em
+GraphState; backbone montado em `graph.py` (F2.1); checkpointer Postgres (F2.2).
 
 Cliente Nemotron (F0.7), prompts versionados (F0.12) e a montagem do grafo (F2.1)
 expostos aqui: `from packages.agents import get_chat, get_prompt, run_pipeline`.
@@ -17,6 +17,7 @@ from .evidence_validator import (
 )
 from .extractor import extract_profile, parse_profile
 from .graph import CONDITIONAL_OUT, PIPELINE, build_graph, compile_graph, run_pipeline
+from .human_review import review_payload
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
 from .prompts import PROMPT_NODES, Prompt, get_prompt
@@ -65,6 +66,8 @@ __all__ = [
     "evidence_sources",
     "is_sufficient",
     "MIN_SOURCES",
+    # human_review (F2.8) — o nó é acessado via NODES (evita shadowing do submódulo)
+    "review_payload",
     # checkpointer Postgres (F2.2)
     "postgres_checkpointer",
     "run_pipeline_persisted",

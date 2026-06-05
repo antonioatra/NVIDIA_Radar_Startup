@@ -16,6 +16,7 @@ sem RAG ainda"). Cada nó é preenchido pela sua task, anotada no docstring:
 - nvidia_rag        → F3   (RAG híbrido Qdrant + NeMo rerank → citações)
 - recommender       → F4   (gaps do AIMI × tech NVIDIA)
 - gpu_benchmark     → F6   (ROI real na GPU; condicional ★)
+- human_review      → F2.8 (HITL interrupt antes do briefing; ver `human_review.py`)
 - briefing          → F4.4 (briefing executivo; Guardrails F4.5)
 
 Os updates parciais usam a semântica default do LangGraph (sobrescrita por canal).
@@ -29,6 +30,7 @@ from packages.schemas import GraphState, RunStatus
 from .classifier import classifier  # F2.6 — implementação real do nó
 from .evidence_validator import evidence_validator  # F2.7 — implementação real do nó
 from .extractor import extractor  # F2.5 — implementação real do nó
+from .human_review import human_review  # F2.8 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
 
@@ -58,7 +60,8 @@ def briefing(state: GraphState) -> dict:
     return {"status": RunStatus.COMPLETED}
 
 
-# Registro nome → função, consumido pela montagem do grafo (graph.py).
+# Registro nome → função, consumido pela montagem do grafo (graph.py). O `human_review`
+# (F2.8) é um nó de **controle HITL** (não um dos 9 agentes), inserido antes do briefing.
 NODES = {
     "search_planner": search_planner,
     "scraper": scraper,
@@ -68,5 +71,6 @@ NODES = {
     "nvidia_rag": nvidia_rag,
     "recommender": recommender,
     "gpu_benchmark": gpu_benchmark,
+    "human_review": human_review,
     "briefing": briefing,
 }

@@ -74,6 +74,12 @@ class GraphState(BaseModel):
     retry_count: int = Field(default=0, ge=0)
     max_retries: int = Field(default=2, ge=0)
 
+    # human_review (F2.8) — modo auto (batch/cohort) marca p/ revisão assíncrona sem
+    # bloquear a fila; o modo sync pausa via interrupt e não usa este campo.
+    needs_review: bool = Field(
+        default=False, description="HITL auto: run marcado p/ revisão humana (F2.8)."
+    )
+
     # Reprodutibilidade / observabilidade
     prompt_version: str | None = Field(default=None, description="Versão de prompts (F0.12).")
     errors: list[str] = Field(default_factory=list)

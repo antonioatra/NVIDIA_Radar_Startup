@@ -7,9 +7,9 @@ nas tasks seguintes, com hooks já documentados aqui:
 
 - checkpointer Postgres (resume/retry)        → F2.2 (param `checkpointer` de `compile_graph`)
 - retry condicional evidence→scraper           → F2.7 (via `Command` do nó; ver `CONDITIONAL_OUT`)
+- HITL interrupt antes do briefing              → F2.8 (nó `human_review`; ver `human_review.py`)
 - estado terminal de baixa confiança           → F2.12
 - saída non-AI fora de escopo                   → F2.13
-- HITL interrupt antes do briefing              → F2.8
 - tracing Langfuse por nó + custo               → F2.9
 
 `from packages.agents import build_graph, compile_graph, run_pipeline`.
@@ -30,8 +30,9 @@ if TYPE_CHECKING:
     from langgraph.checkpoint.base import BaseCheckpointSaver
     from langgraph.graph.state import CompiledStateGraph
 
-# Espinha dorsal (ARQUITETURA §3). As arestas condicionais (retry F2.7, terminais
-# F2.12/F2.13, HITL F2.8) entram depois sem reordenar esta sequência.
+# Espinha dorsal (ARQUITETURA §3): os 9 agentes + o nó de controle HITL `human_review`
+# (F2.8), inserido antes do briefing. O retry condicional (F2.7) e os terminais
+# (F2.12/F2.13) ramificam por `Command` sem reordenar esta sequência.
 PIPELINE: tuple[str, ...] = (
     "search_planner",
     "scraper",
@@ -41,6 +42,7 @@ PIPELINE: tuple[str, ...] = (
     "nvidia_rag",
     "recommender",
     "gpu_benchmark",
+    "human_review",
     "briefing",
 )
 

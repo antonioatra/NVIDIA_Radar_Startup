@@ -69,6 +69,15 @@ class Settings(BaseSettings):
         default=False, description="scraper (F2.4) coleta as fontes de verdade (rede/F1)."
     )
 
+    # --- HITL (F2.8) ------------------------------------------------------------
+    # Por padrão o grafo roda **sem** pausa humana (espinha verde, M2/DoD). Ligue p/ o nó
+    # human_review pausar antes do briefing: bloqueante no modo sync (single-company, exige
+    # checkpointer/F2.2 p/ o interrupt→resume) e não-bloqueante no modo auto (batch/cohort,
+    # F1.14 — só marca `needs_review`). O modo vem de `GraphState.hitl`, não daqui.
+    hitl_enabled: bool = Field(
+        default=False, description="human_review (F2.8) pausa p/ revisão humana antes do briefing."
+    )
+
     # --- Dados ------------------------------------------------------------------
     postgres_url: str = "postgresql://tapi:tapi@localhost:5432/tapi"
     qdrant_url: str = "http://localhost:6333"
