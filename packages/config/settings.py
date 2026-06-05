@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
     firecrawl_api_key: str = ""
 
+    # scraper (F2.4): por padrão é offline (no-op limpo, espinha reproduzível sem rede).
+    # Ligue p/ o nó coletar de verdade via adapters F1 (requer tavily/firecrawl + Playwright).
+    scraper_use_network: bool = Field(
+        default=False, description="scraper (F2.4) coleta as fontes de verdade (rede/F1)."
+    )
+
     # --- Dados ------------------------------------------------------------------
     postgres_url: str = "postgresql://tapi:tapi@localhost:5432/tapi"
     qdrant_url: str = "http://localhost:6333"

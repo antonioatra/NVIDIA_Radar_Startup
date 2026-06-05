@@ -26,12 +26,8 @@ from __future__ import annotations
 
 from packages.schemas import GraphState, RunStatus
 
+from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
-
-
-def scraper(state: GraphState) -> dict:
-    """F2.4 — map paralelo sobre as fontes priorizadas (usa adapters F1)."""
-    return {}
 
 
 def extractor(state: GraphState) -> dict:

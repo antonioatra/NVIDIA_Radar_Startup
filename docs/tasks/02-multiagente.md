@@ -47,7 +47,27 @@
       nunca `deny`). Teste `tests/test_search_planner.py`: detecção de modo, plano por modo
       (query sempre 1ª; `deny` fora), parsing do JSON do Nano, e o nó offline → update parcial
       coerente. O caminho LLM real é opt-in (sem teste de rede, no padrão da fase).
-- [ ] **F2.4** Nó **scraper** (map paralelo sobre fontes; usa F1).
+- [x] **F2.4** Nó **scraper** (map paralelo sobre fontes; usa F1).
+      → `packages/agents/scraper.py`: `scrape_sources` (núcleo testável) faz o **MAP paralelo**
+      sobre `state.sources` (achatadas pelo planner F2.3) num `ThreadPoolExecutor` (coleta é
+      I/O-bound) e devolve `raw_docs` (`RawDocument`, F0.5) + `errors`. Cada fonte vira URL(s):
+      **URL** direta → roteador F1.7 (`route`/`fetch`); **termo de busca** → Tavily (F1.1) → top-K
+      liberadas. Toda URL passa pelo **gate de ToS travado (F1.15)** antes do fetch (`verdict`):
+      `api_only`/`deny` (§9.1) é **pulada** e registrada em `errors`, nunca coletada direto; o
+      **intent** do roteador é inferido do tipo §9 (news→`article`, directory/program→`structured`,
+      demais→`clean`). Proveniência mínima (F1.9) viaja no doc (`url`+`fetched_at`+`content_hash`+
+      `source_type`=cadeia de adapters). **Decisão de design (b/d):** o MAP é **dentro do nó** (pool
+      de threads), **não** fan-out LangGraph (`Send`+reducer) — mantém o scraper como **um** nó da
+      espinha linear (F2.1) que o retry `evidence_validator→scraper` (F2.7) vai ancorar; resultado
+      **reordenado pela ordem das fontes** e deduplicado por `(url, content_hash)` → **determinista**
+      apesar das threads (ethos F2.14). Como no planner, **offline é o default**: sem adapters
+      injetados e com `scraper_use_network` off (flag nova no settings) o nó é **no-op limpo** (`{}`,
+      espinha verde M2/DoD); a coleta real é plugável por `fetch=`/`search=` (testes/worker F2.10) ou
+      pela flag (produção). Erros **acumulam** em `state.errors` sem derrubar o run. `nodes.py` passa
+      a importar o nó real (some o placeholder F2.1). Teste `tests/test_scraper.py`: map/ordem, gate
+      ToS (deny+api_only), intent por tipo, termo→top-K, dedup, falhas de fetch/busca não-fatais, e o
+      nó (no-op offline, update parcial, acúmulo de erros). Caminho de rede real fica opt-in (sem
+      teste de rede, padrão da fase).
 - [ ] **F2.5** Nó **extractor** (Nemotron-Super): conteúdo → `StartupProfile` estruturado.
 - [ ] **F2.6** Nó **classifier** (Super, reasoning ON): AI-native | AI-enabled | non-AI + sub-scores.
       Emite os 4 sub-scores no schema `AIMIScore` (F0.5) usando uma **rubrica AIMI provisória v0**
