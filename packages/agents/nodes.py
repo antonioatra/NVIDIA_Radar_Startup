@@ -8,7 +8,7 @@ Na F2.1 os corpos são **placeholders deterministas** (sem rede/LLM): provam que
 grafo roda ponta a ponta e produz um briefing rascunho (M2 / DoD "grafo end-to-end
 sem RAG ainda"). Cada nó é preenchido pela sua task, anotada no docstring:
 
-- search_planner    → F2.3 (Nemotron-Nano: query → termos + fontes priorizadas)
+- search_planner    → F2.3 (query → termos + fontes priorizadas; ver `search_planner.py`)
 - scraper           → F2.4 (map paralelo sobre fontes; usa F1)
 - extractor         → F2.5 (Nemotron-Super: docs → StartupProfile + persist)
 - classifier        → F2.6 (classe §5.1 + AIMI v0)
@@ -26,17 +26,7 @@ from __future__ import annotations
 
 from packages.schemas import GraphState, RunStatus
 
-
-def search_planner(state: GraphState) -> dict:
-    """F2.3 — Nemotron-Nano planeja termos/fontes a partir da query.
-
-    Placeholder F2.1: marca o run como RUNNING e garante ao menos um termo de
-    busca (a própria query) p/ o backbone ter o que carregar.
-    """
-    update: dict = {"status": RunStatus.RUNNING}
-    if not state.search_terms:
-        update["search_terms"] = [state.query]
-    return update
+from .search_planner import search_planner  # F2.3 — implementação real do nó
 
 
 def scraper(state: GraphState) -> dict:

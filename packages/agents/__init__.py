@@ -13,6 +13,14 @@ from .graph import PIPELINE, build_graph, compile_graph, run_pipeline
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
 from .prompts import PROMPT_NODES, Prompt, get_prompt
+from .search_planner import (
+    PrioritizedSource,
+    SearchPlan,
+    detect_mode,
+    deterministic_plan,
+    make_plan,
+    resolve_mode,
+)
 
 __all__ = [
     # LLM (F0.7)
@@ -30,6 +38,13 @@ __all__ = [
     "run_pipeline",
     "PIPELINE",
     "NODES",
+    # search_planner (F2.3)
+    "SearchPlan",
+    "PrioritizedSource",
+    "make_plan",
+    "deterministic_plan",
+    "detect_mode",
+    "resolve_mode",
     # checkpointer Postgres (F2.2)
     "postgres_checkpointer",
     "run_pipeline_persisted",

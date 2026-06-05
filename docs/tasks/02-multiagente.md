@@ -27,10 +27,26 @@
       migração no mesmo banco. Teste `tests/test_checkpoint.py`: round-trip do serde,
       `thread_id=run_id`, e **interrupt→resume** via checkpoint (DoD F2); o caminho Postgres
       real é teste de integração que pula sem banco no ar (`connect_timeout` curto).
-- [ ] **F2.3** Nó **search_planner** (Nemotron-Nano): consulta → termos + fontes priorizadas.
+- [x] **F2.3** Nó **search_planner** (Nemotron-Nano): consulta → termos + fontes priorizadas.
       **Contrato de input (esclarecimento):** dois modos — (a) *single-company lookup* (nome/domínio
       de uma empresa) e (b) *discovery por setor/região* (ex.: "fintechs AI em SP"). O planner
       detecta o modo e gera termos/fontes adequados; o modo (b) alimenta o cohort builder (F1.14).
+      → `packages/agents/search_planner.py`: `SearchPlan`/`PrioritizedSource` (Pydantic, saída
+      tipada) + `detect_mode`/`resolve_mode` (heurística pura: domínio/nome → single; pistas de
+      setor/categoria/`-techs` → discovery; honra um `discovery` declarado, nunca rebaixa). O nó
+      escreve `mode` (detectado, p/ o cohort builder F1.14), `search_terms` e `sources` (achatadas
+      p/ o scraper F2.4) e marca o run `RUNNING`. **Decisão de design (política headless b/d):** o
+      caminho **determinista/offline** é o **default** — grafo roda ponta a ponta sem
+      rede/credenciais/GPU (M2/DoD) e runs ficam reprodutíveis (ethos F2.14); a peça **LLM**
+      (Nemotron-Nano + prompt `search_planner@v1`, F0.12) é **plugável** atrás de
+      `settings.planner_use_llm` (default off, requer chave), com **fallback** ao determinista a
+      qualquer falha/JSON inválido. Discovery enviesa os termos por sinais AI-native
+      (`signals.bias_query`, F1.11), mantendo a query original 1ª; single-company não força viés
+      sobre nome próprio (prompt v1). Fontes honram a **política de ToS travada** (F1.15): site
+      oficial + notícias §9.2 (allow); diretórios §9.1 só como **pista de descoberta** (`api_only`,
+      nunca `deny`). Teste `tests/test_search_planner.py`: detecção de modo, plano por modo
+      (query sempre 1ª; `deny` fora), parsing do JSON do Nano, e o nó offline → update parcial
+      coerente. O caminho LLM real é opt-in (sem teste de rede, no padrão da fase).
 - [ ] **F2.4** Nó **scraper** (map paralelo sobre fontes; usa F1).
 - [ ] **F2.5** Nó **extractor** (Nemotron-Super): conteúdo → `StartupProfile` estruturado.
 - [ ] **F2.6** Nó **classifier** (Super, reasoning ON): AI-native | AI-enabled | non-AI + sub-scores.

@@ -43,8 +43,9 @@ def test_run_pipeline_end_to_end_returns_draft() -> None:
     assert isinstance(out, GraphState)
     assert out.run_id == "run-42"
     assert out.status is RunStatus.COMPLETED
-    # search_planner placeholder garante ao menos a query como termo de busca.
-    assert out.search_terms == ["Acme AI"]
+    # search_planner (F2.3) planeja termos + fontes; a query continua sendo o 1º termo.
+    assert out.search_terms[0] == "Acme AI"
+    assert out.sources  # fontes priorizadas (§9) não-vazias
     # nada de alucinação nos campos ainda não preenchidos pelos nós reais.
     assert out.profile is None
     assert out.briefing is None

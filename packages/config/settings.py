@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # NIM self-hosted (GPU local) — opcional no build, usado no F6.
     nim_base_url: str = "http://localhost:8000/v1"
 
+    # search_planner (F2.3): por padrão é determinista/offline (reproduzível, sem rede).
+    # Ligue p/ deixar o Nemotron-Nano refinar o plano de coleta (requer nvidia_api_key).
+    planner_use_llm: bool = Field(
+        default=False, description="search_planner (F2.3) usa o Nano p/ refinar o plano."
+    )
+
     # Reranker: nemo (default no build) | cohere (somente validação F7).
     reranker_provider: RerankerProvider = "nemo"
     cohere_api_key: str = Field(default="", description="Só na F7 (trial).")
