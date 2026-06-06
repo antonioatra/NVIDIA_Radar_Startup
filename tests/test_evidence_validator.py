@@ -7,6 +7,8 @@ Tudo offline/determinista. Exercita:
   orçamento → retry ao scraper (incrementa `retry_count`, marca RUNNING); insuficiente e
   esgotado → terminal de baixa confiança (F2.12: salta ao briefing, marca INSUFFICIENT_DATA
   + nota rastreável, sem alucinar nem loop);
+- F2.13: `is_confident_non_ai` + no ramo corroborado, classe non-AI confiante → terminal "fora
+  de escopo" (OUT_OF_SCOPE), disjunto de "dados insuficientes" (non-AI sem corroboração → F2.12);
 - o **loop de retry termina** em exatamente `max_retries` re-coletas (DoD F2 "retry funciona");
 - coerência das constantes de roteamento com a espinha (`graph.PIPELINE`).
 """
@@ -15,7 +17,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from packages.agents import evidence_sources, is_sufficient
+from packages.agents import evidence_sources, is_confident_non_ai, is_sufficient
 from packages.agents.evidence_validator import (
     CONTINUE_TARGET,
     MIN_SOURCES,
@@ -24,7 +26,17 @@ from packages.agents.evidence_validator import (
     evidence_validator,
 )
 from packages.agents.graph import PIPELINE
-from packages.schemas import Claim, Evidence, GraphState, RunStatus, StartupProfile
+from packages.schemas import (
+    AIMIPillar,
+    AIMIScore,
+    Claim,
+    Classification,
+    Evidence,
+    GraphState,
+    PillarScore,
+    RunStatus,
+    StartupProfile,
+)
 
 _FETCHED = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)
 
@@ -39,6 +51,22 @@ def _profile(*ev_urls: str, source_urls: list[str] | None = None) -> StartupProf
         nome="X",
         descricao=Claim[str](value="o que a empresa faz", evidence=[_ev(u) for u in ev_urls]),
         source_urls=source_urls or [],
+    )
+
+
+def _aimi(classe: Classification, confidence: float | None) -> AIMIScore:
+    """AIMIScore mínimo (pilares ausentes ≤6, sem evidência) só p/ exercitar classe+confiança."""
+
+    def pilar(p: AIMIPillar) -> PillarScore:
+        return PillarScore(pilar=p, score=3, justificativa="ausente")
+
+    return AIMIScore(
+        data_moat=pilar(AIMIPillar.DATA_MOAT),
+        workflow_depth=pilar(AIMIPillar.WORKFLOW_DEPTH),
+        technical_optimization=pilar(AIMIPillar.TECHNICAL_OPTIMIZATION),
+        distribution_moat=pilar(AIMIPillar.DISTRIBUTION_MOAT),
+        classificacao=classe,
+        confidence=confidence,
     )
 
 
@@ -83,6 +111,54 @@ def test_node_sufficient_continues() -> None:
     cmd = evidence_validator(_state(_profile("https://a.com", "https://b.com")))
     assert cmd.goto == CONTINUE_TARGET
     assert cmd.update is None
+
+
+# ---------------------------------- F2.13: non-AI de alta confiança → fora de escopo
+
+
+def test_is_confident_non_ai_predicate() -> None:
+    assert is_confident_non_ai(None) is False  # sem diagnóstico
+    assert is_confident_non_ai(_aimi(Classification.NON_AI, 0.8)) is True
+    assert is_confident_non_ai(_aimi(Classification.NON_AI, 0.49)) is False  # abaixo do piso
+    assert is_confident_non_ai(_aimi(Classification.NON_AI, None)) is False  # sem confiança
+    assert is_confident_non_ai(_aimi(Classification.AI_NATIVE, 0.99)) is False  # não é non-AI
+
+
+def test_node_confident_non_ai_routes_to_out_of_scope() -> None:
+    # Corroborado (2 hosts) + classe non-AI cravada com confiança → terminal "fora de escopo":
+    # salta ao briefing marcando OUT_OF_SCOPE, sem seguir ao RAG nem nota de erro (legítimo).
+    state = _state(
+        _profile("https://a.com", "https://b.com"),
+        aimi=_aimi(Classification.NON_AI, 0.8),
+    )
+    cmd = evidence_validator(state)
+    assert cmd.goto == TERMINAL_TARGET
+    assert cmd.update == {"status": RunStatus.OUT_OF_SCOPE}
+    assert "errors" not in cmd.update  # não é falha → não polui errors
+
+
+def test_node_non_ai_low_confidence_continues_normally() -> None:
+    # Corroborado, mas a classe non-AI não é firme (confiança < piso) → segue o caminho normal.
+    state = _state(
+        _profile("https://a.com", "https://b.com"),
+        aimi=_aimi(Classification.NON_AI, 0.3),
+    )
+    cmd = evidence_validator(state)
+    assert cmd.goto == CONTINUE_TARGET
+    assert cmd.update is None
+
+
+def test_confident_non_ai_without_corroboration_falls_to_insufficient_data() -> None:
+    # Disjunção dos terminais: non-AI confiante mas com 1 fonte (< piso) NÃO é "fora de escopo" —
+    # sem corroboração cai em "dados insuficientes" (F2.12), não se descarta a empresa.
+    state = _state(
+        _profile("https://a.com"),
+        aimi=_aimi(Classification.NON_AI, 0.9),
+        max_retries=0,
+    )
+    cmd = evidence_validator(state)
+    assert cmd.goto == TERMINAL_TARGET
+    assert cmd.update["status"] is RunStatus.INSUFFICIENT_DATA  # não OUT_OF_SCOPE
 
 
 def test_node_insufficient_with_budget_retries_to_scraper() -> None:

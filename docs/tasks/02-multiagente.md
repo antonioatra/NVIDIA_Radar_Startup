@@ -314,11 +314,41 @@
       (branch esgotado → `TERMINAL_TARGET`+`INSUFFICIENT_DATA`, loop termina no terminal, coerência
       da constante com a espinha). Cobre o DoD F2 "empresa sem evidência suficiente cai no terminal
       de baixa confiança (não alucina)".
-- [ ] **F2.13** **Saída para `non-AI` de alta confiança:** a baixa-confiança (F2.12) cobre
+- [x] **F2.13** **Saída para `non-AI` de alta confiança:** a baixa-confiança (F2.12) cobre
       "dados insuficientes"; falta o caminho da empresa **claramente non-AI** (classificada com
       confiança). Roteamento explícito: pular `recommender`/`gpu_benchmark` e emitir um briefing
       **"fora de escopo"** (por que não é alvo Inception + AIMI baixo com evidência), em vez de
       forçar recomendação NVIDIA. O texto sai no Briefing Agent (F4.4). Caminho no grafo + teste.
+      → Três peças, reusando a infra dos terminais (F2.12). **(1) Veredito**
+      (`classifier.is_confident_non_ai` + `NON_AI_CONFIDENCE_FLOOR=0.5`): a empresa é "non-AI de
+      alta confiança" quando o `AIMIScore` traz classe `non-AI` **e** `confidence ≥` piso;
+      confiança ausente (`None`, possível no caminho LLM) conta como **não-firme** (sem sinal não
+      se descarta). Mora no classifier — é a semântica de confiança que a v1/eval (F6.4) calibra.
+      **(2) Roteamento** (`evidence_validator`, F2.7): **só no ramo já corroborado** (≥ N fontes
+      independentes), antes de gastar RAG/recomendação, se `is_confident_non_ai(state.aimi)` o nó
+      **salta ao `briefing`** marcando `OUT_OF_SCOPE` em vez de seguir ao RAG. **Decisão de design
+      (b/d):** gatear pela **corroboração** mantém os dois terminais **disjuntos** — `non-AI`
+      **sem** corroboração cai em "dados insuficientes" (F2.12, não se descarta sobre fonte única);
+      `non-AI` **com** corroboração + confiança é "fora de escopo". Ambos usam o mesmo
+      `TERMINAL_TARGET="briefing"` (sem novo alvo no `Command`/`Literal`); quem distingue é o
+      `status`. É **status, não nota de `errors`** — descarte com base é desfecho legítimo, não
+      falha (≠ F2.12, que registra a lacuna). **(3) Briefing** (`terminals.out_of_scope_briefing`):
+      monta o briefing `fora_de_escopo` determinista/offline — `empresa` (cai na query se faltar),
+      resumo do **porquê não é alvo** (classe + AIMI total), **carrega o `aimi`** (classe non-AI +
+      sub-scores baixos com a evidência que sustenta) e `recomendacoes=[]` (não força tech NVIDIA).
+      O nó `briefing` (nodes.py, placeholder F4.4) despacha `OUT_OF_SCOPE` → `out_of_scope_briefing`
+      (ao lado do `INSUFFICIENT_DATA`/F2.12); o caminho normal segue COMPLETED (rascunho M2).
+      **Offline é o default (igual F2.3–F2.12):** sem perfil o evidence_validator segue limpo →
+      COMPLETED (M2/DoD intacto); o terminal só dispara com perfil corroborado + non-AI confiante.
+      `out_of_scope_briefing`/`is_confident_non_ai` exportados no pacote. Testes
+      `tests/test_evidence_validator.py` (predicado nos 5 cenários — sem aimi, non-AI confiante,
+      abaixo do piso, confiança None, AI-native; roteamento corroborado→OUT_OF_SCOPE sem nota de
+      erro, non-AI de baixa confiança→segue normal, **disjunção**: non-AI confiante sem corroboração
+      → INSUFFICIENT_DATA) e `tests/test_terminals.py` (helper: status/empresa/aimi carregado/sem
+      recomendação + fallback p/ query; nó despachando OUT_OF_SCOPE; e o **grafo ponta a ponta** —
+      perfil non-AI de 3 hosts → run `OUT_OF_SCOPE` + briefing `fora_de_escopo`, RAG/recommender
+      pulados, `errors` vazio). Cobre o DoD F2 "empresa non-AI de alta confiança gera briefing
+      'fora de escopo' sem forçar recomendação".
 - [ ] **F2.14** **Cache de chamadas LLM/embeddings** (chave por prompt+modelo+`prompt_version`):
       reduz custo no free tier do `build.nvidia.com` (complementa a guarda de orçamento F2.11) e
       torna runs/eval **reprodutíveis**. Cache local (Redis/disco); invalida quando `prompt_version`
@@ -331,5 +361,5 @@ LangGraph · checkpointer Postgres · Nemotron (Nano/Super) · Redis/RQ · Langf
 - [ ] Grafo roda end-to-end (sem RAG ainda) e produz um briefing rascunho.
 - [ ] Run interrompido e retomado via checkpoint; retry de evidência funciona.
 - [ ] Empresa sem evidência suficiente cai no estado terminal de baixa confiança (não alucina).
-- [ ] Empresa `non-AI` de alta confiança gera briefing "fora de escopo" sem forçar recomendação (F2.13).
+- [x] Empresa `non-AI` de alta confiança gera briefing "fora de escopo" sem forçar recomendação (F2.13).
 - [ ] Eventos de progresso publicados em canal Redis por `run_id`, consumíveis via SSE (F2.10).

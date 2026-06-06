@@ -33,7 +33,10 @@ from .extractor import extractor  # F2.5 — implementação real do nó
 from .human_review import human_review  # F2.8 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
-from .terminals import insufficient_data_briefing  # F2.12 — briefing terminal
+from .terminals import (  # F2.12 / F2.13 — briefings terminais
+    insufficient_data_briefing,
+    out_of_scope_briefing,
+)
 
 
 def nvidia_rag(state: GraphState) -> dict:
@@ -54,15 +57,20 @@ def gpu_benchmark(state: GraphState) -> dict:
 def briefing(state: GraphState) -> dict:
     """F4.4 — briefing executivo (Guardrails F4.5).
 
-    Despacha por status terminal: quando o evidence_validator (F2.7) já marcou o run
-    `INSUFFICIENT_DATA` (saltou RAG/recomendação ao esgotar o retry), emite o briefing
-    terminal **"dados insuficientes"** (F2.12, `terminals.insufficient_data_briefing`) — com o
-    que foi apurado + lacunas, sem alucinar nem recomendar à força. A saída `OUT_OF_SCOPE`
-    (F2.13) e o briefing **normal** (F4.4, diagnóstico + recomendação) entram com suas tasks;
-    por ora o caminho normal fecha o run em COMPLETED (placeholder F2.1, rascunho M2).
+    Despacha por status terminal, marcado antes pelo evidence_validator (F2.7) ao saltar
+    RAG/recomendação direto p/ cá:
+    - `INSUFFICIENT_DATA` (F2.12) → briefing **"dados insuficientes"** (o que foi apurado +
+      lacunas), `terminals.insufficient_data_briefing`;
+    - `OUT_OF_SCOPE` (F2.13) → briefing **"fora de escopo"** (non-AI de alta confiança: por que
+      não é alvo Inception + AIMI baixo com evidência), `terminals.out_of_scope_briefing`.
+    Nenhum força recomendação NVIDIA nem alucina. O briefing **normal** (F4.4, diagnóstico +
+    recomendação) entra com sua task; por ora o caminho normal fecha o run em COMPLETED
+    (placeholder F2.1, rascunho M2).
     """
     if state.status is RunStatus.INSUFFICIENT_DATA:
         return {"briefing": insufficient_data_briefing(state)}  # status já é terminal
+    if state.status is RunStatus.OUT_OF_SCOPE:
+        return {"briefing": out_of_scope_briefing(state)}  # status já é terminal
     return {"status": RunStatus.COMPLETED}
 
 

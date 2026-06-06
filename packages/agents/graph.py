@@ -9,7 +9,7 @@ nas tasks seguintes, com hooks já documentados aqui:
 - retry condicional evidence→scraper           → F2.7 (via `Command` do nó; ver `CONDITIONAL_OUT`)
 - HITL interrupt antes do briefing              → F2.8 (nó `human_review`; ver `human_review.py`)
 - estado terminal de baixa confiança           → F2.12 (evidence_validator salta ao `briefing`)
-- saída non-AI fora de escopo                   → F2.13
+- saída non-AI fora de escopo                   → F2.13 (evidence_validator salta ao `briefing`)
 - tracing Langfuse por nó + custo               → F2.9
 
 `from packages.agents import build_graph, compile_graph, run_pipeline`.

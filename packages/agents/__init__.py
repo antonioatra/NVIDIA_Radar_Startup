@@ -9,7 +9,13 @@ expostos aqui: `from packages.agents import get_chat, get_prompt, run_pipeline`.
 """
 
 from .checkpoint import postgres_checkpointer, run_pipeline_persisted, state_serde
-from .classifier import classify_with_llm, heuristic_score, make_aimi, parse_score
+from .classifier import (
+    classify_with_llm,
+    heuristic_score,
+    is_confident_non_ai,
+    make_aimi,
+    parse_score,
+)
 from .evidence_validator import (
     MIN_SOURCES,
     evidence_sources,
@@ -36,7 +42,7 @@ from .search_planner import (
     make_plan,
     resolve_mode,
 )
-from .terminals import insufficient_data_briefing
+from .terminals import insufficient_data_briefing, out_of_scope_briefing
 
 __all__ = [
     # LLM (F0.7)
@@ -70,12 +76,14 @@ __all__ = [
     "parse_score",
     "classify_with_llm",
     "make_aimi",
+    "is_confident_non_ai",
     # evidence_validator (F2.7) — o nó é acessado via NODES (evita shadowing do submódulo)
     "evidence_sources",
     "is_sufficient",
     "MIN_SOURCES",
     # terminais de baixa confiança / fora de escopo (F2.12 / F2.13)
     "insufficient_data_briefing",
+    "out_of_scope_briefing",
     # human_review (F2.8) — o nó é acessado via NODES (evita shadowing do submódulo)
     "review_payload",
     # progresso ao vivo + worker async (F2.10)

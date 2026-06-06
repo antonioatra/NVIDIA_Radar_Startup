@@ -63,6 +63,13 @@ ClassifyFn = Callable[[StartupProfile], str]
 #: depende da v1/eval (F6.1/F6.4). A escala 0–25 do schema permanece intacta — só a v0 se contém.
 V0_SCORE_CEILING = 18
 
+#: Piso de confiança p/ o terminal **"non-AI fora de escopo" (F2.13)**: abaixo disto a classe
+#: `non-AI` não é firme o bastante p/ descartar a empresa — o run segue o caminho normal. A
+#: *corroboração* (≥ N fontes independentes) é exigida à parte pelo evidence_validator (F2.7);
+#: juntas significam "há base p/ dizer, com confiança, que não é alvo Inception". Calibração
+#: final no eval (F6.4); a v0 sempre emite `confidence` (o caminho LLM pode omitir → não-firme).
+NON_AI_CONFIDENCE_FLOOR = 0.5
+
 
 # --------------------------------------------------------------- léxico de sinais (v0)
 
@@ -549,6 +556,24 @@ def make_aimi(
     return llm if llm is not None else base
 
 
+# --------------------------------------------------------- veredito terminal (lido por F2.13)
+
+
+def is_confident_non_ai(aimi: AIMIScore | None) -> bool:
+    """A startup foi classificada **`non-AI` com confiança** (F2.13)?
+
+    `True` só quando há diagnóstico (`aimi`), a classe é `non-AI` e a confiança da classificação
+    atinge `NON_AI_CONFIDENCE_FLOOR`. Confiança ausente (`None`, possível no caminho LLM) conta
+    como **não-firme** — sem sinal de confiança não se descarta a empresa. A *largura* da
+    evidência (≥ N fontes independentes) é checada à parte pelo evidence_validator (F2.7): só no
+    ramo já corroborado este veredito vira o terminal "fora de escopo" — assim "fora de escopo"
+    (non-AI confiante) nunca se confunde com "dados insuficientes" (F2.12).
+    """
+    if aimi is None or aimi.classificacao is not Classification.NON_AI:
+        return False
+    return aimi.confidence is not None and aimi.confidence >= NON_AI_CONFIDENCE_FLOOR
+
+
 # ------------------------------------------------------------------------------- nó
 
 
@@ -569,9 +594,11 @@ def classifier(state: GraphState, *, classify: ClassifyFn | None = None) -> dict
 
 __all__ = [
     "ClassifyFn",
+    "NON_AI_CONFIDENCE_FLOOR",
     "heuristic_score",
     "parse_score",
     "classify_with_llm",
     "make_aimi",
+    "is_confident_non_ai",
     "classifier",
 ]

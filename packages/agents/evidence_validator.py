@@ -34,11 +34,17 @@ seria loop sem ganho) e sem alucinar. Determinista/puro: a contagem de hosts é 
 
 **Terminal de baixa confiança (F2.12):** quando o retry esgota e a evidência segue insuficiente,
 o nó **não trava nem alucina** — marca o run `INSUFFICIENT_DATA`, deixa a nota rastreável em
-`errors` e **salta direto ao `briefing`** (terceiro alvo do `Command`, pulando
-RAG/recomendação/benchmark — sem corroboração não há o que recomendar). O nó `briefing` (F4.4)
-despacha esse status para o briefing "dados insuficientes" (`terminals.insufficient_data_briefing`).
-A saída `non-AI` de alta confiança (**F2.13**) será o outro terminal, lendo o veredito do
-classifier sem mudar esta regra.
+`errors` e **salta direto ao `briefing`** (pulando RAG/recomendação/benchmark — sem corroboração
+não há o que recomendar). O nó `briefing` (F4.4) despacha esse status para o briefing "dados
+insuficientes" (`terminals.insufficient_data_briefing`).
+
+**Terminal "fora de escopo" (F2.13):** o **outro** terminal lê o veredito do classifier (F2.6)
+sem mudar a regra de N fontes. Só no ramo **já corroborado** (≥ N fontes) — onde *temos base* —,
+se a empresa foi classificada **`non-AI` com confiança** (`classifier.is_confident_non_ai`), o nó
+salta ao `briefing` marcando `OUT_OF_SCOPE` em vez de seguir ao RAG: não se força recomendação
+NVIDIA sobre quem não é alvo Inception. Gatear pela corroboração mantém os dois terminais
+disjuntos — `non-AI` **sem** corroboração cai em "dados insuficientes" (F2.12), não em "fora de
+escopo". Ambos saltam ao `briefing` (mesmo `TERMINAL_TARGET`); o nó `briefing` despacha por status.
 """
 
 from __future__ import annotations
@@ -50,6 +56,8 @@ from langgraph.types import Command
 
 from packages.schemas import GraphState, RunStatus, StartupProfile
 
+from .classifier import is_confident_non_ai
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -58,10 +66,11 @@ if TYPE_CHECKING:
 MIN_SOURCES = 2
 
 #: Alvos de roteamento (espelham `graph.PIPELINE`): retry volta ao scraper (re-coleta), o
-#: caminho normal segue ao nvidia_rag e o **terminal de baixa confiança (F2.12)** salta direto
-#: ao briefing (pula RAG/recomendação/benchmark — nada a recomendar sem corroboração).
-#: Constantes aqui evitam o ciclo de import com graph.py; `tests/test_evidence_validator.py`
-#: guarda contra divergência da espinha.
+#: caminho normal segue ao nvidia_rag e os **terminais (F2.12 dados insuficientes / F2.13 fora
+#: de escopo)** saltam direto ao briefing (pulam RAG/recomendação/benchmark — nada a recomendar).
+#: Os dois terminais compartilham o `TERMINAL_TARGET`; quem distingue é o `status` no update do
+#: `Command`. Constantes aqui evitam o ciclo de import com graph.py;
+#: `tests/test_evidence_validator.py` guarda contra divergência da espinha.
 RETRY_TARGET = "scraper"
 CONTINUE_TARGET = "nvidia_rag"
 TERMINAL_TARGET = "briefing"
@@ -102,11 +111,14 @@ def is_sufficient(profile: StartupProfile, *, min_sources: int = MIN_SOURCES) ->
 def evidence_validator(
     state: GraphState, *, min_sources: int = MIN_SOURCES
 ) -> Command[Literal["scraper", "nvidia_rag", "briefing"]]:
-    """F2.7/F2.12 — valida a corroboração (N fontes) e roteia: retry, segue ou terminal.
+    """F2.7/F2.12/F2.13 — valida a corroboração (N fontes) e roteia: retry, segue ou terminal.
 
     - Sem perfil (offline/extração vazia): segue limpo (nada a corroborar — não se entra em loop
       sem coleta nem se alucina; a espinha M2/DoD termina em COMPLETED).
-    - Fontes suficientes (≥ N hosts): segue para o RAG (`nvidia_rag`).
+    - Fontes suficientes (≥ N hosts) **e `non-AI` de alta confiança (F2.13)**: salta ao `briefing`
+      marcando `OUT_OF_SCOPE` — corroborado o suficiente p/ dizer que não é alvo Inception, não se
+      força recomendação NVIDIA (o nó emite o terminal "fora de escopo").
+    - Fontes suficientes nos demais casos: segue para o RAG (`nvidia_rag`).
     - Insuficiente e ainda com orçamento (`can_retry`): consome um retry, marca `RUNNING` e volta
       ao scraper para ampliar a coleta (F2.4 substitui os `raw_docs` no re-scrape).
     - Insuficiente e retry esgotado (**F2.12**): **não trava nem alucina** — marca o run
@@ -119,6 +131,12 @@ def evidence_validator(
 
     sources = evidence_sources(profile)
     if len(sources) >= min_sources:
+        # Corroborado. Antes de gastar RAG/recomendação, o terminal F2.13: empresa `non-AI`
+        # cravada com confiança → fora de escopo (sem forçar recomendação NVIDIA). O briefing
+        # carrega o porquê (classe + AIMI baixo com evidência); status, não nota de erro —
+        # é desfecho legítimo, não falha.
+        if is_confident_non_ai(state.aimi):
+            return Command(goto=TERMINAL_TARGET, update={"status": RunStatus.OUT_OF_SCOPE})
         return Command(goto=CONTINUE_TARGET)
 
     if state.can_retry:
