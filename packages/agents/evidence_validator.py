@@ -32,10 +32,13 @@ não há o que corroborar — o nó **segue limpo** para o nvidia_rag, sem retry
 seria loop sem ganho) e sem alucinar. Determinista/puro: a contagem de hosts é reprodutível
 (ethos F2.14), sem rede/LLM/GPU.
 
-Hooks de tasks futuras: quando o retry esgota e a evidência segue insuficiente, hoje o nó **segue
-em frente com uma nota rastreável** (não trava nem alucina) — a **F2.12** intercepta esse caso
-para o briefing terminal "dados insuficientes"; a **F2.13** trata a saída `non-AI` de alta
-confiança. Ambas leem o veredito/erro daqui sem mudar esta regra.
+**Terminal de baixa confiança (F2.12):** quando o retry esgota e a evidência segue insuficiente,
+o nó **não trava nem alucina** — marca o run `INSUFFICIENT_DATA`, deixa a nota rastreável em
+`errors` e **salta direto ao `briefing`** (terceiro alvo do `Command`, pulando
+RAG/recomendação/benchmark — sem corroboração não há o que recomendar). O nó `briefing` (F4.4)
+despacha esse status para o briefing "dados insuficientes" (`terminals.insufficient_data_briefing`).
+A saída `non-AI` de alta confiança (**F2.13**) será o outro terminal, lendo o veredito do
+classifier sem mudar esta regra.
 """
 
 from __future__ import annotations
@@ -54,11 +57,14 @@ if TYPE_CHECKING:
 #: distintos) antes de seguir para o RAG/recomendação. 2 = "não afirmar sobre fonte única".
 MIN_SOURCES = 2
 
-#: Alvos de roteamento (espelham `graph.PIPELINE`): retry volta ao scraper (re-coleta) e o
-#: caminho normal segue ao nvidia_rag. Constantes aqui evitam o ciclo de import com graph.py;
-#: `tests/test_evidence_validator.py` guarda contra divergência da espinha.
+#: Alvos de roteamento (espelham `graph.PIPELINE`): retry volta ao scraper (re-coleta), o
+#: caminho normal segue ao nvidia_rag e o **terminal de baixa confiança (F2.12)** salta direto
+#: ao briefing (pula RAG/recomendação/benchmark — nada a recomendar sem corroboração).
+#: Constantes aqui evitam o ciclo de import com graph.py; `tests/test_evidence_validator.py`
+#: guarda contra divergência da espinha.
 RETRY_TARGET = "scraper"
 CONTINUE_TARGET = "nvidia_rag"
+TERMINAL_TARGET = "briefing"
 
 
 def _host(url: str) -> str:
@@ -95,16 +101,17 @@ def is_sufficient(profile: StartupProfile, *, min_sources: int = MIN_SOURCES) ->
 
 def evidence_validator(
     state: GraphState, *, min_sources: int = MIN_SOURCES
-) -> Command[Literal["scraper", "nvidia_rag"]]:
-    """F2.7 — valida a corroboração (N fontes) e roteia: retry→scraper ou segue→nvidia_rag.
+) -> Command[Literal["scraper", "nvidia_rag", "briefing"]]:
+    """F2.7/F2.12 — valida a corroboração (N fontes) e roteia: retry, segue ou terminal.
 
-    - Sem perfil (offline/extração vazia): segue limpo (nada a corroborar; o terminal de baixa
-      confiança é a F2.12 — aqui não se entra em loop sem coleta nem se alucina).
-    - Fontes suficientes (≥ N hosts): segue para o RAG.
+    - Sem perfil (offline/extração vazia): segue limpo (nada a corroborar — não se entra em loop
+      sem coleta nem se alucina; a espinha M2/DoD termina em COMPLETED).
+    - Fontes suficientes (≥ N hosts): segue para o RAG (`nvidia_rag`).
     - Insuficiente e ainda com orçamento (`can_retry`): consome um retry, marca `RUNNING` e volta
       ao scraper para ampliar a coleta (F2.4 substitui os `raw_docs` no re-scrape).
-    - Insuficiente e retry esgotado: **não trava nem alucina** — segue com uma nota rastreável em
-      `errors` (a F2.12 fará desse caso o briefing "dados insuficientes").
+    - Insuficiente e retry esgotado (**F2.12**): **não trava nem alucina** — marca o run
+      `INSUFFICIENT_DATA`, registra a nota rastreável em `errors` e **salta ao `briefing`**
+      (pula RAG/recomendação/benchmark), onde o nó emite o terminal "dados insuficientes".
     """
     profile = state.profile
     if profile is None:
@@ -124,13 +131,17 @@ def evidence_validator(
         f"evidência insuficiente: {len(sources)} fonte(s) independente(s) < {min_sources} "
         f"exigida(s) após {state.retry_count} retry(s) de coleta"
     )
-    return Command(goto=CONTINUE_TARGET, update={"errors": [*state.errors, note]})
+    return Command(
+        goto=TERMINAL_TARGET,
+        update={"status": RunStatus.INSUFFICIENT_DATA, "errors": [*state.errors, note]},
+    )
 
 
 __all__ = [
     "MIN_SOURCES",
     "RETRY_TARGET",
     "CONTINUE_TARGET",
+    "TERMINAL_TARGET",
     "evidence_sources",
     "is_sufficient",
     "evidence_validator",

@@ -8,7 +8,7 @@ nas tasks seguintes, com hooks já documentados aqui:
 - checkpointer Postgres (resume/retry)        → F2.2 (param `checkpointer` de `compile_graph`)
 - retry condicional evidence→scraper           → F2.7 (via `Command` do nó; ver `CONDITIONAL_OUT`)
 - HITL interrupt antes do briefing              → F2.8 (nó `human_review`; ver `human_review.py`)
-- estado terminal de baixa confiança           → F2.12
+- estado terminal de baixa confiança           → F2.12 (evidence_validator salta ao `briefing`)
 - saída non-AI fora de escopo                   → F2.13
 - tracing Langfuse por nó + custo               → F2.9
 

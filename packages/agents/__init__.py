@@ -36,6 +36,7 @@ from .search_planner import (
     make_plan,
     resolve_mode,
 )
+from .terminals import insufficient_data_briefing
 
 __all__ = [
     # LLM (F0.7)
@@ -73,6 +74,8 @@ __all__ = [
     "evidence_sources",
     "is_sufficient",
     "MIN_SOURCES",
+    # terminais de baixa confiança / fora de escopo (F2.12 / F2.13)
+    "insufficient_data_briefing",
     # human_review (F2.8) — o nó é acessado via NODES (evita shadowing do submódulo)
     "review_payload",
     # progresso ao vivo + worker async (F2.10)

@@ -285,10 +285,35 @@
       chamadas atrás do guard) → chamadas **limitadas** ao teto + `trace["budget"]`/`errors`
       carimbados, caso sem estouro só `usage`, e offline-com-teto não carimba nada; `tests/test_tracing.py`
       passa a contar o guard na lista de callbacks do `traced_config`.
-- [ ] **F2.12** **Estado terminal de baixa confiança:** se após o retry limitado (F2.7) as
+- [x] **F2.12** **Estado terminal de baixa confiança:** se após o retry limitado (F2.7) as
       evidências seguem insuficientes, o grafo **não alucina** — encerra num briefing marcado
       "dados insuficientes" (com o que foi achado + lacunas) ou descarte rastreável. Caminho
       terminal explícito no grafo + teste.
+      → `packages/agents/terminals.py` (novo): `insufficient_data_briefing` monta o briefing
+      terminal **"dados insuficientes"** a partir do estado — `status=dados_insuficientes`
+      (`BriefingStatus`), `empresa` do perfil (cai na query se faltar), **o que foi apurado**
+      (`aimi` parcial, pode ser `None`) e as **lacunas** (contagem real de fontes independentes
+      < piso + nº de retries), **sem recomendação NVIDIA** (`recomendacoes=[]`) e sem alucinar
+      campos ausentes (determinista/offline, ethos F2.14). **Caminho terminal explícito no grafo:**
+      o `evidence_validator` (F2.7) ganha o 3º alvo de `Command` `TERMINAL_TARGET="briefing"` —
+      quando o retry de coleta esgota e a corroboração segue < N hosts, marca o run
+      `INSUFFICIENT_DATA`, deixa a nota rastreável em `errors` e **salta direto ao `briefing`**
+      (pula RAG/recomendação/benchmark/HITL — sem corroboração não há o que recomendar); o `Literal`
+      do retorno passa a `["scraper","nvidia_rag","briefing"]` (saída só por `goto`, sem aresta
+      estática — `build_graph().edges` intacto, `CONDITIONAL_OUT` inalterado). O nó `briefing`
+      (nodes.py, placeholder de F4.4) **despacha por status**: `INSUFFICIENT_DATA` → emite o
+      terminal; senão fecha em `COMPLETED` (rascunho M2 inalterado). **Offline é o default
+      (igual F2.3–F2.11):** sem perfil (espinha sem extração) o evidence_validator segue limpo →
+      `COMPLETED`/briefing `None` (M2/DoD intacto); o terminal só dispara com perfil presente +
+      evidência insuficiente após o retry esgotar. `insufficient_data_briefing` exportado no pacote
+      (o nó via `NODES`; o terminal `OUT_OF_SCOPE` da F2.13 reusa `terminals.py`). Testes
+      `tests/test_terminals.py`: helper (status/empresa/lacunas/sem recomendação + fallback p/ query
+      sem perfil), nó despachando por status (terminal vs. COMPLETED), e o **grafo ponta a ponta**
+      (perfil de 1 fonte + `max_retries=0` → run `INSUFFICIENT_DATA` + briefing terminal,
+      RAG/recommender pulados, nota em `errors`); `tests/test_evidence_validator.py` atualizado
+      (branch esgotado → `TERMINAL_TARGET`+`INSUFFICIENT_DATA`, loop termina no terminal, coerência
+      da constante com a espinha). Cobre o DoD F2 "empresa sem evidência suficiente cai no terminal
+      de baixa confiança (não alucina)".
 - [ ] **F2.13** **Saída para `non-AI` de alta confiança:** a baixa-confiança (F2.12) cobre
       "dados insuficientes"; falta o caminho da empresa **claramente non-AI** (classificada com
       confiança). Roteamento explícito: pular `recommender`/`gpu_benchmark` e emitir um briefing

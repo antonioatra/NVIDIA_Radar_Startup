@@ -33,6 +33,7 @@ from .extractor import extractor  # F2.5 — implementação real do nó
 from .human_review import human_review  # F2.8 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
+from .terminals import insufficient_data_briefing  # F2.12 — briefing terminal
 
 
 def nvidia_rag(state: GraphState) -> dict:
@@ -53,10 +54,15 @@ def gpu_benchmark(state: GraphState) -> dict:
 def briefing(state: GraphState) -> dict:
     """F4.4 — briefing executivo (Guardrails F4.5).
 
-    Placeholder F2.1: fecha o run com status COMPLETED — o backbone produz um
-    rascunho terminal (M2). Os caminhos terminais alternativos (dados insuficientes
-    F2.12, fora de escopo F2.13) entram com suas tasks.
+    Despacha por status terminal: quando o evidence_validator (F2.7) já marcou o run
+    `INSUFFICIENT_DATA` (saltou RAG/recomendação ao esgotar o retry), emite o briefing
+    terminal **"dados insuficientes"** (F2.12, `terminals.insufficient_data_briefing`) — com o
+    que foi apurado + lacunas, sem alucinar nem recomendar à força. A saída `OUT_OF_SCOPE`
+    (F2.13) e o briefing **normal** (F4.4, diagnóstico + recomendação) entram com suas tasks;
+    por ora o caminho normal fecha o run em COMPLETED (placeholder F2.1, rascunho M2).
     """
+    if state.status is RunStatus.INSUFFICIENT_DATA:
+        return {"briefing": insufficient_data_briefing(state)}  # status já é terminal
     return {"status": RunStatus.COMPLETED}
 
 

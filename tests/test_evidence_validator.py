@@ -5,7 +5,8 @@ Tudo offline/determinista. Exercita:
   `www.` normalizado), unindo `all_evidence` + `source_urls`;
 - o nó roteando por `Command`: sem perfil → segue; ≥ N hosts → segue; insuficiente com
   orçamento → retry ao scraper (incrementa `retry_count`, marca RUNNING); insuficiente e
-  esgotado → segue com nota rastreável (sem alucinar, sem loop);
+  esgotado → terminal de baixa confiança (F2.12: salta ao briefing, marca INSUFFICIENT_DATA
+  + nota rastreável, sem alucinar nem loop);
 - o **loop de retry termina** em exatamente `max_retries` re-coletas (DoD F2 "retry funciona");
 - coerência das constantes de roteamento com a espinha (`graph.PIPELINE`).
 """
@@ -19,6 +20,7 @@ from packages.agents.evidence_validator import (
     CONTINUE_TARGET,
     MIN_SOURCES,
     RETRY_TARGET,
+    TERMINAL_TARGET,
     evidence_validator,
 )
 from packages.agents.graph import PIPELINE
@@ -89,9 +91,12 @@ def test_node_insufficient_with_budget_retries_to_scraper() -> None:
     assert cmd.update == {"retry_count": 1, "status": RunStatus.RUNNING}
 
 
-def test_node_insufficient_exhausted_continues_with_traceable_note() -> None:
+def test_node_insufficient_exhausted_routes_to_terminal() -> None:
+    # F2.12: retry esgotado e ainda insuficiente → salta ao briefing terminal, marca
+    # INSUFFICIENT_DATA e deixa a nota rastreável (não segue ao RAG nem alucina).
     cmd = evidence_validator(_state(_profile("https://a.com"), retry_count=2, max_retries=2))
-    assert cmd.goto == CONTINUE_TARGET
+    assert cmd.goto == TERMINAL_TARGET
+    assert cmd.update["status"] is RunStatus.INSUFFICIENT_DATA
     assert len(cmd.update["errors"]) == 1
     note = cmd.update["errors"][0]
     assert "evidência insuficiente" in note
@@ -103,7 +108,7 @@ def test_node_insufficient_exhausted_continues_with_traceable_note() -> None:
 
 def test_retry_loop_terminates_after_max_retries() -> None:
     # Pior caso: o re-scrape nunca acha fonte nova (perfil de 1 host fica fixo). O loop deve
-    # bater no scraper exatamente max_retries vezes e então seguir — sem laço infinito.
+    # bater no scraper exatamente max_retries vezes e então cair no terminal — sem laço infinito.
     max_retries = 2
     state = _state(_profile("https://a.com"), max_retries=max_retries)
     routes: list[str] = []
@@ -111,18 +116,20 @@ def test_retry_loop_terminates_after_max_retries() -> None:
         cmd = evidence_validator(state)
         routes.append(cmd.goto)
         state = state.model_copy(update=cmd.update or {})  # imita o overwrite do LangGraph
-        if cmd.goto == CONTINUE_TARGET:
+        if cmd.goto == TERMINAL_TARGET:
             break
 
-    assert routes == [RETRY_TARGET, RETRY_TARGET, CONTINUE_TARGET]
+    assert routes == [RETRY_TARGET, RETRY_TARGET, TERMINAL_TARGET]
     assert state.retry_count == max_retries  # contador limpo: nunca passa do orçamento
+    assert state.status is RunStatus.INSUFFICIENT_DATA  # F2.12: terminal de baixa confiança
     assert len(state.errors) == 1  # nota só no passo terminal
 
 
 def test_retry_disabled_when_max_retries_zero() -> None:
-    # max_retries=0 ⇒ sem orçamento: insuficiente segue direto com nota (não re-coleta).
+    # max_retries=0 ⇒ sem orçamento: insuficiente cai direto no terminal F2.12 (não re-coleta).
     cmd = evidence_validator(_state(_profile("https://a.com"), max_retries=0))
-    assert cmd.goto == CONTINUE_TARGET
+    assert cmd.goto == TERMINAL_TARGET
+    assert cmd.update["status"] is RunStatus.INSUFFICIENT_DATA
     assert "errors" in cmd.update
 
 
@@ -132,8 +139,11 @@ def test_retry_disabled_when_max_retries_zero() -> None:
 def test_routing_targets_match_pipeline() -> None:
     assert RETRY_TARGET in PIPELINE
     assert CONTINUE_TARGET in PIPELINE
-    # o caminho normal é o nó imediatamente seguinte na espinha; o retry volta ao scraper.
+    assert TERMINAL_TARGET in PIPELINE
+    # o caminho normal é o nó imediatamente seguinte na espinha; o retry volta ao scraper;
+    # o terminal F2.12 salta ao último nó (briefing), pulando RAG/recomendação/benchmark.
     i = PIPELINE.index("evidence_validator")
     assert PIPELINE[i + 1] == CONTINUE_TARGET
     assert PIPELINE.index(RETRY_TARGET) < i
+    assert TERMINAL_TARGET == PIPELINE[-1]
     assert MIN_SOURCES >= 2
