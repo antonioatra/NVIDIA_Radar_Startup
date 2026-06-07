@@ -126,7 +126,26 @@
       devolve (índice, encoder ajustado) p/ a F3.5 reusar o encoder na consulta. Testes em
       `tests/test_index.py` (formato esparso ordenado, determinismo, idf raro>comum, casamento
       lexical, ponto híbrido com proveniência, idempotência, KB real, Qdrant degradando limpo).
-- [ ] **F3.5** **Busca híbrida** (dense + lexical) com fusão de scores.
+- [x] **F3.5** **Busca híbrida** (dense + lexical) com fusão de scores.
+      → `packages/rag/retrieve.py`: consulta o índice híbrido (F3.4) combinando o sinal **denso**
+      (nv-embedqa/F3.3) com o **lexical/BM25** e **funde os dois rankings** num só, devolvendo
+      `RetrievedChunk` com a proveniência herdada p/ citar (§8) — base que o reranker (F3.6)
+      reordena e o nó `nvidia_rag` (F3.7) responde. **Fusão por Reciprocal Rank Fusion (RRF)**
+      (`_rrf_scores`, k=60): junta pela *posição*, não pelo score bruto — o cosseno denso (∈[-1,1])
+      e o BM25 (ilimitado) são escalas incomparáveis, e o RRF é robusto a isso; é o **mesmo método
+      default do Qdrant**, então a espinha verde e o backend fundem igual (paridade). **Decisão
+      (segue o índice/peça plugável, travada desde a F3.1):** sobre o `InMemoryVectorIndex`
+      (default/espinha) a fusão roda em Python lendo `index.points` (a superfície que a F3.4 já
+      anunciava); sobre o `QdrantVectorIndex` (dogfood) usa a **Query API nativa** (prefetch denso
+      + esparso → `FusionQuery(RRF)`), fundindo no servidor e reusando o `_ensure_client` da F3.4 —
+      **hook de rede que degrada limpo** (`IndexUnavailable` sem dep/servidor, como `NVEmbedQA`/F3.3).
+      Consulta com o **mesmo embedder** que construiu o índice (`embed_query` assimétrico no
+      nv-embedqa; offline o `HashingEmbedder` é determinístico/stateless → vetor comparável aos
+      pontos). `HybridRetriever` amarra índice+encoder+embedder e expõe `.search()`; `build_retriever()`
+      liga F3.1→F3.5 e devolve o recuperador pronto (offline, reproduzível, sem rede). Testes em
+      `tests/test_retrieve.py` (fusão RRF premia o que denso+lexical concordam, recuperação por tech,
+      casamento lexical exato, proveniência citável, limite/ordenação, determinismo, índice não
+      suportado, e o Qdrant degradando limpo offline).
 - [ ] **F3.6** Interface `Reranker` plugável; impl. **NeMo Reranking NIM** (default no build).
 - [ ] **F3.7** Nó **nvidia_rag** no grafo: retrieve → rerank → resposta **com citações**.
       **Construção da query (esclarecimento):** o nó roda **depois** do classifier/AIMI, então a

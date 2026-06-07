@@ -8,6 +8,7 @@ Transcrição dos vídeos do §10.1 (F3.1b): `from packages.rag import transcrib
 Chunking semântico (F3.2): `from packages.rag import chunk_kb, Chunk`.
 Embeddings nv-embedqa (F3.3): `from packages.rag import embed_kb, get_embedder, Embedder`.
 Indexação Qdrant dense+sparse/BM25 (F3.4): `from packages.rag import build_index, BM25Encoder`.
+Busca híbrida dense+lexical com fusão RRF (F3.5): `from packages.rag import build_retriever`.
 """
 
 from .chunk import (
@@ -56,6 +57,15 @@ from .ingest import (
     covered_techs,
     ingest,
     load_kb_sources,
+)
+from .retrieve import (
+    DEFAULT_LIMIT,
+    DEFAULT_PREFETCH,
+    RRF_K,
+    HybridRetriever,
+    RetrievedChunk,
+    build_retriever,
+    hybrid_search,
 )
 from .transcribe import (
     DEFAULT_PREFERENCE,
@@ -111,6 +121,13 @@ __all__ = [
     "get_index",
     "index_chunks",
     "build_index",
+    "DEFAULT_LIMIT",
+    "DEFAULT_PREFETCH",
+    "RRF_K",
+    "RetrievedChunk",
+    "HybridRetriever",
+    "hybrid_search",
+    "build_retriever",
     "DEFAULT_PREFERENCE",
     "TranscriberUnavailable",
     "TranscriptSegment",
