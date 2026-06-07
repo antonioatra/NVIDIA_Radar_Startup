@@ -526,7 +526,8 @@ def _default_classify(profile: StartupProfile, *, run_id: str | None = None) -> 
 
     from packages.observability import traced_config
 
-    from .llm import get_chat, reasoning_system_message
+    from .cache import cached_completion
+    from .llm import reasoning_system_message
     from .prompts import get_prompt
 
     prompt = get_prompt("classifier")
@@ -537,8 +538,7 @@ def _default_classify(profile: StartupProfile, *, run_id: str | None = None) -> 
         messages.append(reasoning_system_message(True))
     messages.append(SystemMessage(content=prompt.template))
     messages.append(HumanMessage(content=payload))
-    raw = get_chat(prompt.model).invoke(messages, config=config).content
-    return raw if isinstance(raw, str) else str(raw)
+    return cached_completion(prompt, messages, config=config)  # cache F2.14
 
 
 def make_aimi(

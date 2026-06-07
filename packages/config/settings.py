@@ -15,6 +15,7 @@ from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 RerankerProvider = Literal["nemo", "cohere"]
+CacheBackend = Literal["disk", "redis"]
 
 
 class Settings(BaseSettings):
@@ -94,6 +95,22 @@ class Settings(BaseSettings):
     )
     llm_max_cost_usd: float = Field(
         default=0.0, ge=0, description="Máx. de custo estimado por run em USD (0 = sem teto)."
+    )
+
+    # --- Cache de inferência LLM por prompt+modelo+versão (F2.14) ----------------
+    # Cacheia a saída crua dos nós LLM (search_planner/extractor/classifier): poupa o rate
+    # limit do free tier (complementa F2.11) e torna runs/eval REPRODUTÍVEIS. Invalida sozinho
+    # quando o prompt muda (content_sha) ou a versão sobe (F0.12). NÃO cacheia scraping (frescor).
+    # Off por default (espinha verde/M2); backend em disco (default) ou Redis (opt-in).
+    llm_cache_enabled: bool = Field(
+        default=False, description="Cache de inferência LLM por prompt+modelo+versão (F2.14)."
+    )
+    llm_cache_backend: CacheBackend = "disk"
+    llm_cache_dir: str = Field(
+        default=".cache/llm", description="Diretório do cache de LLM em disco (F2.14)."
+    )
+    llm_cache_ttl_seconds: int = Field(
+        default=0, ge=0, description="Expiração do cache de LLM em s (0 = sem expiração)."
     )
 
     # --- Dados ------------------------------------------------------------------

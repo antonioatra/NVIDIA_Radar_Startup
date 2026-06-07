@@ -8,6 +8,16 @@ Cliente Nemotron (F0.7), prompts versionados (F0.12) e a montagem do grafo (F2.1
 expostos aqui: `from packages.agents import get_chat, get_prompt, run_pipeline`.
 """
 
+from .cache import (
+    DiskCache,
+    LLMCache,
+    MemoryCache,
+    NullCache,
+    RedisCache,
+    cache_from_settings,
+    cache_key,
+    cached_completion,
+)
 from .checkpoint import postgres_checkpointer, run_pipeline_persisted, state_serde
 from .classifier import (
     classify_with_llm,
@@ -92,6 +102,15 @@ __all__ = [
     "progress_channel",
     "RedisProgressPublisher",
     "subscribe_progress",
+    # cache de inferência LLM por prompt+modelo+versão (F2.14)
+    "cached_completion",
+    "cache_key",
+    "cache_from_settings",
+    "LLMCache",
+    "NullCache",
+    "MemoryCache",
+    "DiskCache",
+    "RedisCache",
     # checkpointer Postgres (F2.2)
     "postgres_checkpointer",
     "run_pipeline_persisted",

@@ -349,10 +349,36 @@
       perfil non-AI de 3 hosts → run `OUT_OF_SCOPE` + briefing `fora_de_escopo`, RAG/recommender
       pulados, `errors` vazio). Cobre o DoD F2 "empresa non-AI de alta confiança gera briefing
       'fora de escopo' sem forçar recomendação".
-- [ ] **F2.14** **Cache de chamadas LLM/embeddings** (chave por prompt+modelo+`prompt_version`):
+- [x] **F2.14** **Cache de chamadas LLM/embeddings** (chave por prompt+modelo+`prompt_version`):
       reduz custo no free tier do `build.nvidia.com` (complementa a guarda de orçamento F2.11) e
       torna runs/eval **reprodutíveis**. Cache local (Redis/disco); invalida quando `prompt_version`
       muda (F0.12). Não cacheia scraping (frescor) — só inferência determinística.
+      → `packages/agents/cache.py` (novo): `cache_key` deriva a chave de
+      `(version_tag, content_sha, perfil, model_id, mensagens)` — a **versão** e o **hash do corpo**
+      do prompt (`Prompt.content_sha`/F0.12) entram na chave, então o cache **invalida sozinho**
+      quando o prompt muda ou a versão sobe; o `model_id` (resolvido do settings) invalida numa
+      troca de modelo; as mensagens (system + turno do usuário) separam consultas; **`run_id` fica
+      de fora** — é o cross-run que se quer casar (reprodutibilidade do eval F7). `cached_completion`
+      substitui o `get_chat(...).invoke(...).content` nos 3 nós LLM (search_planner/F2.3,
+      extractor/F2.5, classifier/F2.6): hit → devolve do store (**não chega à rede**, poupa o rate
+      limit e **não dispara os callbacks de custo/orçamento** F2.9/F2.11 — o trace reflete só o que
+      foi à rede); miss → chama, grava e devolve. **Decisão de design (b/d, igual F2.3–F2.13):**
+      **offline é o default** — o gate `settings.llm_cache_enabled` nasce **off** →
+      `cache_from_settings` devolve o `NULL_CACHE` (sempre miss, set no-op), caminho idêntico ao de
+      antes (e os nós LLM nem rodam na espinha offline, M2/DoD). Backends locais plugáveis: **disco**
+      (default, 1 JSON por chave `{value, ts}` + TTL) ou **Redis** (opt-in); o Redis **degrada p/
+      disco** se a lib/broker faltar, e get/set são **best-effort** (engolem erro — o cache nunca
+      derruba o run, ethos do publisher F2.10). Só cacheia **inferência** (LLM/embeddings);
+      **scraping nunca** (frescor é do scraper F2.4). Falha do LLM **propaga** (o caller já degrada
+      p/ o determinista) e **não** é cacheada; saída vazia também não. A peça de **embeddings** (F3)
+      reusa o mesmo store. 4 campos novos no settings (`llm_cache_enabled` + backend/dir/ttl, off por
+      default). Exports novos no pacote (`cached_completion`/`cache_key`/`cache_from_settings` +
+      `LLMCache`/`NullCache`/`MemoryCache`/`DiskCache`/`RedisCache`). Teste `tests/test_cache.py`:
+      `cache_key` (estável; **invalida** em version-bump/corpo/model; separa por mensagens; resolve
+      model do settings; sem `run_id`), backends (memory/disk round-trip, disk miss/corrompido/TTL,
+      null sempre-miss), `cache_from_settings` (off→NULL, on→disk no dir, branch redis e degradação p/
+      disco sem lib) e `cached_completion` (miss→1 chamada e hit não repete, vazio/falha não cacheados,
+      off chama sempre). Caminho LLM/Redis reais ficam opt-in (sem teste de rede/broker, padrão da fase).
 
 ## Tecnologias
 LangGraph · checkpointer Postgres · Nemotron (Nano/Super) · Redis/RQ · Langfuse.

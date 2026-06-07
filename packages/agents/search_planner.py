@@ -27,8 +27,8 @@ proprietários §9.1 entram **só como pista de descoberta** (`api_only`), nunca
 não se força viés sobre nome próprio, conforme o prompt v1).
 
 Tracing/custo (F2.9): o `traced_config` que este nó já passa carrega o medidor de tokens
-(USAGE_RECORDER) — inócuo sem Langfuse. Hook de task futura: cache de inferência por
-`prompt_version` (F2.14).
+(USAGE_RECORDER) — inócuo sem Langfuse. A chamada LLM passa pelo `cached_completion`
+(F2.14): cache por prompt+modelo+`prompt_version`, hit não chega à rede.
 """
 
 from __future__ import annotations
@@ -272,18 +272,16 @@ def _llm_plan(query: str, mode: ExecutionMode, *, run_id: str | None = None) -> 
 
     from packages.observability import traced_config
 
-    from .llm import get_chat
+    from .cache import cached_completion
     from .prompts import get_prompt
 
     prompt = get_prompt("search_planner")
     user = json.dumps({"query": query, "mode": mode.value}, ensure_ascii=False)
     config = traced_config(node="search_planner", prompt_version=prompt.version_tag, run_id=run_id)
+    messages = [SystemMessage(content=prompt.template), HumanMessage(content=user)]
     try:
-        raw = get_chat(prompt.model).invoke(
-            [SystemMessage(content=prompt.template), HumanMessage(content=user)],
-            config=config,
-        ).content
-        plan = _parse_plan(raw if isinstance(raw, str) else str(raw), mode=mode)
+        raw = cached_completion(prompt, messages, config=config)  # cache F2.14
+        plan = _parse_plan(raw, mode=mode)
     except Exception:  # noqa: BLE001 — LLM/parse falhou → fallback determinista
         return None
     return plan if (plan.search_terms or plan.sources) else None

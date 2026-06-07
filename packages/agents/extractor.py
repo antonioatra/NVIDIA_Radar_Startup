@@ -362,7 +362,8 @@ def _default_extract(
 
     from packages.observability import traced_config
 
-    from .llm import get_chat, reasoning_system_message
+    from .cache import cached_completion
+    from .llm import reasoning_system_message
     from .prompts import get_prompt
 
     prompt = get_prompt("extractor")
@@ -372,8 +373,7 @@ def _default_extract(
         messages.append(reasoning_system_message(True))
     messages.append(SystemMessage(content=prompt.template))
     messages.append(HumanMessage(content=_user_payload(query, docs, doc_chars=DEFAULT_DOC_CHARS)))
-    raw = get_chat(prompt.model).invoke(messages, config=config).content
-    return raw if isinstance(raw, str) else str(raw)
+    return cached_completion(prompt, messages, config=config)  # cache F2.14
 
 
 # ------------------------------------------------------------------------------- nó
