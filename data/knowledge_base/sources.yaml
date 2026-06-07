@@ -1,0 +1,192 @@
+# Manifesto da base de conhecimento NVIDIA (F3.1) — fontes do §10 do brief.
+#
+# Espelha as seeds do §9 (data/seeds/*.yaml + packages/scraping/seeds.py): este YAML é a
+# FONTE ÚNICA dos metadados (id, tech, url oficial, seção, tipo); o texto vive separado em
+# docs/<id>.md. O loader é packages/rag/ingest.py (load_kb_sources / ingest).
+#
+# Offline e reproduzível (sem rede/credencial/GPU, como a espinha verde dos nós F2): cada
+# `path` é um snapshot CURADO da página oficial, citável pela `url` registrada aqui. O
+# refresh ao vivo das páginas (coleta via adapters F1) é hook de rede futuro — a `url`
+# canônica e o `captured_at` ficam aqui para sustentá-lo. Proveniência (§8): o `ingest`
+# carimba content_sha256 + url em cada documento; nenhuma afirmação sem fonte rastreável.
+#
+# ESCOPO DESTA TASK (F3.1): §10.2 — documentações oficiais NVIDIA (source_type: doc).
+# Tasks vizinhas só ADICIONAM entradas a este manifesto, SEM tocar o loader (os tipos já
+# estão previstos em KBSourceType):
+#   - F3.1b: vídeos do §10.1 transcritos (playlist de tecnologias, comunidade, live
+#            Inception) -> source_type: video_transcript.
+#   - F3.1c: MONAI (citado no §5.5; sem entrada no §10) -> doc de domínio (saúde).
+#   - F3.1d: materiais AI-native do §10.1 (Sequoia / Emergence / NVIDIA "5-layer cake")
+#            -> source_type: grounding (origem conceitual dos pilares AIMI).
+sources:
+  - id: nvidia-inception
+    tech: NVIDIA Inception
+    title: "NVIDIA Inception — programa global para startups"
+    url: https://www.nvidia.com/en-us/startups/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-inception.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-nim
+    tech: NVIDIA NIM
+    title: "NVIDIA NIM — microsserviços de inferência"
+    url: https://www.nvidia.com/en-us/ai-data-science/products/nim-microservices/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-nim.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-api-catalog
+    tech: NVIDIA API Catalog
+    title: "NVIDIA API Catalog (build.nvidia.com)"
+    url: https://build.nvidia.com/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-api-catalog.md
+    captured_at: 2026-06-07
+    access: "Catálogo público de APIs NVIDIA; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-nemo
+    tech: NVIDIA NeMo
+    title: "NVIDIA NeMo — plataforma de IA generativa (inclui NeMo Retriever/Evaluator)"
+    url: https://www.nvidia.com/en-us/ai-data-science/products/nemo/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-nemo.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
+
+  - id: nemo-guardrails
+    tech: NeMo Guardrails
+    title: "NeMo Guardrails — trilhos programáveis para apps de LLM"
+    url: https://github.com/NVIDIA/NeMo-Guardrails
+    section: "10.2"
+    source_type: doc
+    path: docs/nemo-guardrails.md
+    captured_at: 2026-06-07
+    access: "Repositório open-source (Apache-2.0); snapshot curado citando a fonte oficial."
+
+  - id: triton-inference-server
+    tech: NVIDIA Triton Inference Server
+    title: "NVIDIA Triton Inference Server — serving de modelos"
+    url: https://developer.nvidia.com/triton-inference-server
+    section: "10.2"
+    source_type: doc
+    path: docs/triton-inference-server.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
+    notes: "Docs técnicas: https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/"
+
+  - id: tensorrt-llm
+    tech: TensorRT-LLM
+    title: "TensorRT-LLM — otimização de inferência de LLM"
+    url: https://github.com/NVIDIA/TensorRT-LLM
+    section: "10.2"
+    source_type: doc
+    path: docs/tensorrt-llm.md
+    captured_at: 2026-06-07
+    access: "Repositório open-source (Apache-2.0); snapshot curado citando a fonte oficial."
+
+  - id: nvidia-rapids
+    tech: NVIDIA RAPIDS
+    title: "NVIDIA RAPIDS — data science acelerada por GPU"
+    url: https://rapids.ai/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-rapids.md
+    captured_at: 2026-06-07
+    access: "Página pública do projeto RAPIDS; snapshot curado citando a fonte oficial."
+
+  - id: cudf
+    tech: cuDF
+    title: "cuDF — DataFrames acelerados por GPU (RAPIDS)"
+    url: https://docs.rapids.ai/api/cudf/stable/
+    section: "10.2"
+    source_type: doc
+    path: docs/cudf.md
+    captured_at: 2026-06-07
+    access: "Documentação pública RAPIDS; snapshot curado citando a fonte oficial."
+
+  - id: cuml
+    tech: cuML
+    title: "cuML — machine learning acelerado por GPU (RAPIDS)"
+    url: https://docs.rapids.ai/api/cuml/stable/
+    section: "10.2"
+    source_type: doc
+    path: docs/cuml.md
+    captured_at: 2026-06-07
+    access: "Documentação pública RAPIDS; snapshot curado citando a fonte oficial."
+
+  - id: cuda-toolkit
+    tech: CUDA Toolkit
+    title: "NVIDIA CUDA Toolkit — base de computação em GPU"
+    url: https://developer.nvidia.com/cuda-toolkit
+    section: "10.2"
+    source_type: doc
+    path: docs/cuda-toolkit.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA Developer; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-riva
+    tech: NVIDIA Riva
+    title: "NVIDIA Riva — IA de fala (ASR, TTS, tradução)"
+    url: https://developer.nvidia.com/riva
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-riva.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA Developer; snapshot curado citando a fonte oficial."
+    notes: "Cobre Riva inteira (ASR+TTS+voz). O TAPI dogfooda só o ASR p/ transcrever os vídeos (F3.1b)."
+
+  - id: nvidia-omniverse
+    tech: NVIDIA Omniverse
+    title: "NVIDIA Omniverse — simulação e gêmeos digitais 3D"
+    url: https://www.nvidia.com/en-us/omniverse/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-omniverse.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-isaac
+    tech: NVIDIA Isaac
+    title: "NVIDIA Isaac — plataforma de robótica e IA física"
+    url: https://developer.nvidia.com/isaac
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-isaac.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA Developer; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-clara
+    tech: NVIDIA Clara
+    title: "NVIDIA Clara — IA para saúde e ciências da vida"
+    url: https://www.nvidia.com/en-us/clara/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-clara.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-morpheus
+    tech: NVIDIA Morpheus
+    title: "NVIDIA Morpheus — IA para cibersegurança"
+    url: https://developer.nvidia.com/morpheus-cybersecurity
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-morpheus.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA Developer; snapshot curado citando a fonte oficial."
+
+  - id: nvidia-ai-enterprise
+    tech: NVIDIA AI Enterprise
+    title: "NVIDIA AI Enterprise — plataforma de software de IA para produção"
+    url: https://www.nvidia.com/en-us/data-center/products/ai-enterprise/
+    section: "10.2"
+    source_type: doc
+    path: docs/nvidia-ai-enterprise.md
+    captured_at: 2026-06-07
+    access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."

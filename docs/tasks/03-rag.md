@@ -4,7 +4,21 @@
 **Dependências:** F0. **Marco:** M3.
 
 ## Tasks
-- [ ] **F3.1** Ingestão das fontes do §10 (docs oficiais, blogs, vídeos transcritos) → `data/knowledge_base`.
+- [x] **F3.1** Ingestão das fontes do §10 (docs oficiais, blogs, vídeos transcritos) → `data/knowledge_base`.
+      → Espelha as seeds do §9: `data/knowledge_base/sources.yaml` (manifesto — fonte única dos
+      metadados: id/tech/url oficial/seção/tipo) + `docs/<id>.md` (snapshot **curado** de cada
+      página, texto separado p/ diffs limpos e zero drift). Loader tipado em `packages/rag/ingest.py`:
+      `KBSource`/`KBDocument` (Pydantic v2, `frozen`), `load_kb_sources()` valida estrutura/unicidade,
+      `ingest()` carimba proveniência (`content_sha256` reusando `content_hash` da F1.9 + `url`) e
+      devolve docs prontos p/ o chunking (F3.2); `covered_techs()` serve a cobertura por tech (F3.8).
+      **Decisão (fork offline vs rede):** conteúdo curado, **offline e determinístico** (sem
+      rede/credencial/GPU, como a espinha verde dos nós F2) — o refresh ao vivo das páginas via
+      adapters F1 é hook de rede futuro (a `url` canônica + `captured_at` ficam no manifesto p/
+      sustentá-lo), sem antecipar trabalho de outra fase. **Escopo:** §10.2 (17 docs oficiais,
+      cobrindo todo o §5.4). Hooks deixados (tipos já previstos em `KBSourceType`, sem reabrir o
+      loader): vídeos do §10.1 → F3.1b (`video_transcript`), MONAI → F3.1c, materiais AI-native do
+      §10.1 → F3.1d (`grounding`). Testes em `tests/test_ingest.py` (manifesto, proveniência,
+      cobertura do núcleo §5.4, determinismo).
 - [ ] **F3.1b** **Transcrição dos vídeos do §10.1** (playlist de tecnologias, vídeo da comunidade,
       live de benefícios Inception) → texto p/ ingestão. Dogfood do **NVIDIA Riva (ASR)** —
       transforma o Riva de "só recomendável" em tecnologia NVIDIA efetivamente usada pelo TAPI.
