@@ -74,7 +74,13 @@ class Settings(BaseSettings):
         default="tapi_kb", description="Coleção Qdrant da KB NVIDIA (F3.4; coorte F3.10 à parte)."
     )
 
-    # Reranker: nemo (default no build) | cohere (somente validação F7).
+    # Reranking da busca híbrida (F3.6): por padrão usa o LexicalReranker offline/determinista
+    # (espinha verde — reordena/testa sem rede/GPU). Ligue p/ reordenar com o NeMo Reranking NIM
+    # nv-rerankqa de verdade (catálogo build.nvidia.com com nvidia_api_key, ou NIM self-hosted/GPU).
+    reranker_use_nv: bool = Field(
+        default=False, description="Reranking da busca (F3.6) usa o NeMo Reranking NIM nv-rerankqa."
+    )
+    # Provider do reranker real: nemo (default no build) | cohere (comparativo F7, ainda não liga).
     reranker_provider: RerankerProvider = "nemo"
     cohere_api_key: str = Field(default="", description="Só na F7 (trial).")
 

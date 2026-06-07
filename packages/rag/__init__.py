@@ -9,6 +9,7 @@ Chunking semântico (F3.2): `from packages.rag import chunk_kb, Chunk`.
 Embeddings nv-embedqa (F3.3): `from packages.rag import embed_kb, get_embedder, Embedder`.
 Indexação Qdrant dense+sparse/BM25 (F3.4): `from packages.rag import build_index, BM25Encoder`.
 Busca híbrida dense+lexical com fusão RRF (F3.5): `from packages.rag import build_retriever`.
+Reranking NeMo NIM plugável (F3.6): `from packages.rag import rerank, get_reranker, Reranker`.
 """
 
 from .chunk import (
@@ -57,6 +58,15 @@ from .ingest import (
     covered_techs,
     ingest,
     load_kb_sources,
+)
+from .rerank import (
+    LexicalReranker,
+    NeMoReranker,
+    RerankedChunk,
+    Reranker,
+    RerankerUnavailable,
+    get_reranker,
+    rerank,
 )
 from .retrieve import (
     DEFAULT_LIMIT,
@@ -128,6 +138,13 @@ __all__ = [
     "HybridRetriever",
     "hybrid_search",
     "build_retriever",
+    "RerankerUnavailable",
+    "Reranker",
+    "RerankedChunk",
+    "LexicalReranker",
+    "NeMoReranker",
+    "get_reranker",
+    "rerank",
     "DEFAULT_PREFERENCE",
     "TranscriberUnavailable",
     "TranscriptSegment",

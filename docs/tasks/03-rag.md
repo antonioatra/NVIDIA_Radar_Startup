@@ -146,7 +146,30 @@
       `tests/test_retrieve.py` (fusão RRF premia o que denso+lexical concordam, recuperação por tech,
       casamento lexical exato, proveniência citável, limite/ordenação, determinismo, índice não
       suportado, e o Qdrant degradando limpo offline).
-- [ ] **F3.6** Interface `Reranker` plugável; impl. **NeMo Reranking NIM** (default no build).
+- [x] **F3.6** Interface `Reranker` plugável; impl. **NeMo Reranking NIM** (default no build).
+      → `packages/rag/rerank.py`: reordena os `RetrievedChunk` da busca híbrida (F3.5) pela
+      **relevância real consulta×trecho** antes da resposta (F3.7). A F3.5 funde dois sinais *de
+      recuperação* por posição (RRF); o reranker é um **cross-encoder** que lê consulta+trecho
+      **juntos** e estima a relevância de cada par — sinal mais fino que corrige a ordem grosseira
+      da fusão antes de gastar contexto do LLM. **Decisão (fork rede/GPU vs offline):** honra a
+      espinha verde travada desde a F3.1 e o padrão dos toggles (`embeddings_use_nv`/`index_use_qdrant`):
+      o backend **preferido** `NeMoReranker` = NeMo Reranking NIM `nv-rerankqa-1b-v2` via
+      build.nvidia.com (`NVIDIA_API_KEY`) ou NIM self-hosted (GPU) é **hook de rede/GPU que degrada
+      limpo** (`RerankerUnavailable` sem credencial/endpoint/dep, igual ao `NVEmbedQA`/F3.3 e ao
+      `QdrantVectorIndex`/F3.4), e o **default é o `LexicalReranker` offline** — substituto de
+      cross-encoder puramente lexical, reprodutível entre processos, que pontua a cobertura dos
+      termos da consulta **ponderada pelo idf local da janela de candidatos** (os termos que
+      *discriminam* entre os candidatos pesam mais → sinal distinto do BM25 global da F3.5, então
+      reordenar muda a ordem de fato) para a F3.7 rodar/testar sem rede. Troca por config
+      (`reranker_use_nv`, off por default) ou injeção, sem tocar o resto (peça plugável). **Provider
+      plugável** (`reranker_provider`): `nemo` é o default no build; **Cohere Rerank é da F7**
+      (comparativo NeMo×Cohere) — caminho reservado aqui, levanta `RerankerUnavailable` até a F7
+      ligá-lo (sem antecipar trabalho de outra fase, conforme a nota do doc). `RerankedChunk` aninha
+      o `RetrievedChunk` (proveniência herdada citável, §8) + `rerank_score` e expõe o `retrieval_score`
+      (transparência: dá p/ ver o rerank corrigindo a fusão). `rerank()`/`get_reranker()` são a
+      superfície que o nó `nvidia_rag` (F3.7) chama. Testes em `tests/test_rerank.py` (contrato/Protocol,
+      reordenação preservando proveniência, idf local premia termo distintivo, `top_n`, transparência
+      do `retrieval_score`, determinismo, entrada vazia, e o NeMo NIM degradando limpo offline).
 - [ ] **F3.7** Nó **nvidia_rag** no grafo: retrieve → rerank → resposta **com citações**.
       **Construção da query (esclarecimento):** o nó roda **depois** do classifier/AIMI, então a
       query de recuperação é **derivada dos gaps** — sub-scores baixos do `AIMIScore` (sobretudo
