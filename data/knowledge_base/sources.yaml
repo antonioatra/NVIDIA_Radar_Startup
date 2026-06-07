@@ -190,3 +190,38 @@ sources:
     path: docs/nvidia-ai-enterprise.md
     captured_at: 2026-06-07
     access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
+
+  # --- §10.1: vídeos transcritos (F3.1b) ------------------------------------------------
+  # Dogfood do Riva (ASR): o TAPI usa o Riva p/ transcrever estes vídeos do §10.1 para a KB
+  # (ver packages/rag/transcribe.py). O conteúdo abaixo é o snapshot CURADO offline (a
+  # transcrição "não é valor central"); a `url` canônica + `captured_at` sustentam o refresh
+  # ao vivo via Riva ASR (hook de rede). source_type: video_transcript já previsto na F3.1.
+  - id: video-playlist-tecnologias
+    tech: NVIDIA (plataforma de tecnologias)
+    title: "Playlist de tecnologias NVIDIA (vídeos)"
+    url: https://youtube.com/playlist?list=PLBaUJRFQ-j_WJZdZfFNsgUWDWF1Ldjp_X
+    section: "10.1"
+    source_type: video_transcript
+    path: docs/video-playlist-tecnologias.md
+    captured_at: 2026-06-07
+    access: "Playlist pública no YouTube; snapshot curado do conteúdo, transcrição via Riva ASR (hook)."
+
+  - id: video-comunidade-startups
+    tech: NVIDIA Inception
+    title: "Comunidade de startups NVIDIA (vídeo)"
+    url: https://youtu.be/NmZDQSdUVUQ
+    section: "10.1"
+    source_type: video_transcript
+    path: docs/video-comunidade-startups.md
+    captured_at: 2026-06-07
+    access: "Vídeo público no YouTube; snapshot curado do conteúdo, transcrição via Riva ASR (hook)."
+
+  - id: video-beneficios-inception
+    tech: NVIDIA Inception
+    title: "Benefícios do NVIDIA Inception (live)"
+    url: https://www.youtube.com/live/fWfkE6cibwQ
+    section: "10.1"
+    source_type: video_transcript
+    path: docs/video-beneficios-inception.md
+    captured_at: 2026-06-07
+    access: "Live pública no YouTube; snapshot curado do conteúdo, transcrição via Riva ASR (hook)."

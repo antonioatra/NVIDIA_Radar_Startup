@@ -19,12 +19,25 @@
       loader): vídeos do §10.1 → F3.1b (`video_transcript`), MONAI → F3.1c, materiais AI-native do
       §10.1 → F3.1d (`grounding`). Testes em `tests/test_ingest.py` (manifesto, proveniência,
       cobertura do núcleo §5.4, determinismo).
-- [ ] **F3.1b** **Transcrição dos vídeos do §10.1** (playlist de tecnologias, vídeo da comunidade,
+- [x] **F3.1b** **Transcrição dos vídeos do §10.1** (playlist de tecnologias, vídeo da comunidade,
       live de benefícios Inception) → texto p/ ingestão. Dogfood do **NVIDIA Riva (ASR)** —
       transforma o Riva de "só recomendável" em tecnologia NVIDIA efetivamente usada pelo TAPI.
       **Fallback de de-risking:** se o Riva NIM não subir a tempo, usar legendas do YouTube ou
       Whisper para a transcrição (a transcrição não é valor central). Preferir Riva pela narrativa,
       mas não deixar o RAG bloqueado pela infra de ASR.
+      → Interface **plugável** `Transcriber` em `packages/rag/transcribe.py` (Pydantic `Transcript`/
+      `TranscriptSegment`): backend **preferido `RivaTranscriber`** + fallback `YouTubeCaptionTranscriber`/
+      `WhisperTranscriber`; `DEFAULT_PREFERENCE` (riva→youtube→whisper) e `transcribe()` que cai de um
+      backend p/ o próximo (`TranscriberUnavailable`). **Decisão (fork ASR ao vivo vs offline):**
+      honra a F3.1 (curado/determinístico, espinha verde) e o padrão `scraper_use_network` (rede *off*
+      por default) — os backends reais são **hooks de rede/GPU** que degradam limpo (testados offline,
+      sem travar o CI), e o conteúdo que alimenta o RAG são os **3 snapshots curados** dos vídeos em
+      `data/knowledge_base/docs/` (`source_type: video_transcript`, `section: 10.1`, `id` `video-*`),
+      citáveis pela `url` canônica do YouTube + `captured_at` (sustentam o refresh via Riva). Reusa o
+      loader/`ingest` da F3.1 (tipo já previsto em `KBSourceType`, sem reabrir o loader);
+      `transcript_to_markdown` liga o caminho ao vivo ao formato do snapshot. Testes em
+      `tests/test_transcribe.py` (contrato tipado, ordem da cadeia, fallback, hooks indisponíveis
+      offline, ingestão dos 3 vídeos com proveniência).
 - [ ] **F3.1c** Incluir **MONAI** na base de conhecimento (citado no §5.5 como alvo de
       recomendação em saúde; sem entrada na KB, o RAG nunca o recuperaria).
 - [ ] **F3.1d** Ingerir os **materiais de AI-native services do §10.1** (Sequoia "services as
