@@ -70,7 +70,23 @@
       contra o modelo, P4↔integração/cunha de mão de obra) e o changelog §7 foi fechado: **semântica
       e escala 0–25 confirmadas intactas** (só ajuste de redação) → rótulos do eval (F1.12) válidos.
       Teste dedicado `test_grounding_materials_ground_the_aimi_rubric` em `tests/test_ingest.py`.
-- [ ] **F3.2** Limpeza/normalização + **chunking semântico**.
+- [x] **F3.2** Limpeza/normalização + **chunking semântico**.
+      → `packages/rag/chunk.py`: `normalize_text` (NFC, CRLF→LF, apara espaço à direita,
+      colapsa linhas em branco — limpeza determinística e sem perda) + `chunk_document`
+      que quebra cada `KBDocument` (F3.1) por **seção de markdown** (`# título`+intro, depois
+      cada `## seção`), não por janela cega de N chars: a fronteira do chunk segue a do
+      conteúdo (um conceito por chunk, sem cortar frase). Modelo `Chunk` (Pydantic v2,
+      `frozen`) **herda a proveniência** do doc-pai (`url`/`tech`/`section`/`source_type`/
+      `captured_at`) + ganha `breadcrumb` (caminho de títulos), `content_sha256` próprio
+      (reusa `content_hash` da F1.9 → dedup no nível do chunk) e `chunk_id` estável
+      (`<doc_id>::<NN>`). `contextual_text` prefixa o breadcrumb ao corpo — é o texto que a
+      F3.3 embeda (o trecho sabe a que tech/seção pertence); `text` fica puro p/ citação
+      (F3.7). **Decisão (offline/determinístico):** honra a espinha verde da F3.1 — puro,
+      sem rede/GPU; seção acima de `max_chars` (1200) degrada repartindo por parágrafo, nunca
+      no meio de frase (os docs curados cabem com folga: 24 docs → 74 chunks, máx 1166 chars,
+      nada repartido). `chunk_kb()` liga F3.1→F3.2 (ingere + chunkifica a KB inteira). Testes
+      em `tests/test_chunk.py` (limpeza idempotente, corte por seção, breadcrumb/contexto,
+      proveniência auto-suficiente, IDs únicos/estáveis, split por parágrafo, KB real).
 - [ ] **F3.3** Embeddings com **NeMo Retriever `nv-embedqa-1b-v2`** (multilíngue).
 - [ ] **F3.4** Indexação no **Qdrant** (dense + sparse/BM25).
 - [ ] **F3.5** **Busca híbrida** (dense + lexical) com fusão de scores.

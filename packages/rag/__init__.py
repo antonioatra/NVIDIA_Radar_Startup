@@ -5,8 +5,16 @@ Ingest -> chunk semântico -> embeddings (NeMo Retriever nv-embedqa) -> Qdrant (
 
 Ingestão das fontes do §10 (F3.1): `from packages.rag import ingest, load_kb_sources`.
 Transcrição dos vídeos do §10.1 (F3.1b): `from packages.rag import transcribe, Transcriber`.
+Chunking semântico (F3.2): `from packages.rag import chunk_kb, Chunk`.
 """
 
+from .chunk import (
+    Chunk,
+    chunk_document,
+    chunk_documents,
+    chunk_kb,
+    normalize_text,
+)
 from .ingest import (
     KBDocument,
     KBSection,
@@ -38,6 +46,11 @@ __all__ = [
     "load_kb_sources",
     "ingest",
     "covered_techs",
+    "Chunk",
+    "normalize_text",
+    "chunk_document",
+    "chunk_documents",
+    "chunk_kb",
     "DEFAULT_PREFERENCE",
     "TranscriberUnavailable",
     "TranscriptSegment",
