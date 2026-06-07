@@ -191,6 +191,22 @@ sources:
     captured_at: 2026-06-07
     access: "Página pública NVIDIA; snapshot curado citando a fonte oficial."
 
+  # --- F3.1c: MONAI (saúde) -------------------------------------------------------------
+  # Citado no §5.5 como alvo de recomendação em saúde (junto de Clara/AI Enterprise), mas SEM
+  # entrada própria no §10. Sem entrada na KB, o RAG nunca o recuperaria. Entra como `doc`
+  # (documentação oficial) na seção "10.2" — só ADICIONA ao manifesto, sem tocar o loader,
+  # como previsto na F3.1. Recomendável (domínio saúde), não dogfooded pelo TAPI.
+  - id: monai
+    tech: MONAI
+    title: "MONAI — Medical Open Network for AI (deep learning em imagem médica)"
+    url: https://monai.io/
+    section: "10.2"
+    source_type: doc
+    path: docs/monai.md
+    captured_at: 2026-06-07
+    access: "Projeto open-source (Apache-2.0), co-liderado por NVIDIA/King's College; snapshot curado da fonte oficial."
+    notes: "Citado no §5.5 (alvo em saúde), não no §10. Página NVIDIA: https://developer.nvidia.com/monai"
+
   # --- §10.1: vídeos transcritos (F3.1b) ------------------------------------------------
   # Dogfood do Riva (ASR): o TAPI usa o Riva p/ transcrever estes vídeos do §10.1 para a KB
   # (ver packages/rag/transcribe.py). O conteúdo abaixo é o snapshot CURADO offline (a

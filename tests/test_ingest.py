@@ -2,8 +2,8 @@
 
 Garantem que o manifesto do §10 (`data/knowledge_base/sources.yaml`) carrega num modelo
 válido, que cada fonte tem conteúdo curado citável, que a ingestão carimba proveniência
-(content_sha256 + url) e que o núcleo de techs do §5.4 (§10.2) está coberto. MONAI fica para
-a F3.1c e os materiais AI-native do §10.1 para a F3.1d — fora do escopo desta task.
+(content_sha256 + url) e que o núcleo de techs do §5.4 (§10.2) + MONAI (F3.1c) estão cobertos.
+Os materiais AI-native do §10.1 ficam para a F3.1d — fora do escopo desta task.
 """
 
 from __future__ import annotations
@@ -64,6 +64,16 @@ def test_ingest_produces_documents_with_provenance() -> None:
 def test_section_10_2_core_techs_are_covered() -> None:
     # Cobertura do §10.2: todas as techs do §5.4 ingeridas e recuperáveis (base p/ F3.8).
     assert CORE_TECHS <= covered_techs()
+
+
+def test_monai_is_covered_for_healthcare() -> None:
+    # F3.1c: MONAI é citado no §5.5 como alvo em saúde, mas não tem entrada no §10. Precisa
+    # estar na KB (como `doc` na seção 10.2) para ser recuperável pelo RAG.
+    monai = next((s for s in load_kb_sources() if s.id == "monai"), None)
+    assert monai is not None
+    assert monai.tech == "MONAI"
+    assert monai.source_type == "doc"
+    assert "MONAI" in covered_techs()
 
 
 def test_ingest_is_deterministic_offline() -> None:

@@ -38,8 +38,18 @@
       `transcript_to_markdown` liga o caminho ao vivo ao formato do snapshot. Testes em
       `tests/test_transcribe.py` (contrato tipado, ordem da cadeia, fallback, hooks indisponíveis
       offline, ingestão dos 3 vídeos com proveniência).
-- [ ] **F3.1c** Incluir **MONAI** na base de conhecimento (citado no §5.5 como alvo de
+- [x] **F3.1c** Incluir **MONAI** na base de conhecimento (citado no §5.5 como alvo de
       recomendação em saúde; sem entrada na KB, o RAG nunca o recuperaria).
+      → Entrada `monai` no manifesto (`data/knowledge_base/sources.yaml`) + snapshot curado
+      `docs/monai.md` (MONAI Core/Label/Deploy/Model Zoo, FL via NVFlare; quando recomendar em
+      saúde). **Decisão (seção/loader):** MONAI é citado no §5.5, **não** no §10, mas tem
+      documentação oficial → entra como `source_type: doc` na `section: "10.2"` (a seção "docs"),
+      só ADICIONANDO ao manifesto **sem reabrir o loader** (honra o design da F3.1; tipo já
+      previsto em `KBSourceType`). `url` canônica `monai.io` + página NVIDIA MONAI em `notes`;
+      `access` marca Apache-2.0 / co-liderança NVIDIA+King's College. Recomendável (domínio
+      saúde), não dogfooded. Não entra em `CORE_TECHS` (§10.2) — teste dedicado
+      `test_monai_is_covered_for_healthcare` em `tests/test_ingest.py` garante que está coberto
+      e recuperável (base p/ F3.8).
 - [ ] **F3.1d** Ingerir os **materiais de AI-native services do §10.1** (Sequoia "services as
       software", Emergence playbook, NVIDIA "5-layer cake") e marcá-los como **grounding da
       rubrica AIMI**: são eles que definem "AI-native vs wrapper" — origem conceitual dos 4
