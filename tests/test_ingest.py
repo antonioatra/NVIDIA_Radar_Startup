@@ -3,7 +3,7 @@
 Garantem que o manifesto do §10 (`data/knowledge_base/sources.yaml`) carrega num modelo
 válido, que cada fonte tem conteúdo curado citável, que a ingestão carimba proveniência
 (content_sha256 + url) e que o núcleo de techs do §5.4 (§10.2) + MONAI (F3.1c) estão cobertos.
-Os materiais AI-native do §10.1 ficam para a F3.1d — fora do escopo desta task.
+Os materiais AI-native do §10.1 (F3.1d) entram como `grounding` e têm teste dedicado.
 """
 
 from __future__ import annotations
@@ -74,6 +74,27 @@ def test_monai_is_covered_for_healthcare() -> None:
     assert monai.tech == "MONAI"
     assert monai.source_type == "doc"
     assert "MONAI" in covered_techs()
+
+
+def test_grounding_materials_ground_the_aimi_rubric() -> None:
+    # F3.1d: os materiais AI-native do §10.1 (Sequoia/Emergence/NVIDIA 5-layer cake) são a
+    # origem conceitual dos pilares do AIMI. Entram como `grounding` na seção 10.1 (não como
+    # tech recomendável) e precisam estar na KB para sustentar a rubrica de forma rastreável.
+    grounding_ids = {
+        "sequoia-services-as-software",
+        "emergence-ai-native-services-playbook",
+        "nvidia-ai-5-layer-cake",
+    }
+    by_id = {s.id: s for s in load_kb_sources()}
+    assert grounding_ids <= by_id.keys()
+    for gid in grounding_ids:
+        src = by_id[gid]
+        assert src.source_type == "grounding"
+        assert src.section == "10.1"  # materiais do §10.1, não docs do §10.2
+        assert src.tech not in CORE_TECHS  # grounding não polui as techs recomendáveis (§5.4)
+    # São ingeríveis com proveniência como qualquer outra fonte (mesmo loader, sem reabrir).
+    docs = {d.id: d for d in ingest()}
+    assert all(docs[gid].text.strip() and docs[gid].url.startswith("http") for gid in grounding_ids)
 
 
 def test_ingest_is_deterministic_offline() -> None:

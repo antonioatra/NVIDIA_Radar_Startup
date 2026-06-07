@@ -14,10 +14,12 @@ e a heurística refinada (F6.1, v1) preenchem.
 
 > **Grounding conceitual (§10.1).** Os 4 pilares **não são invenção arbitrária**: derivam da
 > própria definição de *AI-native service vs wrapper de LLM* do case, fundamentada em Sequoia
-> ("Services as Software"), Emergence ("AI-native services playbook") e NVIDIA ("AI 5-layer
-> cake"). Esses materiais são ingeridos na KB em **F3.1d** e, ao serem ingeridos, a *redação*
-> dos pilares abaixo é **reconciliada** com eles — **sem mexer na escala 0–25** nem invalidar os
-> rótulos já feitos. Se a reconciliação mudar a semântica de um pilar, anota-se aqui (changelog).
+> ("Services: The New Software" — copiloto × autopiloto), Emergence ("The AI-Native Services
+> Playbook" — data flywheel + teste "Mirage PMF") e NVIDIA ("AI Is a 5-Layer Cake"). Esses
+> materiais foram **ingeridos na KB em F3.1d** (`source_type: grounding`, §10.1) e a *redação*
+> dos pilares abaixo foi **reconciliada** com eles — **sem mexer na escala 0–25** nem invalidar
+> os rótulos já feitos (ver changelog §7). A reconciliação **confirmou** a semântica dos 4
+> pilares (cada um cita agora a fonte de grounding); nenhuma mudança semântica foi necessária.
 
 ---
 
@@ -61,6 +63,9 @@ Cada pilar usa a mesma escala de maturidade (a *semântica* por pilar está nas 
 **Mede:** o quanto a empresa tem **dados proprietários** e **feedback loops** que melhoram o
 produto com o uso — o oposto do wrapper, que não acumula nada além do prompt.
 
+> *Grounding (§10.1):* o **data flywheel** da Emergence ("cada engajamento deixa a IA melhor") e
+> a **composição de dados** da Sequoia (julgamento proprietário que aprofunda a defensabilidade).
+
 | Faixa | Sinais (evidência pública) |
 |---|---|
 | 0–6 | Só consome API externa; nenhum dado proprietário aparente; output não realimenta o produto. |
@@ -74,6 +79,9 @@ produto com o uso — o oposto do wrapper, que não acumula nada além do prompt
 
 **Mede:** profundidade do **workflow** entregue — automação multi-passo, agentes, integrações —
 vs. "uma caixa de texto na frente de uma API".
+
+> *Grounding (§10.1):* o **autopiloto** da Sequoia ("vender o trabalho, não a ferramenta") e o
+> "**você É a implementação**" da Emergence — a IA *entrega* o resultado, não só assiste.
 
 | Faixa | Sinais (evidência pública) |
 |---|---|
@@ -93,6 +101,11 @@ orquestração de agentes em produção → stack de agentes/governança NVIDIA.
 quantização, batching — vs. depender 100% de API externa crua. **Pilar baixo = maior upside de
 graduação** e gatilho das recomendações NVIDIA (F6.3) + alvo do ROI quantificado (F6.11).
 
+> *Grounding (§10.1):* o **"5-layer cake"** da NVIDIA (a aplicação puxa as camadas de modelos/infra
+> abaixo dela) e a **"corrida contra o modelo"** da Sequoia (wrapper sobre API crua é frágil) — a
+> graduação para a stack própria é descer essas camadas. É o teste de margem "Mirage PMF" da
+> Emergence em forma técnica.
+
 | Faixa | Sinais (evidência pública) |
 |---|---|
 | 0–6 | 100% API externa; sem serving próprio; sem sinais de custo/latência/governança endereçados. |
@@ -110,6 +123,9 @@ dados em GPU). O **GPU Graduation Engine (F6.3)** mede o ROI real dessa migraç�
 
 **Mede:** **distribuição** e **defensabilidade de mercado** — GTM claro, integração enterprise,
 lock-in, contratos — o que separa um AI-native service de um experimento.
+
+> *Grounding (§10.1):* a **profundidade de integração** / virar *system of record* da Emergence e
+> a cunha **trabalho terceirizado → insourced** da Sequoia (o gasto com mão de obra como TAM).
 
 | Faixa | Sinais (evidência pública) |
 |---|---|
@@ -170,5 +186,10 @@ quer **identificar** e **ajudar a graduar** a stack.
   `classe × AIMI`**, a **região wrapper** e a **guia provisória de cortes** (calibração final no
   eval F6.4). **Não** altera a escala 0–25 nem a semântica dos pilares (§§2–5) — só explicita como a
   rubrica vira classe/produto. Origem: [`ALINHAMENTO-CRITERIOS-E-DECISAO.md`](ALINHAMENTO-CRITERIOS-E-DECISAO.md).
-- **Reconciliação §10.1 (F3.1d):** _pendente_ — registrar aqui qualquer ajuste de redação após
-  ingerir Sequoia/Emergence/5-layer cake, confirmando que a escala 0–25 permaneceu intacta.
+- **Reconciliação §10.1 (F3.1d, 2026-06-07):** materiais ingeridos na KB (`source_type: grounding`,
+  §10.1): Sequoia "Services: The New Software", Emergence "The AI-Native Services Playbook", NVIDIA
+  "AI Is a 5-Layer Cake". A reconciliação **confirmou** os 4 pilares **sem mudança semântica**:
+  P1↔data flywheel/composição de dados, P2↔autopiloto/"você É a implementação", P3↔"5-layer cake"/
+  corrida contra o modelo/Mirage PMF, P4↔profundidade de integração/cunha de mão de obra. Único
+  ajuste de **redação**: cada pilar (§§2–5) passou a citar sua fonte de grounding. **Escala 0–25 e
+  semântica intactas** → rótulos do eval set (F1.12) permanecem válidos.

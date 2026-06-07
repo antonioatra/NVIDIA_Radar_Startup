@@ -241,3 +241,43 @@ sources:
     path: docs/video-beneficios-inception.md
     captured_at: 2026-06-07
     access: "Live pública no YouTube; snapshot curado do conteúdo, transcrição via Riva ASR (hook)."
+
+  # --- §10.1: materiais de AI-native services (F3.1d) -----------------------------------
+  # Origem CONCEITUAL dos 4 pilares do AIMI (F0.11) e da definição "AI-native vs wrapper"
+  # do classifier (F2.6) — NÃO são docs de produto NVIDIA. Entram como `grounding` (tipo já
+  # previsto em KBSourceType na F3.1, sem reabrir o loader), `tech` uniforme "AI-Native
+  # (grounding)" para NÃO se misturarem com as techs recomendáveis do §5.4 (CORE_TECHS).
+  # Ao ingerir, a redação dos pilares em docs/RUBRICA-AIMI.md foi reconciliada com estes
+  # materiais — sem mexer na escala 0–25 (ver changelog do doc).
+  - id: sequoia-services-as-software
+    tech: "AI-Native (grounding)"
+    title: "Sequoia — Services: The New Software (copiloto × autopiloto)"
+    url: https://www.sequoiacap.com/article/services-the-new-software/
+    section: "10.1"
+    source_type: grounding
+    path: docs/sequoia-services-as-software.md
+    captured_at: 2026-06-07
+    access: "Ensaio público da Sequoia Capital (Julien Bek); snapshot curado citando a fonte."
+    notes: "Grounding §10.1: 'vender o trabalho, não a ferramenta' = AI-native vs wrapper."
+
+  - id: emergence-ai-native-services-playbook
+    tech: "AI-Native (grounding)"
+    title: "Emergence — The AI-Native Services Playbook"
+    url: https://www.emcap.com/thoughts/the-ai-native-services-playbook
+    section: "10.1"
+    source_type: grounding
+    path: docs/emergence-ai-native-services-playbook.md
+    captured_at: 2026-06-07
+    access: "Playbook público da Emergence Capital; snapshot curado citando a fonte."
+    notes: "Grounding §10.1: data flywheel + teste 'Mirage PMF' = AI-native vs wrapper."
+
+  - id: nvidia-ai-5-layer-cake
+    tech: "AI-Native (grounding)"
+    title: "NVIDIA — AI Is a 5-Layer Cake (energia→chips→infra→modelos→apps)"
+    url: https://blogs.nvidia.com/blog/ai-5-layer-cake/
+    section: "10.1"
+    source_type: grounding
+    path: docs/nvidia-ai-5-layer-cake.md
+    captured_at: 2026-06-07
+    access: "Post público do NVIDIA Blog (framing de Jensen Huang); snapshot curado citando a fonte."
+    notes: "Grounding §10.1: aplicação puxa as camadas abaixo = base do P3/GPU Graduation Engine."

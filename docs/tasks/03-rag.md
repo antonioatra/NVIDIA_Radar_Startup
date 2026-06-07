@@ -50,13 +50,26 @@
       saúde), não dogfooded. Não entra em `CORE_TECHS` (§10.2) — teste dedicado
       `test_monai_is_covered_for_healthcare` em `tests/test_ingest.py` garante que está coberto
       e recuperável (base p/ F3.8).
-- [ ] **F3.1d** Ingerir os **materiais de AI-native services do §10.1** (Sequoia "services as
+- [x] **F3.1d** Ingerir os **materiais de AI-native services do §10.1** (Sequoia "services as
       software", Emergence playbook, NVIDIA "5-layer cake") e marcá-los como **grounding da
       rubrica AIMI**: são eles que definem "AI-native vs wrapper" — origem conceitual dos 4
       pilares (F6.1) e da definição do `classifier` (F2.6). Não são só KB de NVIDIA.
       **Reconciliação:** ao ingerir, revisar `docs/RUBRICA-AIMI.md` (F0.11) contra esses materiais
       e ajustar a *redação* dos pilares se preciso — **sem mexer na escala 0–25** nem invalidar os
       rótulos do eval set (F1.12). Se a reconciliação mudar a semântica de um pilar, anotar no doc.
+      → 3 entradas `source_type: grounding` na `section: "10.1"` do manifesto + snapshots curados:
+      `sequoia-services-as-software.md` (copiloto × autopiloto / "vender o trabalho"),
+      `emergence-ai-native-services-playbook.md` (data flywheel + teste "Mirage PMF") e
+      `nvidia-ai-5-layer-cake.md` (a aplicação puxa modelos/infra abaixo). URLs canônicas reais
+      (sequoiacap.com / emcap.com / blogs.nvidia.com) confirmadas — proveniência citável como os
+      vídeos da F3.1b. **Decisão (tech/loader):** `tech` uniforme `"AI-Native (grounding)"` p/ NÃO
+      poluir as techs recomendáveis do §5.4 (`CORE_TECHS`); reusa o loader/`ingest` da F3.1 **sem
+      reabri-lo** (tipo `grounding` já previsto em `KBSourceType`, como nas F3.1b/c).
+      **Reconciliação feita:** `docs/RUBRICA-AIMI.md` — cada pilar (§§2–5) passou a citar sua fonte
+      de grounding (P1↔data flywheel, P2↔autopiloto/"você É a implementação", P3↔5-layer cake/corrida
+      contra o modelo, P4↔integração/cunha de mão de obra) e o changelog §7 foi fechado: **semântica
+      e escala 0–25 confirmadas intactas** (só ajuste de redação) → rótulos do eval (F1.12) válidos.
+      Teste dedicado `test_grounding_materials_ground_the_aimi_rubric` em `tests/test_ingest.py`.
 - [ ] **F3.2** Limpeza/normalização + **chunking semântico**.
 - [ ] **F3.3** Embeddings com **NeMo Retriever `nv-embedqa-1b-v2`** (multilíngue).
 - [ ] **F3.4** Indexação no **Qdrant** (dense + sparse/BM25).
