@@ -104,7 +104,28 @@
       `embed_kb()` liga F3.1→F3.2→F3.3. Testes em `tests/test_embed.py` (contrato/Protocol,
       determinismo+normalização, cosseno por vocabulário, embedda contextual_text c/ proveniência,
       KB real, e o backend real degradando limpo offline).
-- [ ] **F3.4** Indexação no **Qdrant** (dense + sparse/BM25).
+- [x] **F3.4** Indexação no **Qdrant** (dense + sparse/BM25).
+      → `packages/rag/index.py`: índice **híbrido** dos `EmbeddedChunk` (F3.3) — vetor **denso**
+      (nv-embedqa) + vetor **esparso/BM25** lexical — pronto p/ a busca híbrida com fusão (F3.5) e
+      a citação (F3.7). **Sparse/BM25 puro e determinístico** `BM25Encoder` (mesma filosofia do
+      `HashingEmbedder`/F3.3): `fit` ajusta a coorte (df→idf + comprimento médio), `encode_document`
+      gera o vetor BM25 (saturação de tf k1=1.5 + normalização por tamanho b=0.75) e `encode_query`
+      o vetor binário — o produto interno reconstrói o score BM25 (como o Qdrant casa esparso×esparso),
+      **sem `rank-bm25`**, com id de termo via `hashlib` (reproduzível entre processos). **Decisão
+      (fork rede vs offline):** honra a espinha verde travada desde a F3.1 e o padrão dos toggles
+      (`embeddings_use_nv`/`scraper_use_network`): o `QdrantVectorIndex` é **hook de rede que degrada
+      limpo** (`IndexUnavailable` sem `qdrant-client`/servidor, igual ao `NVEmbedQA`/F3.3) e cria a
+      coleção híbrida (vetor nomeado `dense` cosseno + esparso `bm25`) inferindo a dimensão do ponto;
+      o **default é o `InMemoryVectorIndex`** — guarda os pontos em memória (upsert idempotente por
+      `chunk_id` = dedup, como o `content_sha256` da F3.2) p/ a F3.5 buscar/testar sem subir o Qdrant.
+      Troca por config `index_use_qdrant` (off por default) ou injeção, sem tocar o resto (peça
+      plugável). **Coleção `tapi_kb` separada da coorte** (F3.10 reusa embedder/Qdrant/reranker em
+      coleção à parte). Indexa o `contextual_text` (mesma superfície densa, breadcrumb+corpo → tech/
+      seção contam no lexical) e o `payload` carrega a proveniência herdada (url/tech/seção/texto/
+      hash + modelo do vetor) — recuperação citável (§8). `build_index()` liga F3.1→F3.2→F3.3→F3.4 e
+      devolve (índice, encoder ajustado) p/ a F3.5 reusar o encoder na consulta. Testes em
+      `tests/test_index.py` (formato esparso ordenado, determinismo, idf raro>comum, casamento
+      lexical, ponto híbrido com proveniência, idempotência, KB real, Qdrant degradando limpo).
 - [ ] **F3.5** **Busca híbrida** (dense + lexical) com fusão de scores.
 - [ ] **F3.6** Interface `Reranker` plugável; impl. **NeMo Reranking NIM** (default no build).
 - [ ] **F3.7** Nó **nvidia_rag** no grafo: retrieve → rerank → resposta **com citações**.

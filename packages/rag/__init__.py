@@ -7,6 +7,7 @@ Ingestão das fontes do §10 (F3.1): `from packages.rag import ingest, load_kb_s
 Transcrição dos vídeos do §10.1 (F3.1b): `from packages.rag import transcribe, Transcriber`.
 Chunking semântico (F3.2): `from packages.rag import chunk_kb, Chunk`.
 Embeddings nv-embedqa (F3.3): `from packages.rag import embed_kb, get_embedder, Embedder`.
+Indexação Qdrant dense+sparse/BM25 (F3.4): `from packages.rag import build_index, BM25Encoder`.
 """
 
 from .chunk import (
@@ -28,6 +29,24 @@ from .embed import (
     embed_kb,
     embed_query,
     get_embedder,
+)
+from .index import (
+    BM25_B,
+    BM25_K1,
+    DENSE_VECTOR,
+    KB_COLLECTION,
+    SPARSE_INDEX_SPACE,
+    SPARSE_VECTOR,
+    BM25Encoder,
+    IndexedChunk,
+    IndexUnavailable,
+    InMemoryVectorIndex,
+    QdrantVectorIndex,
+    SparseVector,
+    VectorIndex,
+    build_index,
+    get_index,
+    index_chunks,
 )
 from .ingest import (
     KBDocument,
@@ -76,6 +95,22 @@ __all__ = [
     "embed_chunks",
     "embed_query",
     "embed_kb",
+    "KB_COLLECTION",
+    "DENSE_VECTOR",
+    "SPARSE_VECTOR",
+    "SPARSE_INDEX_SPACE",
+    "BM25_K1",
+    "BM25_B",
+    "IndexUnavailable",
+    "SparseVector",
+    "BM25Encoder",
+    "IndexedChunk",
+    "VectorIndex",
+    "InMemoryVectorIndex",
+    "QdrantVectorIndex",
+    "get_index",
+    "index_chunks",
+    "build_index",
     "DEFAULT_PREFERENCE",
     "TranscriberUnavailable",
     "TranscriptSegment",

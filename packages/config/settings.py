@@ -63,6 +63,17 @@ class Settings(BaseSettings):
         default=False, description="Embeddings da KB (F3.3) usam o NeMo Retriever nv-embedqa."
     )
 
+    # Indexação da KB (F3.4): por padrão usa o índice in-memory offline/determinista (espinha
+    # verde — a busca híbrida F3.5 roda/testa sem subir servidor). Ligue p/ indexar no Qdrant de
+    # verdade (servidor em qdrant_url; dep qdrant-client). A KB NVIDIA e a coorte (F3.10) vivem em
+    # coleções separadas — qdrant_collection é a da KB.
+    index_use_qdrant: bool = Field(
+        default=False, description="Indexação da KB (F3.4) usa o Qdrant (dense + sparse/BM25)."
+    )
+    qdrant_collection: str = Field(
+        default="tapi_kb", description="Coleção Qdrant da KB NVIDIA (F3.4; coorte F3.10 à parte)."
+    )
+
     # Reranker: nemo (default no build) | cohere (somente validação F7).
     reranker_provider: RerankerProvider = "nemo"
     cohere_api_key: str = Field(default="", description="Só na F7 (trial).")
