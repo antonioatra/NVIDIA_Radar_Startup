@@ -31,17 +31,13 @@ from .classifier import classifier  # F2.6 — implementação real do nó
 from .evidence_validator import evidence_validator  # F2.7 — implementação real do nó
 from .extractor import extractor  # F2.5 — implementação real do nó
 from .human_review import human_review  # F2.8 — implementação real do nó
+from .nvidia_rag import nvidia_rag  # F3.7 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
 from .terminals import (  # F2.12 / F2.13 — briefings terminais
     insufficient_data_briefing,
     out_of_scope_briefing,
 )
-
-
-def nvidia_rag(state: GraphState) -> dict:
-    """F3 — RAG híbrido (dense + BM25 Qdrant) → NeMo rerank → citações da KB."""
-    return {}
 
 
 def recommender(state: GraphState) -> dict:

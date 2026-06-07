@@ -170,12 +170,35 @@
       superfície que o nó `nvidia_rag` (F3.7) chama. Testes em `tests/test_rerank.py` (contrato/Protocol,
       reordenação preservando proveniência, idf local premia termo distintivo, `top_n`, transparência
       do `retrieval_score`, determinismo, entrada vazia, e o NeMo NIM degradando limpo offline).
-- [ ] **F3.7** Nó **nvidia_rag** no grafo: retrieve → rerank → resposta **com citações**.
+- [x] **F3.7** Nó **nvidia_rag** no grafo: retrieve → rerank → resposta **com citações**.
       **Construção da query (esclarecimento):** o nó roda **depois** do classifier/AIMI, então a
       query de recuperação é **derivada dos gaps** — sub-scores baixos do `AIMIScore` (sobretudo
       Technical Optimization) + setor/perfil da startup → termos de busca na KB. Assim o
       `evidencia_nvidia` recuperado já é relevante ao gap que o recommender (F4.2) vai justificar.
       Uma recuperação por gap/tech-candidata (não uma genérica). Liga F3 ↔ F4.
+      → `packages/agents/nvidia_rag.py`: 6º nó do grafo (entre evidence_validator/F2.7 e
+      recommender/F4). `build_rag_queries` deriva **uma busca por gap** dos pilares baixos do AIMI
+      (faixa ausente/emergente, score ≤ 12, menor primeiro, teto `MAX_GAPS=3`) mapeados para a tech
+      NVIDIA que fecha cada gap (`PILLAR_QUERIES`: P3→NIM/TensorRT-LLM/Triton/graduação, P1→NeMo/
+      customização/data flywheel, P2→agentes/NeMo Retriever, P4→Guardrails/AI Enterprise) **+** uma
+      busca de **setor** (§5.5, `SECTOR_QUERIES`: saúde→MONAI/Clara, voz→Riva, cyber→Morpheus,
+      robótica→Isaac, simulação→Omniverse) — nada de query genérica. `retrieve_evidence` roda
+      retrieve (F3.5) → rerank (F3.6, `top_n` por consulta) por query, dedup por `chunk_id` (mantém
+      o maior `rerank_score` + a lista de gaps cobertos), ordena por relevância e corta em
+      `MAX_CITATIONS=8`; converte o `RerankedChunk` no `RetrievedChunk` de transporte com
+      proveniência citável (§8) + rastreabilidade gap→evidência (`pilar`/`gap`/`gaps` no metadado,
+      base do `pilar_origem` da F4.1). **Decisão (espinha verde, igual F2.3–F2.7/F3):** offline/
+      determinista por default reusando o pipeline plugável da F3 sem reabri-lo (`build_retriever`/
+      F3.5 + `get_reranker`/F3.6); os backends de rede/GPU entram pelos toggles já existentes
+      (`embeddings_use_nv`/`index_use_qdrant`/`reranker_use_nv`), sem tocar o nó. Sem `aimi`
+      (espinha sem classificação) é **no-op limpo** (`{}`, `retrieved` vazio) — grafo verde M2/DoD
+      sem alucinar citação. O **grounding da rubrica** (F3.1d) é filtrado da saída (define o AIMI,
+      não é tech recomendável). `get_kb_retriever` (lru_cache) reindexa a KB uma vez por processo
+      (KB estática). O nó **não escreve NL** — a "resposta com citações" é a evidência anexada;
+      a justificativa é o recommender (F4.2). Testes em `tests/test_nvidia_rag.py` (ordem por
+      severidade do gap c/ Technical Optimization, setor saúde→MONAI, fallback ao pilar mais baixo,
+      ≥2 citações com proveniência/rastreabilidade, grounding filtrado, dedup, determinismo, no-op
+      sem diagnóstico, retriever/reranker injetáveis).
 - [ ] **F3.8** Cobertura: garantir que TODAS as techs do §5.4 **+ MONAI** estão indexadas e recuperáveis,
       **incluindo NeMo Evaluator/avaliação** (o §5.5 cita "avaliação com NeMo" como recomendação de
       governança — precisa ser recuperável, não só o Guardrails). Teste de recuperação por tech.

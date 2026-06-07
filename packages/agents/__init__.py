@@ -36,6 +36,7 @@ from .graph import CONDITIONAL_OUT, PIPELINE, build_graph, compile_graph, run_pi
 from .human_review import review_payload
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
+from .nvidia_rag import build_rag_queries, get_kb_retriever, retrieve_evidence
 from .progress import (
     ProgressEvent,
     RedisProgressPublisher,
@@ -91,6 +92,10 @@ __all__ = [
     "evidence_sources",
     "is_sufficient",
     "MIN_SOURCES",
+    # nvidia_rag (F3.7) — o nó é acessado via NODES (evita shadowing do submódulo)
+    "build_rag_queries",
+    "retrieve_evidence",
+    "get_kb_retriever",
     # terminais de baixa confiança / fora de escopo (F2.12 / F2.13)
     "insufficient_data_briefing",
     "out_of_scope_briefing",
