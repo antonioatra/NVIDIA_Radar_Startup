@@ -87,7 +87,23 @@
       nada repartido). `chunk_kb()` liga F3.1→F3.2 (ingere + chunkifica a KB inteira). Testes
       em `tests/test_chunk.py` (limpeza idempotente, corte por seção, breadcrumb/contexto,
       proveniência auto-suficiente, IDs únicos/estáveis, split por parágrafo, KB real).
-- [ ] **F3.3** Embeddings com **NeMo Retriever `nv-embedqa-1b-v2`** (multilíngue).
+- [x] **F3.3** Embeddings com **NeMo Retriever `nv-embedqa-1b-v2`** (multilíngue).
+      → `packages/rag/embed.py`: interface **plugável** `Embedder` (Pydantic `EmbeddedChunk`) com
+      `embed_passages`/`embed_query` **assimétricos** (o nv-embedqa distingue `input_type`
+      passage×query). Backend **preferido** `NVEmbedQA` = NeMo Retriever `nv-embedqa-1b-v2` (2048d)
+      via catálogo build.nvidia.com (`NVIDIA_API_KEY`) ou NIM self-hosted (GPU). **Decisão (fork
+      rede/GPU vs offline):** honra a espinha verde determinística travada desde a F3.1 e o padrão
+      dos toggles (`scraper_use_network`/`*_use_llm`): o `NVEmbedQA` é **hook de rede/GPU que
+      degrada limpo** (`EmbedderUnavailable` sem credencial/endpoint/dep, igual ao `RivaTranscriber`
+      da F3.1b), e o **default é o `HashingEmbedder` offline** — feature hashing L2-normalizado,
+      reprodutível entre processos (`hashlib`, não o `hash()` randômico) e com **cosseno
+      significativo** (vocabulário compartilhado → mais perto), para F3.4/F3.5 rodarem e serem
+      testadas sem rede. Troca por config `embeddings_use_nv` (off por default) ou injeção, sem
+      tocar o resto do pipeline (peça plugável). Embeda o `contextual_text` (breadcrumb+corpo,
+      decisão da F3.2) e carimba o `model` no `EmbeddedChunk` (proveniência do vetor, §8);
+      `embed_kb()` liga F3.1→F3.2→F3.3. Testes em `tests/test_embed.py` (contrato/Protocol,
+      determinismo+normalização, cosseno por vocabulário, embedda contextual_text c/ proveniência,
+      KB real, e o backend real degradando limpo offline).
 - [ ] **F3.4** Indexação no **Qdrant** (dense + sparse/BM25).
 - [ ] **F3.5** **Busca híbrida** (dense + lexical) com fusão de scores.
 - [ ] **F3.6** Interface `Reranker` plugável; impl. **NeMo Reranking NIM** (default no build).

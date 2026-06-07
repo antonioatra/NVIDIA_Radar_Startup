@@ -56,6 +56,13 @@ class Settings(BaseSettings):
         default=False, description="classifier (F2.6) usa o Super p/ pontuar classe + AIMI."
     )
 
+    # Embeddings da KB (F3.3): por padrão usa o HashingEmbedder offline/determinista (espinha
+    # verde — reproduzível, sem rede/GPU). Ligue p/ embedar com o NeMo Retriever nv-embedqa de
+    # verdade (catálogo build.nvidia.com com nvidia_api_key, ou NIM self-hosted/GPU).
+    embeddings_use_nv: bool = Field(
+        default=False, description="Embeddings da KB (F3.3) usam o NeMo Retriever nv-embedqa."
+    )
+
     # Reranker: nemo (default no build) | cohere (somente validação F7).
     reranker_provider: RerankerProvider = "nemo"
     cohere_api_key: str = Field(default="", description="Só na F7 (trial).")
