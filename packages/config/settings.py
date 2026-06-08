@@ -84,6 +84,15 @@ class Settings(BaseSettings):
     reranker_provider: RerankerProvider = "nemo"
     cohere_api_key: str = Field(default="", description="Só na F7 (trial).")
 
+    # Avaliação RAGAS do RAG (F3.9): por padrão usa o LexicalRagasMetrics offline/determinista
+    # (espinha verde — as 4 métricas rodam no CI/smoke RAGAS sem rede/GPU e geram o baseline
+    # versionado). Ligue p/ avaliar com a biblioteca ragas + juiz Nemotron (catálogo
+    # build.nvidia.com com nvidia_api_key). O run LLM-judged consolidado contra os limiares
+    # (faithfulness ≥ 0,80; context recall ≥ 0,70) é a F7.3 — aqui o backend fica reservado.
+    ragas_use_llm: bool = Field(
+        default=False, description="Avaliação RAGAS (F3.9) usa a lib ragas + juiz Nemotron (F7.3)."
+    )
+
     # --- Busca / scraping -------------------------------------------------------
     tavily_api_key: str = ""
     firecrawl_api_key: str = ""

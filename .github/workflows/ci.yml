@@ -30,7 +30,8 @@ jobs:
       - name: Testes (pytest)
         run: python -m pytest
 
-      # Smoke RAGAS sustenta o princípio "RAGAS no CI" (ARQUITETURA §8). Ativa na F3,
-      # quando existir pipeline RAG p/ avaliar. Hoje é um placeholder consciente.
-      - name: Smoke RAGAS (placeholder até F3)
-        run: echo "RAGAS smoke entra na F3 (RAG). Sem pipeline ainda — pulando."
+      # Smoke RAGAS sustenta o princípio "RAGAS no CI" (ARQUITETURA §8). Ligado na F3.9:
+      # avalia o RAG offline (espinha verde — sem GPU/credencial) nas 4 métricas RAGAS e
+      # confere o baseline versionado (data/eval/rag/baseline.json); drift sem regravar falha.
+      - name: Smoke RAGAS (F3.9)
+        run: python -m packages.eval.ragas --check

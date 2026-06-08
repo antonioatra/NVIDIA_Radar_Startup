@@ -222,7 +222,37 @@
       Evaluator é componente do NeMo, não item separado do §5.4); grounding do §10.1 (F3.1d) segue
       fora das techs recomendáveis (`test_grounding_material_is_not_a_recommendable_tech`). Cobertura
       já refletida em `docs/COBERTURA-TECNOLOGIAS.md` (linha "NeMo Evaluator / avaliação" → F3.8).
-- [ ] **F3.9** **Avaliação RAGAS** (faithfulness, context precision/recall, answer relevancy).
+- [x] **F3.9** **Avaliação RAGAS** (faithfulness, context precision/recall, answer relevancy).
+      → `packages/eval/ragas.py`: mede a **qualidade do RAG** (F3.1→F3.7) nas **quatro métricas
+      RAGAS** sobre um **conjunto de perguntas NVIDIA versionado** (`data/eval/rag/questions.yaml`,
+      7 perguntas com `ground_truth` ancorado no texto da KB curada + `reference_techs` p/ a
+      cobertura/F3.8) e grava o **baseline de qualidade versionado** (`data/eval/rag/baseline.json`,
+      DoD F3). Fecha o princípio "RAGAS no CI" (ARQUITETURA §8): o smoke da F0.10 deixa de ser
+      placeholder — o CI roda `python -m packages.eval.ragas --check` (avalia offline e falha em
+      drift contra o baseline). **Decisão (espinha verde, igual F3.1–F3.8 e os nós F2):** o default é
+      o `LexicalRagasMetrics` — **proxy lexical determinístico** das 4 métricas por sobreposição de
+      tokens de conteúdo (stopwords PT+EN removidas, `hashlib` reprodutível entre processos), sem
+      rede/GPU/credencial, seguindo as definições do RAGAS (faithfulness = frações da resposta
+      ancoradas nos contextos; answer relevancy = cosseno resposta×pergunta; context precision =
+      average precision rank-aware; context recall = cobertura da referência). **Juiz LLM é hook de
+      rede que degrada limpo** (como `NVEmbedQA`/F3.3, `QdrantVectorIndex`/F3.4, `NeMoReranker`/F3.6):
+      o `RagasJudge` usa a lib `ragas` + juiz Nemotron (catálogo build.nvidia.com) + nv-embedqa e
+      levanta `RagasUnavailable` sem dep/credencial/rede; troca por config `ragas_use_llm` (off por
+      default) ou injeção. O **run LLM-judged consolidado contra os limiares** (faithfulness ≥ 0,80;
+      context recall ≥ 0,70) **é a F7.3** — aqui o backend fica reservado/plugável, sem antecipar o
+      trabalho da F7 (mesma disciplina do Cohere Rerank na F3.6). **Harness reusável:** a resposta vem
+      de um `answer_fn` injetável; o default é o `compose_extractive_answer` (seleciona dos contextos
+      as frases mais próximas da pergunta → fiel por construção), para as 4 métricas rodarem ponta a
+      ponta hoje sem depender da geração NL (recommender/briefing, F4, plugam depois sem reabrir o
+      harness). Reusa o pipeline plugável da F3 sem reabri-lo (`build_retriever`/F3.5 +
+      `get_reranker`/F3.6), filtra o grounding da rubrica (F3.1d, igual ao nó F3.7) e tudo é tipado
+      (Pydantic) e rastreável (§8): `RagSample` carrega `ContextCitation` com proveniência, o
+      `RagasReport` carimba backend/modelo + hash do dataset. **Baseline offline** (n=7):
+      faithfulness=1,0 · context_precision=0,976 · context_recall=0,690 · answer_relevancy=0,542
+      (mean=0,802) — pisos de sanidade, NÃO os gates da F7.3. Testes em `tests/test_ragas.py` (as 4
+      métricas isoladas, compositor extrativo, harness ponta a ponta sobre a KB real, cobertura por
+      tech, grounding filtrado, determinismo byte-a-byte, baseline = run fresco, e o juiz LLM
+      degradando limpo offline).
 - [ ] **F3.10** *(stretch)* **Cohort-RAG (recuperação sobre a coorte de startups):** índice de
       busca sobre a **tabela `company` acumulada** (F1.14) + perfis/evidências — **distinto** da KB
       NVIDIA (F3.1), mas **reusa** o mesmo embedder `nv-embedqa` (F3.3), o Qdrant (F3.4, coleção
@@ -237,7 +267,12 @@
 NeMo Retriever (embed + rerank NIM) · Qdrant · BM25 · RAGAS · PostgreSQL · **Riva (ASR p/ transcrição)**.
 
 ## DoD
-- [ ] Pergunta sobre tech NVIDIA retorna resposta correta com ≥2 citações.
-- [ ] RAGAS roda e gera baseline de qualidade versionado.
+- [x] Pergunta sobre tech NVIDIA retorna resposta correta com ≥2 citações.
+      → Entregue pelo nó `nvidia_rag` (F3.7, retrieve→rerank→evidência citável) e **medido** na
+      F3.9: as 7 perguntas NVIDIA do eval set retornam ≥2 contextos com proveniência citável (§8) e
+      faithfulness=1,0 (resposta ancorada) no baseline versionado.
+- [x] RAGAS roda e gera baseline de qualidade versionado.
+      → F3.9: `python -m packages.eval.ragas` grava `data/eval/rag/baseline.json` e o CI confere
+      com `--check` (smoke RAGAS ligado, ARQUITETURA §8).
 - [ ] *(stretch)* Cohort-RAG (F3.10) responde consultas sobre a coorte com empresas citadas,
       reusando embedder/Qdrant/reranker da KB.
