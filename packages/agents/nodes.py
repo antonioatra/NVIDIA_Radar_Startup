@@ -25,8 +25,9 @@ Reducers de acumulação (ex.: `raw_docs` no map do scraper) entram com o nó do
 
 from __future__ import annotations
 
-from packages.schemas import GraphState, RunStatus
+from packages.schemas import GraphState
 
+from .briefing import briefing  # F4.4 — implementação real do nó (normal + terminais)
 from .classifier import classifier  # F2.6 — implementação real do nó
 from .evidence_validator import evidence_validator  # F2.7 — implementação real do nó
 from .extractor import extractor  # F2.5 — implementação real do nó
@@ -35,35 +36,11 @@ from .nvidia_rag import nvidia_rag  # F3.7 — implementação real do nó
 from .recommender import recommender  # F4.2/F4.3 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
-from .terminals import (  # F2.12 / F2.13 — briefings terminais
-    insufficient_data_briefing,
-    out_of_scope_briefing,
-)
 
 
 def gpu_benchmark(state: GraphState) -> dict:
     """F6 — GPU Graduation Engine: ROI real (NIM local / matriz). Condicional ★."""
     return {}
-
-
-def briefing(state: GraphState) -> dict:
-    """F4.4 — briefing executivo (Guardrails F4.5).
-
-    Despacha por status terminal, marcado antes pelo evidence_validator (F2.7) ao saltar
-    RAG/recomendação direto p/ cá:
-    - `INSUFFICIENT_DATA` (F2.12) → briefing **"dados insuficientes"** (o que foi apurado +
-      lacunas), `terminals.insufficient_data_briefing`;
-    - `OUT_OF_SCOPE` (F2.13) → briefing **"fora de escopo"** (non-AI de alta confiança: por que
-      não é alvo Inception + AIMI baixo com evidência), `terminals.out_of_scope_briefing`.
-    Nenhum força recomendação NVIDIA nem alucina. O briefing **normal** (F4.4, diagnóstico +
-    recomendação) entra com sua task; por ora o caminho normal fecha o run em COMPLETED
-    (placeholder F2.1, rascunho M2).
-    """
-    if state.status is RunStatus.INSUFFICIENT_DATA:
-        return {"briefing": insufficient_data_briefing(state)}  # status já é terminal
-    if state.status is RunStatus.OUT_OF_SCOPE:
-        return {"briefing": out_of_scope_briefing(state)}  # status já é terminal
-    return {"status": RunStatus.COMPLETED}
 
 
 # Registro nome → função, consumido pela montagem do grafo (graph.py). O `human_review`

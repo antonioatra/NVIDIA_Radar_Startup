@@ -8,6 +8,13 @@ Cliente Nemotron (F0.7), prompts versionados (F0.12) e a montagem do grafo (F2.1
 expostos aqui: `from packages.agents import get_chat, get_prompt, run_pipeline`.
 """
 
+from .briefing import (
+    build_briefing,
+    make_briefing,
+    parse_refinement,
+    refine_with_llm,
+    render_markdown,
+)
 from .cache import (
     DiskCache,
     LLMCache,
@@ -133,6 +140,12 @@ __all__ = [
     "make_recommendations",
     "recommend_with_llm",
     "parse_refinements",
+    # briefing executivo normal (F4.4) — o nó é acessado via NODES (evita shadowing do submódulo)
+    "build_briefing",
+    "make_briefing",
+    "render_markdown",
+    "parse_refinement",
+    "refine_with_llm",
     # terminais de baixa confiança / fora de escopo (F2.12 / F2.13)
     "insufficient_data_briefing",
     "out_of_scope_briefing",

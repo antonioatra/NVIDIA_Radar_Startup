@@ -64,6 +64,14 @@ class Settings(BaseSettings):
         default=False, description="recommender (F4.2) usa o Super p/ refinar as recomendações."
     )
 
+    # briefing (F4.4): por padrão monta o relatório executivo pela espinha determinista (diagnóstico
+    # + recomendações, ambos já com evidência), offline/reproduzível. Ligue p/ o Nemotron-Super
+    # refinar a redação (resumo + os três eixos) ancorado no esqueleto (requer nvidia_api_key); cai
+    # na espinha a qualquer falha. Diagnóstico e recomendações nunca vêm do LLM (anti-alucinação).
+    briefing_use_llm: bool = Field(
+        default=False, description="briefing (F4.4) usa o Super p/ refinar a redação do relatório."
+    )
+
     # Embeddings da KB (F3.3): por padrão usa o HashingEmbedder offline/determinista (espinha
     # verde — reproduzível, sem rede/GPU). Ligue p/ embedar com o NeMo Retriever nv-embedqa de
     # verdade (catálogo build.nvidia.com com nvidia_api_key, ou NIM self-hosted/GPU).

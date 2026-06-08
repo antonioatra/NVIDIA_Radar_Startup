@@ -120,7 +120,8 @@ def test_briefing_node_emits_terminal_on_insufficient_data() -> None:
 
 
 def test_briefing_node_completes_on_normal_path() -> None:
-    # Caminho normal (placeholder F4.4): fecha o run em COMPLETED, sem briefing terminal.
+    # Caminho normal sem diagnóstico (aimi None): no-op limpo (F4.4) — fecha em COMPLETED, sem
+    # briefing terminal nem normal (espinha verde M2). O briefing normal vive em test_briefing.
     state = GraphState(run_id="r4", query="Acme AI", status=RunStatus.RUNNING)
     update = NODES["briefing"](state)
     assert update == {"status": RunStatus.COMPLETED}

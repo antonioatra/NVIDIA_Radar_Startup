@@ -77,11 +77,31 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
       numa tech de setor (§5.5). O nó **só emite** o que tem **ambos** os lados — o mesmo invariante
       do `Recommendation._require_both_sides` (F0.5) que o Guardrails (F4.5) reforça no briefing:
       candidata sem citação NVIDIA (ou sem evidência de gap) é **descartada**, não alucinada.
-- [ ] **F4.4** Nó **briefing** (Briefing Agent): relatório executivo (JSON + Markdown) **em PT-BR**
+- [x] **F4.4** Nó **briefing** (Briefing Agent): relatório executivo (JSON + Markdown) **em PT-BR**
       (F0.13) com próximas-ações nos **três eixos do §2 — comercial, técnica e comunitária**
       (Inception: onboarding, créditos, comunidade, eventos, GTM). **Variante "fora de escopo"**
       (F2.13): para empresa `non-AI` de alta confiança, emite briefing explicando por que não é
       alvo Inception (sem forçar recomendação NVIDIA).
+      → `packages/agents/briefing.py`: o **décimo e último** nó do grafo (depois do `human_review`/
+      F2.8). Sintetiza diagnóstico (perfil + AIMI/F2.6) + prescrição (recomendações/F4.2-F4.3) num
+      `Briefing` (schema F0.5) **em PT-BR**, com os três eixos do §2: `acao_comercial` (timing de
+      outreach pela região do plano `classe × AIMI` — alvo de graduação API→stack tem o maior
+      upside), `acao_tecnica` (ancorada na `proxima_acao` da recomendação de **maior prioridade** +
+      roadmap) e `acao_comunitaria` (onboarding/créditos Inception atados às techs prescritas).
+      **JSON + Markdown:** o contrato `Briefing` é o JSON; `render_markdown` é a **view** PT-BR
+      derivada do mesmo objeto (render determinístico → JSON↔Markdown coerentes; base do PDF/F4.6 e
+      do front/F5), cobrindo também as variantes terminais (lacunas). **Decisão (espinha verde, igual
+      classifier/F2.6 e recommender/F4.2):** determinista/offline por default; o Super (`briefing@v1`,
+      F0.12) é **plugável** atrás de `settings.briefing_use_llm` (+ chave) **ou** de um adapter
+      `refine=` injetado e **só refina a redação** (resumo + os três eixos), caindo na espinha a
+      qualquer falha de rede/JSON. O **diagnóstico e as recomendações nunca vêm do LLM** — são sempre
+      os do estado, já aterrados em evidência dos dois lados (anti-alucinação; o invariante que o
+      Guardrails/F4.5 reforça). As **variantes terminais** (F2.12/F2.13) seguem em `terminals.py`;
+      o nó despacha por status e cobre o **caminho normal**. Sem `aimi` (espinha offline sem
+      classificação) é **no-op limpo** (só fecha o run em COMPLETED, sem briefing) — grafo verde
+      ponta a ponta (M2/DoD) sem alucinar relatório sem base. Testes em `tests/test_briefing.py`
+      (espinha + 3 eixos com ramificação comercial, Markdown incl. terminal, refino LLM preservando
+      diagnóstico/recomendações, no-op sem aimi, ponta a ponta no grafo real até o briefing normal).
 - [ ] **F4.5** **NeMo Guardrails** no briefing: rails contra recomendação sem evidência/alucinação.
       Regra explícita: bloqueia recomendação que não tenha **`evidencia_gap` E `evidencia_nvidia`**.
 - [ ] **F4.6** Export PDF do briefing (server-side).
@@ -100,4 +120,6 @@ Nemotron-Super · NeMo Guardrails · PostgreSQL · (gancho p/ ROI do F6).
       (gap da startup + citação da KB NVIDIA). → recommender (F4.2/F4.3); ponta-a-ponta verde no
       `tests/test_recommender.py::test_node_end_to_end_over_real_rag`.
 - [ ] Guardrails bloqueia recomendação sem evidência suficiente (faltando qualquer um dos lados).
-- [ ] Briefing sai em PT-BR.
+- [x] Briefing sai em PT-BR. → `build_briefing`/`render_markdown` (F4.4) emitem o `Briefing` (JSON)
+      e a view Markdown em PT-BR (`idioma="pt-BR"`), com os três eixos do §2; verde em
+      `tests/test_briefing.py`.
