@@ -36,7 +36,7 @@ from .graph import CONDITIONAL_OUT, PIPELINE, build_graph, compile_graph, run_pi
 from .human_review import review_payload
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
-from .nvidia_rag import build_rag_queries, get_kb_retriever, retrieve_evidence
+from .nvidia_rag import build_rag_queries, gap_pillars, get_kb_retriever, retrieve_evidence
 from .progress import (
     ProgressEvent,
     RedisProgressPublisher,
@@ -45,6 +45,17 @@ from .progress import (
     subscribe_progress,
 )
 from .prompts import PROMPT_NODES, Prompt, get_prompt
+from .recommend_rules import (
+    PILLAR_RULES,
+    SECTOR_RULES,
+    SectorRule,
+    TechCandidate,
+    TechRule,
+    match_sector,
+    match_techs,
+    recommendable_kb_techs,
+    techs_for_pillar,
+)
 from .search_planner import (
     PrioritizedSource,
     SearchPlan,
@@ -94,8 +105,19 @@ __all__ = [
     "MIN_SOURCES",
     # nvidia_rag (F3.7) — o nó é acessado via NODES (evita shadowing do submódulo)
     "build_rag_queries",
+    "gap_pillars",
     "retrieve_evidence",
     "get_kb_retriever",
+    # mapa de regras gap → tech NVIDIA (F4.1) — base determinística do recommender (F4.2)
+    "TechRule",
+    "SectorRule",
+    "TechCandidate",
+    "PILLAR_RULES",
+    "SECTOR_RULES",
+    "techs_for_pillar",
+    "match_sector",
+    "match_techs",
+    "recommendable_kb_techs",
     # terminais de baixa confiança / fora de escopo (F2.12 / F2.13)
     "insufficient_data_briefing",
     "out_of_scope_briefing",

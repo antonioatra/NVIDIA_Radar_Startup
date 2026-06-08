@@ -23,7 +23,30 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
 `evidencia_gap` **E** `evidencia_nvidia`.
 
 ## Tasks
-- [ ] **F4.1** Mapa de regras gap → tech NVIDIA (base nos exemplos do §5.5).
+- [x] **F4.1** Mapa de regras gap → tech NVIDIA (base nos exemplos do §5.5).
+      → `packages/agents/recommend_rules.py`: a **espinha determinística** do recommender (F4.2) —
+      converte o diagnóstico (AIMI/F2.6 + perfil) em **techs candidatas** no formato §5.5, cada uma
+      ligada ao **gap que a motiva**. É o complemento do `nvidia_rag` (F3.7): o nó deriva os gaps em
+      **consultas de recuperação** (busca a evidência); aqui os mesmos gaps viram a **prescrição**
+      (qual tech recomendar) — o recommender (F4.2) cruza candidata × citação `evidencia_nvidia`
+      casadas por `kb_tech` e fecha a `Recommendation` (F4.3) com evidência dos **dois lados**. Dois
+      eixos: `PILLAR_RULES` (gap do AIMI → tech que o fecha — P3→NIM/TensorRT-LLM/Triton [graduação
+      API→stack, latência/"atendimento via API"], P1→NeMo customização/Curator, P2→NeMo Retriever,
+      P4→Guardrails/NeMo Evaluator/AI Enterprise [governança]) e `SECTOR_RULES` (domínio §5.5 →
+      saúde→Clara/MONAI, voz→Riva, cyber→Morpheus, robótica→Isaac/Omniverse, simulação→Omniverse,
+      **dados tabulares→RAPIDS/cuDF/cuML** — eixo exclusivo daqui, sem query equivalente no F3.7).
+      `match_techs(aimi, profile)` aplica as regras (gaps por severidade + setor), dedup por
+      `(kb_tech, tech)` preservando ordem, e devolve `TechCandidate` com `pilar_origem` + `triggers`.
+      **Decisão (espinha verde, igual F2.3–F2.7/F3):** puro/offline/determinístico, sem rede/GPU/LLM
+      — justificativas e `proxima_acao` são **esqueletos coerentes** que já fecham o contrato §5.5
+      sem rede (o recommender Nemotron os refina com a evidência, F4.2). A seleção de gaps **reusa
+      `gap_pillars`** (promovido de privado no F3.7) → consistência gap↔evidência (não recomenda
+      gap sem evidência recuperada, e vice-versa). `kb_tech` é o nome **exato** da KB (manifesto
+      F3.1): `test_every_rule_tech_exists_in_the_kb` o amarra às techs `source_type: doc` (mesma
+      disciplina do `CORE_TECHS`/F3.1 e do mapa de queries/F3.8 — regra com tech inexistente quebra
+      o build). Testes em `tests/test_recommend_rules.py` (amarra à KB, cobertura dos 4 pilares,
+      ordem por severidade com `pilar_origem`, setor anexado sem pilar, fallback do pilar mais baixo,
+      determinismo, e aderência a 5 dos 7 exemplos §5.5 — o ponta-a-ponta dos 7 é a F4.8).
 - [ ] **F4.2** Nó **recommender** (Nemotron-Super, reasoning ON): consome AIMI + RAG → recomendações.
       O `evidencia_nvidia` vem da recuperação **dirigida pelos gaps** do AIMI feita no `nvidia_rag`
       (F3.7) — o recommender cruza gap (lado startup) × citação da KB (lado NVIDIA), não recupera de novo.

@@ -1,0 +1,198 @@
+"""Testes do mapa de regras gap → tech NVIDIA (F4.1) — a espinha do recommender (F4.2).
+
+Tudo offline/determinista (sem rede/GPU/LLM). Exercita:
+
+1. **Amarra à KB**: todo `kb_tech` das regras existe no manifesto (F3.1) como tech recomendável
+   (`source_type: doc`) — adicionar uma regra com tech inexistente quebra o build (disciplina do
+   `CORE_TECHS`/F3.1 e do mapa de queries/F3.8).
+2. **Gap → tech** (`match_techs`): cada gap do AIMI (na ordem de severidade, mesma seleção do RAG)
+   traz suas techs com `pilar_origem`; o setor (§5.5) anexa a tech de domínio; dedup determinístico.
+3. **Aderência ao §5.5** (subconjunto — o ponta-a-ponta dos 7 exemplos é a F4.8): voz→Riva+NIM,
+   dados tabulares→RAPIDS/cuDF/cuML, governança(P4)→Guardrails+NeMo, robotics→Isaac/Omniverse,
+   latência(P3)→Triton/TensorRT-LLM.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+import pytest
+
+from packages.agents import (
+    PILLAR_RULES,
+    SECTOR_RULES,
+    match_sector,
+    match_techs,
+    recommendable_kb_techs,
+    techs_for_pillar,
+)
+from packages.rag import load_kb_sources
+from packages.schemas import (
+    MAX_SCORE_WITHOUT_EVIDENCE,
+    AIMIPillar,
+    AIMIScore,
+    Claim,
+    Classification,
+    Evidence,
+    PillarScore,
+    StartupProfile,
+)
+
+_FETCHED = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)
+
+
+def _ev() -> Evidence:
+    return Evidence(
+        url="https://startup.example",
+        snippet="trecho público",
+        fetched_at=_FETCHED,
+        content_hash="h1",
+    )
+
+
+def _claim(value: str) -> Claim[str]:
+    return Claim[str](value=value, evidence=[_ev()])
+
+
+def _pillar(pilar: AIMIPillar, score: int) -> PillarScore:
+    ev = [_ev()] if score > MAX_SCORE_WITHOUT_EVIDENCE else []
+    return PillarScore(pilar=pilar, score=score, justificativa="teste", evidencia=ev)
+
+
+def _aimi(p1: int, p2: int, p3: int, p4: int) -> AIMIScore:
+    return AIMIScore(
+        data_moat=_pillar(AIMIPillar.DATA_MOAT, p1),
+        workflow_depth=_pillar(AIMIPillar.WORKFLOW_DEPTH, p2),
+        technical_optimization=_pillar(AIMIPillar.TECHNICAL_OPTIMIZATION, p3),
+        distribution_moat=_pillar(AIMIPillar.DISTRIBUTION_MOAT, p4),
+        classificacao=Classification.AI_NATIVE,
+    )
+
+
+def _profile(setor: str | None = None, descricao: str | None = None) -> StartupProfile:
+    return StartupProfile(
+        nome="ACME",
+        setor=_claim(setor) if setor is not None else None,
+        descricao=_claim(descricao) if descricao is not None else None,
+    )
+
+
+def _techs(candidates) -> list[str]:
+    return [c.rule.tech for c in candidates]
+
+
+# --- Amarra à base de conhecimento (mesma disciplina do F3.1/F3.8) --------------------------
+
+
+def test_every_rule_tech_exists_in_the_kb() -> None:
+    # Toda tech recomendada tem de ser recuperável (existir na KB como `source_type: doc`).
+    recomendaveis = {s.tech for s in load_kb_sources() if s.source_type == "doc"}
+    faltando = recommendable_kb_techs() - recomendaveis
+    assert not faltando, f"regras citam techs ausentes/não-recomendáveis na KB: {sorted(faltando)}"
+
+
+def test_every_pillar_has_at_least_one_rule() -> None:
+    # Nenhum gap fica sem prescrição (os 4 pilares mapeiam para ao menos uma tech).
+    for pilar in AIMIPillar:
+        assert techs_for_pillar(pilar), f"pilar sem regra de recomendação: {pilar.value}"
+
+
+# --- Gap → tech ------------------------------------------------------------------------------
+
+
+def test_gap_severity_orders_pillar_techs_with_origin() -> None:
+    # P3 (4) e P2 (10) são gaps (≤12); P1/P4 estão estabelecidos. Ordem = menor score primeiro.
+    cand = match_techs(_aimi(20, 10, 4, 22))
+    pilares = [c.pilar_origem for c in cand]
+    # P3 vem antes de P2; e cada candidata carrega o pilar que a motivou (rastreabilidade gap→tech).
+    assert pilares[0] is AIMIPillar.TECHNICAL_OPTIMIZATION
+    assert AIMIPillar.WORKFLOW_DEPTH in pilares
+    assert all(p in (AIMIPillar.TECHNICAL_OPTIMIZATION, AIMIPillar.WORKFLOW_DEPTH) for p in pilares)
+    assert "NVIDIA NIM" in _techs(cand)  # P3 → graduação
+
+
+def test_mature_startup_still_gets_a_recommendation() -> None:
+    # Nenhum pilar ≤12: ainda há prescrição, guiada pelo pilar mais baixo (fallback de gap_pillars).
+    cand = match_techs(_aimi(20, 22, 18, 24))
+    assert cand
+    assert all(c.pilar_origem is AIMIPillar.TECHNICAL_OPTIMIZATION for c in cand)
+
+
+def test_sector_techs_are_appended_with_no_pillar_origin() -> None:
+    cand = match_techs(_aimi(20, 22, 20, 24), _profile(setor="Healthtech / saúde digital"))
+    setor = [c for c in cand if c.pilar_origem is None]
+    assert {c.rule.tech for c in setor} >= {"NVIDIA Clara", "MONAI"}
+    assert all(c.triggers == ("setor:saude",) for c in setor)
+
+
+def test_no_profile_yields_only_pillar_techs() -> None:
+    cand = match_techs(_aimi(4, 20, 20, 22), profile=None)
+    assert all(c.pilar_origem is not None for c in cand)
+
+
+def test_match_techs_is_deterministic() -> None:
+    aimi = _aimi(4, 10, 4, 8)
+    prof = _profile(setor="Voz e atendimento")
+    assert match_techs(aimi, prof) == match_techs(aimi, prof)
+
+
+# --- Aderência ao §5.5 (subconjunto; consolidação na F4.8) -----------------------------------
+
+
+def test_voice_startup_maps_to_riva_and_nim() -> None:
+    # §5.5: voz → Riva (setor) + NIM (gap de inferência P3).
+    cand = match_techs(_aimi(20, 20, 4, 22), _profile(setor="Call center", descricao="bot de voz"))
+    techs = _techs(cand)
+    assert any("Riva" in t for t in techs)
+    assert "NVIDIA NIM" in techs
+
+
+def test_tabular_data_maps_to_rapids_stack() -> None:
+    # §5.5: dados tabulares → RAPIDS/cuDF/cuML (eixo de setor exclusivo da F4.1).
+    cand = match_techs(_aimi(20, 20, 20, 22), _profile(descricao="plataforma de analytics tabular"))
+    assert {"NVIDIA RAPIDS", "cuDF", "cuML"} <= set(_techs(cand))
+
+
+def test_governance_gap_maps_to_guardrails_and_nemo() -> None:
+    # §5.5: governança → Guardrails + NeMo (avaliação). Gap de Distribution Moat (P4).
+    cand = match_techs(_aimi(20, 20, 20, 4))
+    techs = _techs(cand)
+    assert "NeMo Guardrails" in techs
+    assert any("NeMo Evaluator" in t for t in techs)
+    assert all(c.pilar_origem is AIMIPillar.DISTRIBUTION_MOAT for c in cand)
+
+
+def test_latency_gap_maps_to_triton_and_tensorrt() -> None:
+    # §5.5: latência → Triton/TensorRT-LLM (gap de Technical Optimization P3).
+    cand = match_techs(_aimi(20, 20, 3, 22))
+    techs = _techs(cand)
+    assert "TensorRT-LLM" in techs
+    assert any("Triton" in t for t in techs)
+
+
+def test_robotics_sector_maps_to_isaac_and_omniverse() -> None:
+    cand = match_techs(_aimi(20, 20, 20, 22), _profile(setor="Robótica industrial"))
+    setor = {c.rule.tech for c in cand if c.pilar_origem is None}
+    assert {"NVIDIA Isaac", "NVIDIA Omniverse"} <= setor
+
+
+# --- Tabelas de regra ------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("pilar", list(AIMIPillar))
+def test_pillar_rules_carry_full_recommendation_skeleton(pilar: AIMIPillar) -> None:
+    # Cada regra já fecha o contrato §5.5 (F4.3) sem rede: campos não-vazios, esqueleto coerente.
+    for rule in PILLAR_RULES[pilar]:
+        assert rule.kb_tech and rule.tech
+        assert rule.justificativa_tecnica and rule.justificativa_negocio and rule.proxima_acao
+
+
+def test_sector_keys_are_unique() -> None:
+    keys = [s.key for s in SECTOR_RULES]
+    assert len(keys) == len(set(keys))
+
+
+def test_match_sector_first_match_wins_and_none_when_empty() -> None:
+    assert match_sector(None) is None
+    assert match_sector(_profile()) is None  # sem setor/descrição → nada casa
+    assert match_sector(_profile(setor="cibersegurança e fraude")).key == "ciberseguranca"

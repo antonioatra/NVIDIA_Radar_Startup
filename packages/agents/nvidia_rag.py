@@ -130,12 +130,14 @@ class RagQuery:
     text: str
 
 
-def _gap_pillars(aimi: AIMIScore) -> list[PillarScore]:
+def gap_pillars(aimi: AIMIScore) -> list[PillarScore]:
     """Pilares-gap em ordem de severidade (menor score primeiro), limitados a `MAX_GAPS`.
 
     Gap = score ≤ `GAP_CEILING` (ausente/emergente). Se nenhum pilar é gap (startup madura), usa
     o **mais baixo** mesmo assim — sempre há uma tech NVIDIA que aprofunda o moat, e o nó nunca
-    fica sem consulta a partir de um diagnóstico válido.
+    fica sem consulta a partir de um diagnóstico válido. Público: o mapa de regras gap→tech (F4.1)
+    reusa exatamente esta seleção para que o recommender recomende sobre os mesmos gaps que o RAG
+    recuperou evidência (consistência gap↔evidência).
     """
     ordered = sorted(aimi.pillars, key=lambda p: (p.score, p.pilar.value))
     gaps = [p for p in ordered if p.score <= GAP_CEILING] or ordered[:1]
@@ -164,7 +166,7 @@ def build_rag_queries(aimi: AIMIScore, profile: StartupProfile | None) -> tuple[
     """Deriva as consultas do diagnóstico: uma por gap (F2.6) + a de setor (§5.5), na ordem."""
     queries = [
         RagQuery(pilar=p.pilar, label=p.pilar.value, text=PILLAR_QUERIES[p.pilar])
-        for p in _gap_pillars(aimi)
+        for p in gap_pillars(aimi)
     ]
     sector = _sector_query(profile)
     if sector is not None:
@@ -284,6 +286,7 @@ __all__ = [
     "PILLAR_QUERIES",
     "SECTOR_QUERIES",
     "RagQuery",
+    "gap_pillars",
     "build_rag_queries",
     "retrieve_evidence",
     "get_kb_retriever",
