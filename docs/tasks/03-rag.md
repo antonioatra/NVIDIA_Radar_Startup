@@ -199,9 +199,29 @@
       severidade do gap c/ Technical Optimization, setor saúde→MONAI, fallback ao pilar mais baixo,
       ≥2 citações com proveniência/rastreabilidade, grounding filtrado, dedup, determinismo, no-op
       sem diagnóstico, retriever/reranker injetáveis).
-- [ ] **F3.8** Cobertura: garantir que TODAS as techs do §5.4 **+ MONAI** estão indexadas e recuperáveis,
+- [x] **F3.8** Cobertura: garantir que TODAS as techs do §5.4 **+ MONAI** estão indexadas e recuperáveis,
       **incluindo NeMo Evaluator/avaliação** (o §5.5 cita "avaliação com NeMo" como recomendação de
       governança — precisa ser recuperável, não só o Guardrails). Teste de recuperação por tech.
+      → `tests/test_coverage.py`: fecha o outro lado do M3 — a F3.1/`test_ingest.py` já garante que
+      cada tech está **no manifesto**; aqui se garante que cada uma é **recuperável pelo pipeline
+      real** (F3.1→F3.5, offline/determinístico via `build_retriever`), não só indexada. **Teste de
+      recuperação por tech** parametrizado: uma consulta representativa por tech recomendável (as 17
+      do §5.4 + MONAI) e asserção de que ela volta na janela de candidatos (`limit=5`, a que alimenta
+      o rerank/F3.6→nó/F3.7) **com proveniência citável** (§8) — todas em rank ≤ 2 na espinha verde,
+      com folga real (não top-1 frágil). **Completude amarrada ao manifesto:** o mapa de queries tem
+      de coincidir com as techs `source_type: doc` (`test_query_map_covers_every_recommendable_doc_tech`)
+      — adicionar uma tech `doc` sem query de recuperação quebra o build (mesma disciplina do
+      `CORE_TECHS`/F3.1, agora no nível de recuperação). **NeMo Evaluator/avaliação:** o §5.5 recomenda
+      governança como **Guardrails + NeMo** (ver `tasks/04-recomendacao.md`), então o Evaluator estava
+      diluído num bullet do chunk "Componentes relevantes" do NeMo (junto de Retriever/Customizer/
+      Guardrails/Curator) — **promovido a seção própria** `## NeMo Evaluator (avaliação e governança)`
+      em `data/knowledge_base/docs/nvidia-nemo.md` → vira **chunk recuperável dedicado** (F3.2 quebra
+      por `##`), e `test_evaluation_governance_retrieves_nemo_evaluator` assevera que uma consulta de
+      avaliação/governança o recupera, **não só o Guardrails**. **Decisão (espinha verde, igual F3):**
+      só conteúdo curado + teste, **sem reabrir o loader** nem adicionar tech a `CORE_TECHS` (o
+      Evaluator é componente do NeMo, não item separado do §5.4); grounding do §10.1 (F3.1d) segue
+      fora das techs recomendáveis (`test_grounding_material_is_not_a_recommendable_tech`). Cobertura
+      já refletida em `docs/COBERTURA-TECNOLOGIAS.md` (linha "NeMo Evaluator / avaliação" → F3.8).
 - [ ] **F3.9** **Avaliação RAGAS** (faithfulness, context precision/recall, answer relevancy).
 - [ ] **F3.10** *(stretch)* **Cohort-RAG (recuperação sobre a coorte de startups):** índice de
       busca sobre a **tabela `company` acumulada** (F1.14) + perfis/evidências — **distinto** da KB
