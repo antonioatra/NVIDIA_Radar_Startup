@@ -128,7 +128,22 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
       separação aprovadas × bloqueadas preservando ordem + `trace()`; seam plugável com adapter
       injetado e fallback do flag sem `nemoguardrails`; o nó descartando a recomendação alucinada e
       carimbando o trace; e a config NeMo versionada).
-- [ ] **F4.6** Export PDF do briefing (server-side).
+- [x] **F4.6** Export PDF do briefing (server-side).
+      → `render_pdf(briefing) -> bytes` em `packages/agents/briefing.py`: a **view PDF** do
+      `Briefing`, irmã do `render_markdown` (F4.4) — mesma estrutura/conteúdo (resumo, diagnóstico
+      AIMI, recomendações com evidência dos **dois lados**, os três eixos §2 e as lacunas), derivada
+      **só do objeto** (sem `now()`/rede), reusando os mesmos helpers de dados (`_evidence_urls`,
+      `_PILLAR_PT`). **Decisão (espinha verde/offline, igual ao resto do briefing):** reportlab
+      (puro-Python, sem GPU/rede) com `SimpleDocTemplate`/`platypus`; **`invariant=1`** fixa data e ID
+      do PDF → **bytes determinísticos a cada chamada** (run reprodutível, o mesmo princípio do
+      `generated_at=None`/F4.4 e da data fixa da evidência). reportlab é importado **preguiçosamente**
+      dentro de `render_pdf` (a espinha do módulo — `build_briefing`/`render_markdown`/o nó — importa
+      offline mesmo sem a dep, igual à disciplina de imports do projeto). Sem antecipar a F5: só a
+      função + export; a API (`GET /briefings/{id}`, F5.2) e o front (F5) servem destes bytes. Testes
+      em `tests/test_briefing.py` (PDF válido `%PDF-`; conteúdo dos três eixos + diagnóstico +
+      recomendação **verificado extraindo o texto com `pypdf`**, incl. a evidência NVIDIA citada;
+      determinismo do `invariant`; e a variante terminal F2.12 com lacunas). Deps: `reportlab` no
+      runtime + `reportlab`/`pypdf` no `requirements-ci.txt` (o teste roda no CI).
 - [ ] **F4.7** Persistir `recommendation` + ligação com evidências no Postgres.
 - [ ] **F4.8** **Casos de teste dos 7 exemplos do §5.5** (aderência ao brief): assevera que o
       recommender produz o esperado — voz→Riva+NIM; dados tabulares→RAPIDS/cuDF/cuML;

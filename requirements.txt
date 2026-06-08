@@ -32,6 +32,10 @@ ragas
 nemoguardrails
 rank-bm25
 
+# Briefing — saída PDF server-side (F4.6): puro-Python, offline, sem GPU; modo invariant
+# (data/ID fixos) p/ run reprodutível. pypdf (já transitivo) só verifica o conteúdo nos testes.
+reportlab
+
 # Observabilidade
 langfuse>=3  # servidor Langfuse v3 (SDK 4.x; langfuse.langchain.CallbackHandler) — F0.8
 

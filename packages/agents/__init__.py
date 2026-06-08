@@ -14,6 +14,7 @@ from .briefing import (
     parse_refinement,
     refine_with_llm,
     render_markdown,
+    render_pdf,
 )
 from .cache import (
     DiskCache,
@@ -151,6 +152,7 @@ __all__ = [
     "build_briefing",
     "make_briefing",
     "render_markdown",
+    "render_pdf",
     "parse_refinement",
     "refine_with_llm",
     # NeMo Guardrails — rail de evidência do briefing (F4.5)

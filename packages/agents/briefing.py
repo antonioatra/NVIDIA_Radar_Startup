@@ -256,6 +256,106 @@ def render_markdown(briefing: Briefing) -> str:
     return "\n".join(out)
 
 
+# ------------------------------------------------------------------- PDF (view server-side, F4.6)
+
+
+def _pdf_escape(text: str) -> str:
+    """Escapa &/</> p/ o texto dinâmico não colidir com os mini-markups (`<b>`) do Paragraph."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _pdf_field(label: str, value: str) -> str:
+    """Linha `**rótulo:** valor` do Markdown traduzida p/ o `<b>` inline do Paragraph (escapada)."""
+    return f"<b>{_pdf_escape(label)}:</b> {_pdf_escape(value)}"
+
+
+def render_pdf(briefing: Briefing) -> bytes:
+    """Renderiza o `Briefing` como PDF A4 (a view server-side do JSON, F4.6 — irmã do `render_markdown`).
+
+    **Mesma estrutura/conteúdo do Markdown** (resumo, diagnóstico AIMI, recomendações com evidência
+    dos dois lados, os três eixos §2 e as lacunas), derivada **só do objeto** — sem `now()`/rede,
+    reusando os mesmos helpers de dados (`_evidence_urls`, `_PILLAR_PT`). Saída **determinística**
+    (`invariant=1`: o reportlab fixa data e ID do PDF) p/ run reprodutível, igual ao resto do briefing
+    (`generated_at=None`). O reportlab é importado **preguiçosamente** (a espinha do módulo —
+    `build_briefing`/`render_markdown`/o nó — importa offline mesmo sem a dep, igual à disciplina de
+    imports do projeto). Devolve os **bytes** do PDF: a API (`GET /briefings/{id}`, F5.2) e o front
+    (F5) servem daqui; cobre todas as variantes (normal + terminais F2.12/F2.13).
+    """  # noqa: E501 — a linha de sumário do docstring excede 100 de propósito (1 frase)
+    from io import BytesIO
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+    styles = getSampleStyleSheet()
+    title, h2, h3, body = (
+        styles["Title"],
+        styles["Heading2"],
+        styles["Heading3"],
+        styles["BodyText"],
+    )
+    gap = Spacer(1, 8)
+
+    story: list = [
+        Paragraph(_pdf_escape(f"Briefing executivo — {briefing.empresa}"), title),
+        Paragraph(_pdf_field("Status", briefing.status.value), body),
+        Paragraph(_pdf_field("Idioma", briefing.idioma), body),
+        gap,
+        Paragraph("Resumo executivo", h2),
+        Paragraph(_pdf_escape(briefing.resumo_executivo), body),
+    ]
+
+    if briefing.aimi is not None:
+        story += [gap, Paragraph("Diagnóstico (AIMI)", h2)]
+        story.append(Paragraph(_pdf_field("Classe", briefing.aimi.classificacao.value), body))
+        story.append(Paragraph(_pdf_field("AIMI total", f"{briefing.aimi.total}/100"), body))
+        for p in briefing.aimi.pillars:
+            banda = p.band.value if p.band else "n/d"
+            story.append(
+                Paragraph(
+                    _pdf_field(_PILLAR_PT[p.pilar], f"{p.score}/25 ({banda}) — {p.justificativa}"),
+                    body,
+                )
+            )
+
+    if briefing.recomendacoes:
+        story += [gap, Paragraph("Recomendações NVIDIA", h2)]
+        for rec in briefing.recomendacoes:  # ordem do estado (igual ao render_markdown)
+            head = (
+                f"{rec.tech} — prioridade {rec.prioridade.value} · "
+                f"complexidade {rec.complexidade.value}"
+            )
+            story.append(Paragraph(_pdf_escape(head), h3))
+            for label, value in (
+                ("Justificativa técnica", rec.justificativa_tecnica),
+                ("Justificativa de negócio", rec.justificativa_negocio),
+                ("Próxima ação", rec.proxima_acao),
+                ("Evidência (gap da startup)", _evidence_urls(rec.evidencia_gap)),
+                ("Evidência (NVIDIA)", _evidence_urls(rec.evidencia_nvidia)),
+            ):
+                story.append(Paragraph(_pdf_field(label, value), body))
+
+    acoes = [
+        ("Comercial", briefing.acao_comercial),
+        ("Técnica", briefing.acao_tecnica),
+        ("Comunidade (Inception)", briefing.acao_comunitaria),
+    ]
+    if any(texto for _, texto in acoes):
+        story += [gap, Paragraph("Próximas ações", h2)]
+        story += [Paragraph(_pdf_field(eixo, texto), body) for eixo, texto in acoes if texto]
+
+    if briefing.lacunas:
+        story += [gap, Paragraph("Lacunas", h2)]
+        story += [Paragraph(_pdf_escape(lac), body) for lac in briefing.lacunas]
+
+    buf = BytesIO()
+    # invariant=1 → data e ID do PDF fixos: mesmos bytes a cada chamada (run reprodutível, F4.4).
+    SimpleDocTemplate(
+        buf, pagesize=A4, invariant=1, title=f"Briefing executivo — {briefing.empresa}"
+    ).build(story)
+    return buf.getvalue()
+
+
 # ------------------------------------------------------------------ caminho LLM (opt-in, refino)
 
 
@@ -406,6 +506,7 @@ __all__ = [
     "GuardFn",
     "build_briefing",
     "render_markdown",
+    "render_pdf",
     "parse_refinement",
     "refine_with_llm",
     "make_briefing",

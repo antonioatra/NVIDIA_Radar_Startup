@@ -27,6 +27,7 @@ from packages.agents import (
     make_briefing,
     refine_with_llm,
     render_markdown,
+    render_pdf,
 )
 from packages.agents.briefing import briefing
 from packages.agents.nvidia_rag import nvidia_rag
@@ -214,6 +215,59 @@ def test_render_markdown_handles_terminal_briefing_with_lacunas() -> None:
     assert "## Diagnóstico (AIMI)" not in md  # sem AIMI → bloco omitido
     assert "## Lacunas" in md
     assert "1 fonte" in md
+
+
+# --- PDF (view server-side, F4.6) -------------------------------------------------------------
+
+
+def _pdf_text(pdf: bytes) -> str:
+    """Texto extraído do PDF (via pypdf) — p/ asseverar o conteúdo da view sem fixar o layout."""
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    return "\n".join(page.extract_text() for page in PdfReader(BytesIO(pdf)).pages)
+
+
+def test_render_pdf_is_valid_and_covers_diagnosis_recs_and_axes() -> None:
+    aimi = _aimi(20, 20, 4, 22)
+    recs = [_rec("NVIDIA NIM", proxima_acao="Provisionar o NIM.")]
+    pdf = render_pdf(build_briefing(aimi, None, recs, empresa="ACME"))
+
+    assert isinstance(pdf, bytes) and pdf.startswith(b"%PDF-")  # PDF válido
+    text = _pdf_text(pdf)
+    assert "Briefing executivo — ACME" in text
+    assert "Resumo executivo" in text
+    assert "Diagnóstico (AIMI)" in text
+    assert "AI-native" in text and f"{aimi.total}/100" in text
+    assert "Recomendações NVIDIA" in text and "NVIDIA NIM" in text
+    assert "Provisionar o NIM." in text
+    assert "https://docs.nvidia.com/nim" in text  # evidência NVIDIA citada (os dois lados)
+    assert "Próximas ações" in text
+
+
+def test_render_pdf_is_deterministic() -> None:
+    # invariant=1 → data e ID do PDF fixos: mesmos bytes a cada chamada (run reprodutível, F4.4).
+    aimi = _aimi(20, 20, 4, 22)
+    recs = [_rec("NVIDIA NIM")]
+    assert render_pdf(build_briefing(aimi, None, recs, empresa="ACME")) == render_pdf(
+        build_briefing(aimi, None, recs, empresa="ACME")
+    )
+
+
+def test_render_pdf_handles_terminal_briefing_with_lacunas() -> None:
+    # A view PDF também serve os terminais (F2.12): sem AIMI/recomendações, mostra as lacunas.
+    from packages.schemas import Briefing
+
+    terminal = Briefing(
+        empresa="X",
+        status=BriefingStatus.DADOS_INSUFICIENTES,
+        resumo_executivo="dados insuficientes",
+        lacunas=["corroboração insuficiente: 1 fonte"],
+    )
+    text = _pdf_text(render_pdf(terminal))
+    assert "Diagnóstico (AIMI)" not in text  # sem AIMI → bloco omitido
+    assert "Lacunas" in text and "1 fonte" in text
 
 
 # --- Caminho LLM (refino plugável, fallback) --------------------------------------------------
