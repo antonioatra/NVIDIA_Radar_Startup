@@ -47,13 +47,36 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
       o build). Testes em `tests/test_recommend_rules.py` (amarra à KB, cobertura dos 4 pilares,
       ordem por severidade com `pilar_origem`, setor anexado sem pilar, fallback do pilar mais baixo,
       determinismo, e aderência a 5 dos 7 exemplos §5.5 — o ponta-a-ponta dos 7 é a F4.8).
-- [ ] **F4.2** Nó **recommender** (Nemotron-Super, reasoning ON): consome AIMI + RAG → recomendações.
+- [x] **F4.2** Nó **recommender** (Nemotron-Super, reasoning ON): consome AIMI + RAG → recomendações.
       O `evidencia_nvidia` vem da recuperação **dirigida pelos gaps** do AIMI feita no `nvidia_rag`
       (F3.7) — o recommender cruza gap (lado startup) × citação da KB (lado NVIDIA), não recupera de novo.
-- [ ] **F4.3** Saída estruturada (§5.5): tech · justificativa técnica · justificativa de negócio ·
+      → `packages/agents/recommender.py`: o nó (sétimo do grafo, entre `nvidia_rag`/F3.7 e
+      `gpu_benchmark`/F6). `build_recommendations` cruza as **candidatas** do `match_techs` (F4.1) ×
+      as **citações** do `state.retrieved` (F3.7) casadas por **`kb_tech`** (`metadata["tech"]`), e
+      monta a `Recommendation` (F4.3) a partir do esqueleto §5.5 da regra. **Espinha verde, igual ao
+      classifier/F2.6:** caminho **determinista/offline é o default**; o Super (`recommender@v1`,
+      F0.12) é **plugável** atrás de `settings.recommender_use_llm` (+ chave) **ou** de um adapter
+      `recommend=` injetado e **só refina a redação** (justificativas/`proxima_acao`/prioridade),
+      caindo de volta na espinha a qualquer falha de rede/JSON (`recommend_with_llm` degrada p/
+      `None`). A **evidência dos dois lados nunca vem do LLM** — é sempre a determinista
+      (anti-alucinação). Sem `aimi` (espinha offline) o nó é **no-op limpo** (`{}`) — grafo verde
+      ponta a ponta (M2/DoD). Carimba `trace["recommender"]` (n + techs). Testes em
+      `tests/test_recommender.py` (cruzamento por tech, fallback, data do manifesto, refino LLM
+      preservando evidência, no-op, e ponta-a-ponta `nvidia_rag → recommender` no RAG real).
+- [x] **F4.3** Saída estruturada (§5.5): tech · justificativa técnica · justificativa de negócio ·
       prioridade · complexidade · próxima ação · **evidências dos dois lados** (`evidencia_gap`
       do perfil/AIMI da startup **+** `evidencia_nvidia`, citações da KB recuperadas pelo RAG que
       justificam a tech — schema `Recommendation` de F0.5). Sem um dos lados, F4.5 bloqueia.
+      → O contrato `Recommendation` (schema F0.5) já existia; aqui ele é **preenchido** pelo
+      recommender (F4.2) com a evidência **resolvida dos dois lados**: `evidencia_nvidia` = citações
+      da KB casadas por `kb_tech`, **datadas** pelo `captured_at` do manifesto (F3.1) — determinístico,
+      sem `now()`, cortado em `MAX_NVIDIA_EVIDENCE`; `evidencia_gap` = evidência do **pilar-gap** (se
+      houver), com fallback ao **perfil público** (descrição/stack) num gap de *ausência* (P3 de um
+      wrapper, score ≤6 sem evidência no pilar — para a recomendação mais valiosa, graduação
+      API→stack, não cair por falta do lado-startup), e o **domínio declarado** (setor/descrição)
+      numa tech de setor (§5.5). O nó **só emite** o que tem **ambos** os lados — o mesmo invariante
+      do `Recommendation._require_both_sides` (F0.5) que o Guardrails (F4.5) reforça no briefing:
+      candidata sem citação NVIDIA (ou sem evidência de gap) é **descartada**, não alucinada.
 - [ ] **F4.4** Nó **briefing** (Briefing Agent): relatório executivo (JSON + Markdown) **em PT-BR**
       (F0.13) com próximas-ações nos **três eixos do §2 — comercial, técnica e comunitária**
       (Inception: onboarding, créditos, comunidade, eventos, GTM). **Variante "fora de escopo"**
@@ -73,7 +96,8 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
 Nemotron-Super · NeMo Guardrails · PostgreSQL · (gancho p/ ROI do F6).
 
 ## DoD
-- [ ] Para uma startup, gera recomendação no formato §5.5 com evidências citadas dos **dois lados**
-      (gap da startup + citação da KB NVIDIA).
+- [x] Para uma startup, gera recomendação no formato §5.5 com evidências citadas dos **dois lados**
+      (gap da startup + citação da KB NVIDIA). → recommender (F4.2/F4.3); ponta-a-ponta verde no
+      `tests/test_recommender.py::test_node_end_to_end_over_real_rag`.
 - [ ] Guardrails bloqueia recomendação sem evidência suficiente (faltando qualquer um dos lados).
 - [ ] Briefing sai em PT-BR.

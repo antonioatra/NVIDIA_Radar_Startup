@@ -56,6 +56,14 @@ class Settings(BaseSettings):
         default=False, description="classifier (F2.6) usa o Super p/ pontuar classe + AIMI."
     )
 
+    # recommender (F4.2): por padrão monta a recomendação pela espinha determinista (regras F4.1
+    # + evidência recuperada), offline/reproduzível. Ligue p/ o Nemotron-Super refinar as
+    # justificativas/próxima-ação ancorado na evidência (requer nvidia_api_key); cai na espinha
+    # a qualquer falha. A evidência dos dois lados nunca vem do LLM (anti-alucinação).
+    recommender_use_llm: bool = Field(
+        default=False, description="recommender (F4.2) usa o Super p/ refinar as recomendações."
+    )
+
     # Embeddings da KB (F3.3): por padrão usa o HashingEmbedder offline/determinista (espinha
     # verde — reproduzível, sem rede/GPU). Ligue p/ embedar com o NeMo Retriever nv-embedqa de
     # verdade (catálogo build.nvidia.com com nvidia_api_key, ou NIM self-hosted/GPU).

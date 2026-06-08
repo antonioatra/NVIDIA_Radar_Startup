@@ -14,7 +14,7 @@ sem RAG ainda"). Cada nó é preenchido pela sua task, anotada no docstring:
 - classifier        → F2.6 (classe §5.1 + AIMI v0)
 - evidence_validator → F2.7 (regra de N fontes; retry via Command; ver `evidence_validator.py`)
 - nvidia_rag        → F3   (RAG híbrido Qdrant + NeMo rerank → citações)
-- recommender       → F4   (gaps do AIMI × tech NVIDIA)
+- recommender       → F4.2/F4.3 (gaps do AIMI × evidência NVIDIA; ver `recommender.py`)
 - gpu_benchmark     → F6   (ROI real na GPU; condicional ★)
 - human_review      → F2.8 (HITL interrupt antes do briefing; ver `human_review.py`)
 - briefing          → F4.4 (briefing executivo; Guardrails F4.5)
@@ -32,17 +32,13 @@ from .evidence_validator import evidence_validator  # F2.7 — implementação r
 from .extractor import extractor  # F2.5 — implementação real do nó
 from .human_review import human_review  # F2.8 — implementação real do nó
 from .nvidia_rag import nvidia_rag  # F3.7 — implementação real do nó
+from .recommender import recommender  # F4.2/F4.3 — implementação real do nó
 from .scraper import scraper  # F2.4 — implementação real do nó
 from .search_planner import search_planner  # F2.3 — implementação real do nó
 from .terminals import (  # F2.12 / F2.13 — briefings terminais
     insufficient_data_briefing,
     out_of_scope_briefing,
 )
-
-
-def recommender(state: GraphState) -> dict:
-    """F4 — cruza gaps do AIMI com tech NVIDIA; recomendações com evidência dos 2 lados."""
-    return {}
 
 
 def gpu_benchmark(state: GraphState) -> dict:

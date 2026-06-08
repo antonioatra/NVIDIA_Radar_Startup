@@ -56,6 +56,14 @@ from .recommend_rules import (
     recommendable_kb_techs,
     techs_for_pillar,
 )
+from .recommender import (
+    build_recommendations,
+    gap_evidence_for,
+    make_recommendations,
+    nvidia_evidence_for,
+    parse_refinements,
+    recommend_with_llm,
+)
 from .search_planner import (
     PrioritizedSource,
     SearchPlan,
@@ -118,6 +126,13 @@ __all__ = [
     "match_sector",
     "match_techs",
     "recommendable_kb_techs",
+    # recommender (F4.2/F4.3) — o nó é acessado via NODES (evita shadowing do submódulo)
+    "build_recommendations",
+    "nvidia_evidence_for",
+    "gap_evidence_for",
+    "make_recommendations",
+    "recommend_with_llm",
+    "parse_refinements",
     # terminais de baixa confiança / fora de escopo (F2.12 / F2.13)
     "insufficient_data_briefing",
     "out_of_scope_briefing",
