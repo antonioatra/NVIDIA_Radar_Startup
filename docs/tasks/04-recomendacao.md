@@ -144,7 +144,25 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
       recomendação **verificado extraindo o texto com `pypdf`**, incl. a evidência NVIDIA citada;
       determinismo do `invariant`; e a variante terminal F2.12 com lacunas). Deps: `reportlab` no
       runtime + `reportlab`/`pypdf` no `requirements-ci.txt` (o teste roda no CI).
-- [ ] **F4.7** Persistir `recommendation` + ligação com evidências no Postgres.
+- [x] **F4.7** Persistir `recommendation` + ligação com evidências no Postgres.
+      → `packages/agents/persistence.py`: `persist_recommendations` é a **contraparte do
+      `persist_profile`** (F1.10) para a saída do recommender (F4.2/F4.3). Grava cada
+      `Recommendation` (§5.5) na tabela `recommendation` (F0.6) e **liga a evidência dos dois
+      lados** na tabela `evidence` polimórfica: o lado startup (`evidencia_gap`) com
+      `field='gap'`, o lado NVIDIA (`evidencia_nvidia`, citações da KB) com `field='nvidia'`,
+      ambos sob `entity_type='recommendation'`/`entity_id=<rec.id>` — a decisão prescrita fica
+      rastreável até as **duas** fontes que a justificam (auditoria §8). O invariante dos dois
+      lados não é re-checado aqui (já garantido pelo schema `_require_both_sides`/F0.5 +
+      Guardrails/F4.5): a persistência só o **materializa**. **Idempotente** (mesmo ethos do
+      upsert de perfil): re-rodar o mesmo run não duplica — a recomendação casa por
+      `(run_id, company_id, tech)` e enriquece em hit; a evidência dedup por (url, hash, alvo)
+      reusando o `persist_evidence` (F1.9). `roi` (F6) serializa p/ o JSON da linha quando há.
+      **Puro/offline** salvo a persistência (sessão injetada, `flush` não `commit` — transação
+      do caller), como em toda a camada: o backbone do grafo segue sem tocar o banco; o worker
+      (F2.10) injeta a `Session` (mesmo padrão do hook `persist=` do extractor/F2.5). Testes em
+      `tests/test_recommendation_persistence.py` (linha gravada com enums/pilar; evidência dos
+      dois lados ligada ao id; ROI ↔ JSON; idempotência no mesmo run sem duplicar evidência;
+      upsert enriquecendo em hit; múltiplas techs).
 - [ ] **F4.8** **Casos de teste dos 7 exemplos do §5.5** (aderência ao brief): assevera que o
       recommender produz o esperado — voz→Riva+NIM; dados tabulares→RAPIDS/cuDF/cuML;
       saúde→Clara/MONAI/NIM/Guardrails/AI Enterprise; atendimento via API→NIM/Guardrails/Triton+benchmark;
