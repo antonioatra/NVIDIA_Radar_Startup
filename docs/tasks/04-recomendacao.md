@@ -102,8 +102,32 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
       ponta a ponta (M2/DoD) sem alucinar relatório sem base. Testes em `tests/test_briefing.py`
       (espinha + 3 eixos com ramificação comercial, Markdown incl. terminal, refino LLM preservando
       diagnóstico/recomendações, no-op sem aimi, ponta a ponta no grafo real até o briefing normal).
-- [ ] **F4.5** **NeMo Guardrails** no briefing: rails contra recomendação sem evidência/alucinação.
+- [x] **F4.5** **NeMo Guardrails** no briefing: rails contra recomendação sem evidência/alucinação.
       Regra explícita: bloqueia recomendação que não tenha **`evidencia_gap` E `evidencia_nvidia`**.
+      → `packages/agents/guardrails.py`: o **output rail de evidência**, último guard antes do
+      relatório sair (nó `briefing`/F4.4). Reforça o invariante central do TAPI — o mesmo
+      `Recommendation._require_both_sides` (F0.5) — como **defesa em profundidade**: o recommender
+      (F4.2) já só emite o que tem os dois lados, mas o rail **revalida a saída** e **descarta** (em
+      vez de alucinar) qualquer recomendação montada fora da validação do schema (`model_construct`,
+      refino LLM futuro, ingestão externa) **antes** de virar texto. `evidence_violations` é o núcleo
+      (lados faltantes), `check_recommendations` separa aprovadas × bloqueadas num `GuardrailReport`
+      (com `passou`/`trace()`), e o nó passa as recomendações pelo rail e carimba
+      `trace["guardrails"]` (observabilidade). **Decisão (espinha verde, igual classifier/F2.6,
+      recommender/F4.2 e todo o F3):** o **veredito é determinista** — o invariante dos dois lados é
+      regra **dura**, não juízo de modelo (delegá-lo a um LLM reintroduziria a alucinação que ele
+      barra), então `check_recommendations` (offline, sem rede/GPU) é a fonte de verdade e o
+      **default**. O **NeMo Guardrails** é a camada de **orquestração de produção** (Colang +
+      custom action em `guardrails_config/`: `config.yml` + `rails.co` + `actions.py`), plugável
+      atrás de `settings.briefing_use_guardrails` **ou** de um adapter `guard=` injetado, com import
+      **preguiçoso** — o módulo importa offline no Windows sem `nemoguardrails` (dep adiada: puxa
+      `annoy`/C++, roda só no container Linux/GPU — ver memória dev-env). Mesmo no caminho NeMo o
+      veredito **continua determinista** (o custom action `check_recommendation_evidence` reusa
+      `check_recommendations`): o NeMo abriga o rail (e os rails futuros de diálogo/jailbreak), mas
+      nunca decide se há evidência; qualquer falha (dep/config) **degrada p/ a espinha** — o rail
+      nunca deixa de rodar. Testes em `tests/test_guardrails.py` (núcleo dos lados faltantes;
+      separação aprovadas × bloqueadas preservando ordem + `trace()`; seam plugável com adapter
+      injetado e fallback do flag sem `nemoguardrails`; o nó descartando a recomendação alucinada e
+      carimbando o trace; e a config NeMo versionada).
 - [ ] **F4.6** Export PDF do briefing (server-side).
 - [ ] **F4.7** Persistir `recommendation` + ligação com evidências no Postgres.
 - [ ] **F4.8** **Casos de teste dos 7 exemplos do §5.5** (aderência ao brief): assevera que o
@@ -119,7 +143,10 @@ Nemotron-Super · NeMo Guardrails · PostgreSQL · (gancho p/ ROI do F6).
 - [x] Para uma startup, gera recomendação no formato §5.5 com evidências citadas dos **dois lados**
       (gap da startup + citação da KB NVIDIA). → recommender (F4.2/F4.3); ponta-a-ponta verde no
       `tests/test_recommender.py::test_node_end_to_end_over_real_rag`.
-- [ ] Guardrails bloqueia recomendação sem evidência suficiente (faltando qualquer um dos lados).
+- [x] Guardrails bloqueia recomendação sem evidência suficiente (faltando qualquer um dos lados).
+      → output rail de evidência (F4.5) no nó `briefing`: `guard_recommendations` descarta toda
+      recomendação sem `evidencia_gap` E `evidencia_nvidia` antes do relatório; verde em
+      `tests/test_guardrails.py::test_node_drops_unsupported_recommendation_and_stamps_trace`.
 - [x] Briefing sai em PT-BR. → `build_briefing`/`render_markdown` (F4.4) emitem o `Briefing` (JSON)
       e a view Markdown em PT-BR (`idioma="pt-BR"`), com os três eixos do §2; verde em
       `tests/test_briefing.py`.

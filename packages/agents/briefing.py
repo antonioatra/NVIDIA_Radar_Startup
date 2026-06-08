@@ -47,6 +47,7 @@ from packages.schemas import (
     StartupProfile,
 )
 
+from .guardrails import GuardFn, guard_recommendations
 from .nvidia_rag import gap_pillars
 from .terminals import insufficient_data_briefing, out_of_scope_briefing
 
@@ -365,16 +366,20 @@ def make_briefing(
 # ------------------------------------------------------------------------------- nó
 
 
-def briefing(state: GraphState, *, refine: RefineFn | None = None) -> dict:
-    """F4.4 — relatório executivo PT-BR (§2), despachando por status; update parcial.
+def briefing(
+    state: GraphState, *, refine: RefineFn | None = None, guard: GuardFn | None = None
+) -> dict:
+    """F4.4/F4.5 — relatório executivo PT-BR (§2), despachando por status; update parcial.
 
     Variantes terminais (status já cravado pelo evidence_validator/F2.7 ao saltar RAG/recomendação):
     - `INSUFFICIENT_DATA` (F2.12) → briefing **"dados insuficientes"** (o apurado + lacunas);
     - `OUT_OF_SCOPE` (F2.13) → briefing **"fora de escopo"** (non-AI de alta confiança).
     Nenhum força recomendação NVIDIA. Caminho **normal**: sem `aimi` (espinha offline sem
     classificação) é um no-op limpo (só fecha o run em COMPLETED) — grafo verde ponta a ponta
-    (M2/DoD) sem alucinar relatório sem base; com diagnóstico, monta o briefing normal (§2) e fecha.
-    `refine` é injetável (testes/worker); por default a espinha determinista, Super plugável.
+    (M2/DoD) sem alucinar relatório sem base; com diagnóstico, passa as recomendações pelo **rail de
+    evidência** (F4.5: descarta as sem os dois lados **antes** de virar texto), monta o briefing
+    normal (§2) sobre as aprovadas e fecha, carimbando `trace["guardrails"]`. `refine`/`guard` são
+    injetáveis (testes/worker); por default a espinha determinista (Super/NeMo plugáveis).
     """
     if state.status is RunStatus.INSUFFICIENT_DATA:
         return {"briefing": insufficient_data_briefing(state)}  # status já é terminal
@@ -385,16 +390,20 @@ def briefing(state: GraphState, *, refine: RefineFn | None = None) -> dict:
     if aimi is None:
         return {"status": RunStatus.COMPLETED}  # sem diagnóstico → sem briefing (espinha verde M2)
 
+    # F4.5 — output rail: só recomendação com evidência dos dois lados sustenta o briefing.
+    rail = guard_recommendations(state.recommendations, guard=guard)
     profile = state.profile
     empresa = (profile.nome if profile is not None else None) or state.query
     report = make_briefing(
-        aimi, profile, state.recommendations, empresa=empresa, run_id=state.run_id, refine=refine
+        aimi, profile, rail.aprovadas, empresa=empresa, run_id=state.run_id, refine=refine
     )
-    return {"briefing": report, "status": RunStatus.COMPLETED}
+    trace = {**state.trace, "guardrails": rail.trace()}
+    return {"briefing": report, "status": RunStatus.COMPLETED, "trace": trace}
 
 
 __all__ = [
     "RefineFn",
+    "GuardFn",
     "build_briefing",
     "render_markdown",
     "parse_refinement",

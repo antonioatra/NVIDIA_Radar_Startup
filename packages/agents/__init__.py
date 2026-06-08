@@ -40,6 +40,13 @@ from .evidence_validator import (
 )
 from .extractor import extract_profile, parse_profile
 from .graph import CONDITIONAL_OUT, PIPELINE, build_graph, compile_graph, run_pipeline
+from .guardrails import (
+    BlockedRecommendation,
+    GuardrailReport,
+    check_recommendations,
+    evidence_violations,
+    guard_recommendations,
+)
 from .human_review import review_payload
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
@@ -146,6 +153,12 @@ __all__ = [
     "render_markdown",
     "parse_refinement",
     "refine_with_llm",
+    # NeMo Guardrails — rail de evidência do briefing (F4.5)
+    "evidence_violations",
+    "check_recommendations",
+    "guard_recommendations",
+    "GuardrailReport",
+    "BlockedRecommendation",
     # terminais de baixa confiança / fora de escopo (F2.12 / F2.13)
     "insufficient_data_briefing",
     "out_of_scope_briefing",

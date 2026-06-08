@@ -72,6 +72,16 @@ class Settings(BaseSettings):
         default=False, description="briefing (F4.4) usa o Super p/ refinar a redação do relatório."
     )
 
+    # Guardrails do briefing (F4.5): o rail de evidência (nenhuma recomendação sem os dois lados)
+    # roda SEMPRE; por padrão é a checagem determinista/offline (espinha verde — bloqueia sem rede,
+    # reproduzível). Ligue p/ orquestrar o mesmo rail via NeMo Guardrails (Colang + custom action)
+    # no container Linux/GPU (dep nemoguardrails; adiada no Windows por puxar annoy/C++). O veredito
+    # é sempre determinista — o LLM nunca decide se há evidência (anti-alucinação); cai na espinha a
+    # qualquer falha de dep/config.
+    briefing_use_guardrails: bool = Field(
+        default=False, description="briefing (F4.5) orquestra o rail de evidência via NeMo."
+    )
+
     # Embeddings da KB (F3.3): por padrão usa o HashingEmbedder offline/determinista (espinha
     # verde — reproduzível, sem rede/GPU). Ligue p/ embedar com o NeMo Retriever nv-embedqa de
     # verdade (catálogo build.nvidia.com com nvidia_api_key, ou NIM self-hosted/GPU).
