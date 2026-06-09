@@ -50,4 +50,58 @@ class CompanyOut(BaseModel):
     nvidia_techs: list[str] = Field(default_factory=list)
 
 
-__all__ = ["RunRequest", "RunAccepted", "CompanyOut"]
+class EvidenceOut(BaseModel):
+    """Fonte citável de um sub-score (tabela `evidence`, §8): o link que sustenta o pilar."""
+
+    url: str
+    snippet: str
+    source_title: str | None = None
+
+
+class PillarOut(BaseModel):
+    """Um pilar do AIMI no detalhe (F5.5): sub-score 0–25 + faixa + justificativa + fontes.
+
+    `pilar` é a chave técnica (`AIMIPillar`, ex.: 'data_moat'); o rótulo PT-BR é da UI. `band`
+    vem de `band_for` (RUBRICA §1). As `evidencias` são as linhas `evidence` do score com
+    `field=<pilar>` — vazia até a persistência do AIMI gravá-las (a UI degrada sem links).
+    """
+
+    pilar: str
+    score: int = Field(ge=0, le=25)
+    band: str
+    justificativa: str | None = None
+    evidencias: list[EvidenceOut] = Field(default_factory=list)
+
+
+class CompanyDetailOut(BaseModel):
+    """Detalhe de uma startup (F5.5): perfil + radar AIMI (4 pilares) com evidência por pilar.
+
+    Estende a projeção da lista (`CompanyOut`) com a descrição/ano e o **breakdown** do AIMI —
+    os 4 sub-scores, suas justificativas e as fontes citáveis. `pilares` vem vazia quando a
+    empresa ainda não foi pontuada (mesma degradação graciosa da lista: sem AIMI, sem radar).
+    """
+
+    id: int
+    nome: str
+    setor: str | None = None
+    pais: str = "BR"
+    website: str | None = None
+    descricao: str | None = None
+    ano_fundacao: int | None = None
+    classificacao: str | None = None
+    aimi_total: int | None = None
+    inception_priority: int | None = None
+    confidence: float | None = None
+    heuristic_version: str | None = None
+    pilares: list[PillarOut] = Field(default_factory=list)
+    nvidia_techs: list[str] = Field(default_factory=list)
+
+
+__all__ = [
+    "RunRequest",
+    "RunAccepted",
+    "CompanyOut",
+    "EvidenceOut",
+    "PillarOut",
+    "CompanyDetailOut",
+]

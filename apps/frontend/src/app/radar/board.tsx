@@ -2,10 +2,13 @@
 
 // Radar de startups (F5.4): a lista filtravel por setor, classe de maturidade e AIMI minimo,
 // ja ordenada por inception_priority (a fila de outreach do gerente, F6.13). Consome o
-// `GET /companies` (F5.2) — os filtros combinam em AND e a ordenacao vem do backend. As
-// facetas de tech (F5.11) e o detalhe AIMI clicavel (F5.5) chegam nas suas tasks.
+// `GET /companies` (F5.2) — os filtros combinam em AND e a ordenacao vem do backend. Cada linha
+// abre o detalhe AIMI da startup (radar dos 4 pilares + evidencias, F5.5). As facetas de tech
+// (F5.11) chegam na sua task.
 
 import { useEffect, useState } from "react";
+
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -132,7 +135,10 @@ export function RadarBoard() {
           <ol className="flex flex-col gap-2">
             {companies.map((c, i) => (
               <li key={c.id}>
-                <article className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 text-card-foreground">
+                <Link
+                  href={`/radar/${c.id}`}
+                  className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 text-card-foreground transition-colors hover:border-primary/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                >
                   <span className="w-6 shrink-0 text-center font-mono text-sm text-muted-foreground">
                     {i + 1}
                   </span>
@@ -147,7 +153,7 @@ export function RadarBoard() {
                   </div>
                   <Metric label="AIMI" value={c.aimi_total} />
                   <Metric label="Inception" value={c.inception_priority} highlight />
-                </article>
+                </Link>
               </li>
             ))}
           </ol>
@@ -155,7 +161,7 @@ export function RadarBoard() {
 
         {phase === "ready" && companies.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            O detalhe AIMI por startup (radar dos 4 pilares + evidencias) habilita na F5.5.
+            Clique em uma startup para ver o radar AIMI dos 4 pilares e as evidencias citadas.
           </p>
         )}
       </section>

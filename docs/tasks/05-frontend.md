@@ -90,7 +90,36 @@
       seguem verdes. **Nota Next 16:** o lint novo do React 19 (`react-hooks/set-state-in-effect`)
       barra `setState` síncrono no corpo do effect — o `setPhase("loading")` foi para dentro do
       callback do timer (o estado inicial já é `loading`, então o primeiro load não pisca).
-- [ ] **F5.5** Detalhe da startup: **radar AIMI** (4 pilares) + evidências com link à fonte.
+- [x] **F5.5** Detalhe da startup: **radar AIMI** (4 pilares) + evidências com link à fonte.
+      → **Backend** (`apps/api/`): nova rota **`GET /companies/{id}`** + a função `get_company_detail`
+      (`companies.py`) e os DTOs `CompanyDetailOut`/`PillarOut`/`EvidenceOut` (`schemas.py`). O
+      detalhe achata a `Company` (§2) com o `Score` **mais recente** e devolve o **breakdown** do
+      AIMI: os 4 sub-scores na ordem canônica (RUBRICA §1) com a **faixa** derivada (reusa
+      `band_for`, sem duplicar), a justificativa (`just_*`) e as **fontes citáveis por pilar** —
+      as linhas `evidence` com `entity_type='score'`/`field=<pilar>`, agrupadas por pilar. `404`
+      quando a empresa não existe; empresa coletada mas **não pontuada** sai com `pilares=[]` e o
+      diagnóstico nulo (mesma degradação graciosa da lista F5.4). **Nota de honestidade:** a
+      persistência do AIMI ainda não grava evidência de score (não há `persist_score` — a tabela
+      `Score` é escrita só em teste hoje; F6.2/persistência futura); a rota já **superfície** o
+      `field=<pilar>` corretamente, então os links aparecem assim que essa escrita existir — até
+      lá o pilar mostra o sub-score sem link, sem quebrar. **Frontend** (`apps/frontend/`): rota
+      **`/radar/[id]`** — casca **server** (`page.tsx`, metadata; `params` é **Promise** no Next 16,
+      resolvido com `await`) sobre a **view client** (`detail.tsx`) que busca `getCompany(id)`
+      (`lib/api.ts`, com os tipos `CompanyDetail`/`PillarOut`/`EvidenceOut`; `404` vira mensagem
+      própria). A tela desenha um **radar SVG dos 4 pilares** (0–25/eixo) **sem dependência de
+      chart** — eixos topo/direita/baixo/esquerda, anéis-guia e polígono via `currentColor` + os
+      tokens oklch do tema (mesma disciplina de "sem dep frágil" da F5.3) — e, ao lado, um card por
+      pilar com barra do sub-score, faixa, justificativa e as **evidências como `<a>`** (`target=
+      _blank` + `rel=noopener`, link à fonte). Os rótulos PT-BR dos pilares espelham o texto do
+      briefing (`packages/agents/briefing.py`). A **lista F5.4** (`board.tsx`) agora tem cada linha
+      como **`<Link href="/radar/{id}">`** (hover/focus visíveis), removida a nota "habilita na
+      F5.5". **Sem antecipar fase futura:** os cartões de recomendação+ROI (F5.6) e o filtro por
+      tech (F5.11) ficam fora; só os chips de techs NVIDIA recomendadas aparecem (já vêm do detalhe).
+      **Gate verde:** `npm run lint` e `npm run build` limpos (TypeScript 0 erros; `/radar/[id]`
+      server-rendered on demand) e, como desta vez **tocou Python** (`apps/api`), o backend também:
+      `ruff` limpo e `pytest` **610 passed, 4 skipped** (1 deselecionado = o smoke de rede
+      `test_smoke_real`, que exige endpoint externo). `tests/test_api.py` ganhou 3 testes do detalhe
+      (pilares+evidência, empresa sem score, `404`) e o `_seed` passou a semear evidência de score.
 - [ ] **F5.6** Cartões de recomendação (§5.5) + número de ROI. **ROI é opcional:** vem do F6, que
       roda em paralelo a esta fase — a UI degrada graciosamente (mostra a recomendação sem o ROI
       enquanto a matriz/benchmark do F6 não existir; exibe o número quando disponível).

@@ -89,3 +89,53 @@ export async function listCompanies(filters: CompanyFilters = {}): Promise<Compa
   }
   return res.json() as Promise<CompanyOut[]>;
 }
+
+// Fonte citavel de um sub-score (EvidenceOut, apps/api/schemas.py — F5.5): o link que sustenta
+// o pilar. Pode vir vazia ate a persistencia do AIMI gravar essas linhas (a UI degrada).
+export interface EvidenceOut {
+  url: string;
+  snippet: string;
+  source_title: string | null;
+}
+
+// Um pilar do AIMI no detalhe (PillarOut, F5.5): sub-score 0-25 + faixa + justificativa + fontes.
+// `pilar` e a chave tecnica (AIMIPillar, ex.: "data_moat"); o rotulo PT-BR e da UI.
+export interface PillarOut {
+  pilar: string;
+  score: number;
+  band: string;
+  justificativa: string | null;
+  evidencias: EvidenceOut[];
+}
+
+// Detalhe de uma startup (CompanyDetailOut, F5.5): perfil + radar AIMI (4 pilares) com evidencia
+// por pilar. `pilares` vem vazia quando a empresa ainda nao foi pontuada (degrada como a lista).
+export interface CompanyDetail {
+  id: number;
+  nome: string;
+  setor: string | null;
+  pais: string;
+  website: string | null;
+  descricao: string | null;
+  ano_fundacao: number | null;
+  classificacao: string | null;
+  aimi_total: number | null;
+  inception_priority: number | null;
+  confidence: number | null;
+  heuristic_version: string | null;
+  pilares: PillarOut[];
+  nvidia_techs: string[];
+}
+
+// Detalhe de uma startup pelo id (`GET /companies/{id}`, F5.2/F5.5). 404 vira mensagem propria
+// (empresa inexistente) para a tela distinguir de uma falha de rede.
+export async function getCompany(id: number): Promise<CompanyDetail> {
+  const res = await fetch(`${API_URL}/companies/${id}`);
+  if (res.status === 404) {
+    throw new Error("Startup nao encontrada.");
+  }
+  if (!res.ok) {
+    throw new Error(`Falha ao carregar a startup (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<CompanyDetail>;
+}

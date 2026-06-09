@@ -27,9 +27,9 @@ from packages.agents.briefing import render_markdown, render_pdf
 from packages.agents.progress import ProgressEvent
 from packages.schemas import Briefing
 
-from .companies import list_companies
+from .companies import get_company_detail, list_companies
 from .deps import db_session, get_briefing_loader, get_progress_source, get_queue
-from .schemas import CompanyOut, RunAccepted, RunRequest
+from .schemas import CompanyDetailOut, CompanyOut, RunAccepted, RunRequest
 
 app = FastAPI(title="TAPI API", version="0.1.0")
 
@@ -103,6 +103,20 @@ def get_companies(
         nvidia_tech=nvidia_tech,
         limit=limit,
     )
+
+
+@app.get("/companies/{company_id}")
+def get_company(company_id: int, session: SessionDep) -> CompanyDetailOut:
+    """Detalhe de uma startup (F5.5): perfil + radar AIMI (4 pilares) com evidência por pilar.
+
+    Alimenta a tela de detalhe (radar dos sub-scores + fontes citáveis); `404` se a empresa não
+    existe. O breakdown vem do `Score` mais recente — empresa coletada mas não pontuada sai sem
+    pilares (a UI degrada como a lista).
+    """
+    detail = get_company_detail(session, company_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="empresa não encontrada")
+    return detail
 
 
 # --- briefings ----------------------------------------------------------------

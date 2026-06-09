@@ -12,6 +12,8 @@ worker. Exercita:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -22,7 +24,7 @@ from apps.api.main import app
 from apps.worker import resume_graph_job, run_graph_job
 from packages.agents.briefing import build_briefing
 from packages.agents.progress import END_NODE, ProgressEvent
-from packages.db.models import Company, Run, Score
+from packages.db.models import Company, Evidence, Run, Score
 from packages.db.models import Recommendation as RecommendationRow
 from packages.schemas import AIMIScore, Classification, PillarScore
 from packages.schemas.enums import AIMIPillar
@@ -67,17 +69,30 @@ def _seed(session: Session) -> None:
     session.add_all([acme, bolt, cold])
     session.flush()
 
+    acme_score = Score(
+        company_id=acme.id,
+        run_id="r1",
+        classificacao=Classification.AI_NATIVE,
+        total=80,
+        inception_priority=90,
+        data_moat=20,
+        workflow_depth=20,
+        technical_optimization=20,
+        distribution_moat=20,
+        just_data_moat="dataset proprietário de prontuários anotados",
+    )
+    session.add(acme_score)
+    session.flush()
+    # Evidência de um pilar (entity_type='score', field=<pilar>) — a fonte citável do radar (F5.5).
     session.add(
-        Score(
-            company_id=acme.id,
-            run_id="r1",
-            classificacao=Classification.AI_NATIVE,
-            total=80,
-            inception_priority=90,
-            data_moat=20,
-            workflow_depth=20,
-            technical_optimization=20,
-            distribution_moat=20,
+        Evidence(
+            url="https://acme.health/dados",
+            snippet="base proprietária com 2M de prontuários rotulados",
+            fetched_at=datetime.now(UTC),
+            source_title="Acme Health — Tecnologia",
+            entity_type="score",
+            entity_id=acme_score.id,
+            field="data_moat",
         )
     )
     session.add(
@@ -222,6 +237,51 @@ def test_companies_filter_by_tech_facets(client: TestClient) -> None:
 
 def test_companies_limit(client: TestClient) -> None:
     assert len(client.get("/companies?limit=1").json()) == 1
+
+
+# --- company detail (F5.5) ----------------------------------------------------
+
+
+def _company_id(client: TestClient, nome: str) -> int:
+    return next(r["id"] for r in client.get("/companies").json() if r["nome"] == nome)
+
+
+def test_company_detail_returns_pillars_and_evidence(client: TestClient) -> None:
+    cid = _company_id(client, "Acme Health")
+    detail = client.get(f"/companies/{cid}").json()
+
+    assert detail["nome"] == "Acme Health"
+    assert detail["classificacao"] == "AI-native"
+    assert detail["aimi_total"] == 80
+    assert detail["nvidia_techs"] == ["NVIDIA NIM"]
+
+    # Os 4 pilares na ordem canônica, com faixa derivada do sub-score (RUBRICA §1).
+    pilares = {p["pilar"]: p for p in detail["pilares"]}
+    assert [p["pilar"] for p in detail["pilares"]] == [
+        "data_moat",
+        "workflow_depth",
+        "technical_optimization",
+        "distribution_moat",
+    ]
+    data_moat = pilares["data_moat"]
+    assert data_moat["score"] == 20
+    assert data_moat["band"] == "forte"  # 20 > 18 → forte
+    assert data_moat["justificativa"].startswith("dataset proprietário")
+    # A evidência do pilar vem com link à fonte (F5.5).
+    assert data_moat["evidencias"][0]["url"] == "https://acme.health/dados"
+    # Pilar sem evidência persistida degrada gracioso (lista vazia, não erro).
+    assert pilares["workflow_depth"]["evidencias"] == []
+
+
+def test_company_detail_without_score_has_no_pillars(client: TestClient) -> None:
+    cid = _company_id(client, "Cold Start")
+    detail = client.get(f"/companies/{cid}").json()
+    assert detail["aimi_total"] is None
+    assert detail["pilares"] == []
+
+
+def test_company_detail_404_when_absent(client: TestClient) -> None:
+    assert client.get("/companies/999999").status_code == 404
 
 
 # --- briefings ----------------------------------------------------------------
