@@ -26,6 +26,7 @@ from packages.agents import (
     ProgressEvent,
     RedisProgressPublisher,
     progress_channel,
+    resume_pipeline,
     stream_pipeline,
     subscribe_progress,
 )
@@ -108,6 +109,26 @@ def test_stream_pipeline_terminal_is_awaiting_review_on_hitl_interrupt(monkeypat
     assert terminal.node == END_NODE
     assert terminal.status == RunStatus.AWAITING_REVIEW.value  # mapeado do interrupt (F2.8)
     assert state.status is RunStatus.RUNNING  # run pausado, não concluído
+
+
+def test_resume_pipeline_finishes_paused_run(monkeypatch) -> None:
+    monkeypatch.setattr(hr, "get_settings", lambda: _FakeSettings(enabled=True))
+    saver = InMemorySaver(serde=state_serde())
+    # 1) roda até o interrupt (pausa antes do human_review/briefing).
+    paused = stream_pipeline("Acme AI", run_id="run-x", hitl=HITLMode.SYNC, checkpointer=saver)
+    assert paused.status is RunStatus.RUNNING
+
+    # 2) retoma com a decisão humana → completa, registra a decisão e emite o terminal.
+    events: list[ProgressEvent] = []
+    decision = {"approved": True, "nota": "ok"}
+    state = resume_pipeline("run-x", decision, checkpointer=saver, on_event=events.append)
+
+    assert state.status is RunStatus.COMPLETED
+    assert state.trace["human_review"] == decision  # decisão auditável (F2.8)
+    nodes = [e.node for e in events]
+    assert "briefing" in nodes  # rodou só os nós restantes
+    assert nodes[-1] == END_NODE
+    assert events[-1].status == RunStatus.COMPLETED.value
 
 
 # --- transporte Redis (cliente injetado) --------------------------------------

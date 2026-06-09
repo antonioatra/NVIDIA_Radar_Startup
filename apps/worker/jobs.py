@@ -19,7 +19,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from packages.agents.checkpoint import postgres_checkpointer
-from packages.agents.progress import RedisProgressPublisher, stream_pipeline
+from packages.agents.progress import RedisProgressPublisher, resume_pipeline, stream_pipeline
 from packages.config import get_settings
 from packages.schemas import ExecutionMode, HITLMode
 
@@ -97,6 +97,38 @@ def run_graph_job(
     }
 
 
+def resume_graph_job(
+    run_id: str,
+    decision: Any,
+    *,
+    redis_client: Redis | None = None,
+    open_checkpointer: _OpenCheckpointer | None = None,
+    runner: Callable[..., GraphState] = resume_pipeline,
+) -> dict[str, Any]:
+    """Retoma um run pausado no HITL (F2.8) com a decisão humana; devolve um resumo (F5.2).
+
+    Job RQ irmão do `run_graph_job`: o `POST /runs/{id}/resume` (F5.2) o enfileira quando o
+    gerente aprova/edita/rejeita na tela de revisão (F5.10). Abre o **mesmo** checkpointer
+    Postgres (F2.2) — a thread `run_id` está pausada lá — e o publisher Redis de produção por
+    default; ambos **injetáveis** para teste offline. Publica o progresso dos nós restantes no
+    canal do run e devolve `{run_id, status, needs_review}` com o desfecho.
+    """
+    client = redis_client if redis_client is not None else _redis_from_settings()
+    publisher: Callable[[ProgressEvent], None] | None = (
+        RedisProgressPublisher(client) if client is not None else None
+    )
+    open_cp = open_checkpointer or _default_checkpointer
+
+    with open_cp() as checkpointer:
+        state = runner(run_id, decision, checkpointer=checkpointer, on_event=publisher)
+
+    return {
+        "run_id": run_id,
+        "status": state.status.value,
+        "needs_review": state.needs_review,
+    }
+
+
 def default_queue(*, connection: Redis | None = None) -> Queue:
     """Fila RQ `tapi` ligada ao Redis da config (F0.3). Onde a API enfileira e o worker puxa."""
     from rq import Queue
@@ -129,4 +161,15 @@ def enqueue_run(
         hitl=hitl.value,
         job_id=run_id,
     )
+    return run_id
+
+
+def enqueue_resume(run_id: str, decision: Any, *, queue: Queue) -> str:
+    """Enfileira a retomada de um run pausado no HITL (F2.8) e devolve o `run_id` (F5.2).
+
+    `job_id=f"{run_id}:resume"` distingue o job de resume do job original (`job_id=run_id`),
+    que pode seguir no registro do RQ — mesmo `run_id` (= thread/canal de progresso), job RQ
+    distinto. Só argumentos planos viajam na fila; o job abre Redis/Postgres ao rodar.
+    """
+    queue.enqueue(resume_graph_job, run_id, decision, job_id=f"{run_id}:resume")
     return run_id

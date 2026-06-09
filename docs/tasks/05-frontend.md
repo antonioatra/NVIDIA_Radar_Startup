@@ -22,11 +22,34 @@
       para builds reprodutíveis. **Nota Next 16:** versão pós-cutoff com breaking changes — o
       `create-next-app` deixou um `apps/frontend/AGENTS.md`/`CLAUDE.md` apontando para os docs
       empacotados em `node_modules/next/dist/docs/` (consultar antes de mexer no app).
-- [ ] **F5.2** API FastAPI: endpoints `POST /runs`, `GET /runs/{id}`, `GET /companies`,
+- [x] **F5.2** API FastAPI: endpoints `POST /runs`, `GET /runs/{id}`, `GET /companies`,
       `/briefings/{id}` **+ `POST /runs/{id}/resume`** (retoma o grafo após o HITL — F2.8). O SSE
       de `GET /runs/{id}` lê o canal Redis pub/sub publicado pelo worker (F2.10). `GET /companies`
       aceita os filtros de tecnologia da F5.11 (`tech`, `nvidia_tech`); o chat da F5.12 (stretch)
       adiciona `POST /companies/chat` (SSE).
+      → `apps/api/` (`main.py` rotas, `deps.py` DI, `companies.py` query, `schemas.py` DTOs): os 5
+      endpoints sobre o worker (F2.10) e a persistência (F0.6/F4.7). **`POST /runs`** só
+      **enfileira** (`enqueue_run`) e responde `run_id` (202, `status=pending`) — run longo não cabe
+      no request. **`GET /runs/{id}`** é **SSE** (`text/event-stream`, frames `data: <json>`):
+      assina o canal Redis pub/sub do run (`subscribe_progress`, F2.10) e repassa cada
+      `ProgressEvent`. **`POST /runs/{id}/resume`** fecha o laço do HITL sync (F2.8): enfileira o
+      **novo driver de retomada** que esta task entregou — `resume_pipeline` (em `progress.py`,
+      irmão do `stream_pipeline`: `Command(resume=<decisão>)` na thread persistida, emite só os nós
+      restantes + terminal) e `resume_graph_job`/`enqueue_resume` (worker, `job_id="{run_id}:resume"`
+      distinto do job original). Refatorei o `stream_pipeline` extraindo o núcleo `_drive`/`_publish`
+      compartilhado (sem mudar o comportamento — `test_progress` segue verde). **`GET /companies`**
+      projeta `Company` + o `Score` (AIMI/classe/`inception_priority`) do run mais recente + techs
+      recomendadas (`Recommendation`), com os filtros setor/AIMI/classe (F5.4) e as **duas facetas de
+      tech** (F5.11 — a que a startup usa e a NVIDIA recomendada; match por substring, a normalização
+      de vocabulário fica na F5.11), ordenado por `inception_priority` (fila de outreach, F6.13).
+      **`GET /briefings/{id}`** serve o relatório (F4.4) do estado persistido (checkpoint, F2.2) em
+      **JSON | Markdown | PDF** (reusa `render_markdown`/`render_pdf` da F4.6 — base do export F5.8),
+      404 sem briefing. Recursos vivos (fila/Redis/sessão/leitor de briefing) entram por
+      **dependência** sobrescrevível, então a `tests/test_api.py` exercita tudo **offline** (SQLite em
+      memória, fila/SSE/loader stubados — sem broker/Postgres/worker). **Auth deferida à F5.9** (gancho
+      de dependência documentado, não implementado aqui). **Gate verde:** `ruff` limpo e `pytest`
+      (608 passed, 4 skipped). `requirements-ci.txt` ganhou `fastapi`+`httpx` (test client), no padrão
+      do `reportlab`/`pypdf` da F4.6.
 - [ ] **F5.3** Tela de consulta (**dois modos**: single-company lookup e discovery por setor/região,
       F2.3) + acompanhamento **ao vivo** do pipeline via **SSE**.
 - [ ] **F5.4** Lista/busca de startups (filtros por setor, AIMI, classificação) **+ ordenação por

@@ -11,5 +11,7 @@ langfuse>=3
 pyyaml
 reportlab  # PDF do briefing (F4.6) — exercitado por tests/test_briefing.py
 pypdf      # verifica o conteúdo do PDF nos testes (extração de texto)
+fastapi    # API HTTP (F5.2) — exercitada por tests/test_api.py
+httpx      # cliente do fastapi.testclient.TestClient (tests/test_api.py)
 pytest
 ruff

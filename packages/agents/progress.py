@@ -35,9 +35,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from langgraph.checkpoint.base import BaseCheckpointSaver
+    from langgraph.graph.state import CompiledStateGraph
     from redis import Redis
 
-    from packages.observability import LLMBudget
+    from packages.observability import LLMBudget, TokenUsage
 
 #: Nó sentinela do **evento terminal** (run encerrou/pausou). O consumidor SSE (F5.3) o
 #: lê para fechar o stream; `status` carrega o desfecho real (completed/awaiting_review/…).
@@ -87,6 +88,56 @@ def _pct(node: str) -> int | None:
     return round((PIPELINE.index(node) + 1) / len(PIPELINE) * 100)
 
 
+def _publish(
+    on_event: Callable[[ProgressEvent], None] | None,
+    run_id: str,
+    node: str,
+    status: str,
+    pct: int | None,
+) -> None:
+    """Emite um `ProgressEvent` no sink, se houver (no-op offline, sem `on_event`)."""
+    if on_event is not None:
+        on_event(ProgressEvent(run_id=run_id, node=node, status=status, pct=pct))
+
+
+def _drive(
+    compiled: CompiledStateGraph,
+    inp: Any,
+    config: dict,
+    *,
+    run_id: str,
+    fallback: GraphState,
+    budget: LLMBudget | None,
+    on_event: Callable[[ProgressEvent], None] | None,
+) -> tuple[GraphState, TokenUsage]:
+    """Núcleo de streaming: roda o grafo, emite um evento por nó e devolve (estado, uso).
+
+    Compartilhado por `stream_pipeline` (run novo, `inp=GraphState`) e `resume_pipeline`
+    (retomada, `inp=Command(resume=...)`). `stream_mode=["updates","values"]`: **updates** dá o
+    nó que acabou (→ evento `running`), **values** acumula o estado cheio. Sentinelas do
+    LangGraph (`__interrupt__`, …) são puladas. Sem `values` acumulado devolve o `fallback`. O
+    `capture_usage` (F2.9) soma tokens/custo no escopo, com a guarda de orçamento (F2.11).
+    """
+    from packages.observability import capture_usage
+
+    latest: dict[str, Any] | None = None
+    with capture_usage(budget=budget) as usage:
+        for stream_mode, chunk in compiled.stream(inp, config, stream_mode=["updates", "values"]):
+            if stream_mode == "values":
+                # No interrupt (F2.8) o chunk de values carrega um `__interrupt__` extra; o
+                # estado é `extra="forbid"`, então fica só com os campos próprios do estado.
+                latest = {k: v for k, v in chunk.items() if not k.startswith("__")}
+                continue
+            for node in chunk:  # updates: {node: update} — espinha linear (1 chave)
+                if node.startswith("__"):  # __interrupt__ etc. não é nó da espinha
+                    continue
+                _publish(on_event, run_id, node, RunStatus.RUNNING.value, _pct(node))
+        total = usage.total()
+
+    state = GraphState.model_validate(latest) if latest is not None else fallback
+    return state, total
+
+
 def stream_pipeline(
     query: str,
     *,
@@ -102,10 +153,7 @@ def stream_pipeline(
     Variante streaming do `run_pipeline` (F2.1) para o worker (F2.10): reusa o mesmo
     `traced_config` (span por nó, F2.9), o `capture_usage` (rollup de tokens em
     `trace["usage"]`) e a guarda de orçamento (F2.11 — `budget`/`budget_from_settings`,
-    estampada por `stamp_usage`). Usa `stream_mode=["updates","values"]`: o **updates** dá o
-    nome do nó que acabou (→ evento por nó, `status="running"`), o **values** acumula o estado
-    cheio (→ estado final + estampa de custo). Sentinelas do LangGraph (`__interrupt__`,
-    …) são puladas.
+    estampada por `stamp_usage`). O streaming por nó roda no núcleo `_drive`.
 
     Ao fim, emite **um evento terminal** (`node=END_NODE`, `pct=100`) com o desfecho real:
     se o grafo pausou para HITL sync (F2.8 — `checkpointer` presente e há nó pendente),
@@ -113,7 +161,7 @@ def stream_pipeline(
     (`completed`/`insufficient_data`/`out_of_scope`, F2.12/F2.13). Sem `on_event` nada é
     publicado (offline default); o grafo roda igual ao `run_pipeline`.
     """
-    from packages.observability import budget_from_settings, capture_usage, traced_config
+    from packages.observability import budget_from_settings, traced_config
 
     run_id = run_id or uuid.uuid4().hex
     init = GraphState(run_id=run_id, query=query, mode=mode, hitl=hitl)
@@ -123,33 +171,62 @@ def stream_pipeline(
     if checkpointer is not None:
         config["configurable"] = {"thread_id": run_id}
 
-    def _emit(node: str, status: str, pct: int | None) -> None:
-        if on_event is not None:
-            on_event(ProgressEvent(run_id=run_id, node=node, status=status, pct=pct))
-
     compiled = compile_graph(checkpointer=checkpointer)
-    latest: dict[str, Any] | None = None
-    with capture_usage(budget=budget) as usage:
-        for stream_mode, chunk in compiled.stream(init, config, stream_mode=["updates", "values"]):
-            if stream_mode == "values":
-                # No interrupt (F2.8) o chunk de values carrega um `__interrupt__` extra; o
-                # estado é `extra="forbid"`, então fica só com os campos próprios do estado.
-                latest = {k: v for k, v in chunk.items() if not k.startswith("__")}
-                continue
-            for node in chunk:  # updates: {node: update} — espinha linear (1 chave)
-                if node.startswith("__"):  # __interrupt__ etc. não é nó da espinha
-                    continue
-                _emit(node, RunStatus.RUNNING.value, _pct(node))
-        total = usage.total()
+    state, total = _drive(
+        compiled, init, config, run_id=run_id, fallback=init, budget=budget, on_event=on_event
+    )
 
     # Pausa HITL sync (F2.8) só existe com checkpointer; nó pendente ⇒ awaiting_review.
     interrupted = checkpointer is not None and bool(compiled.get_state(config).next)
 
-    state = GraphState.model_validate(latest) if latest is not None else init
     state = stamp_usage(state, total, budget)
-
     final_status = RunStatus.AWAITING_REVIEW.value if interrupted else state.status.value
-    _emit(END_NODE, final_status, 100)
+    _publish(on_event, run_id, END_NODE, final_status, 100)
+    return state
+
+
+def resume_pipeline(
+    run_id: str,
+    decision: Any,
+    *,
+    checkpointer: BaseCheckpointSaver,
+    on_event: Callable[[ProgressEvent], None] | None = None,
+    budget: LLMBudget | None = None,
+) -> GraphState:
+    """Retoma um run pausado no HITL sync (F2.8) com a decisão humana e segue até o fim.
+
+    Contraparte do `stream_pipeline` para o `POST /runs/{id}/resume` (F5.2): o run já correu
+    até o interrupt do `human_review` e ficou **persistido** na thread `run_id` (checkpointer
+    F2.2). A execução retoma com `Command(resume=decision)` — o valor vira o retorno do
+    `interrupt()`, registrado em `trace["human_review"]` (auditável) — emitindo progresso só
+    dos nós restantes (`human_review` → `briefing`) + o **terminal** (`completed`, ou de novo
+    `awaiting_review` se o run tornar a pausar). Requer o `checkpointer` com a thread pausada
+    (a API abre o Postgres/F2.2; testes injetam um `InMemorySaver` já interrompido).
+    """
+    from langgraph.types import Command
+
+    from packages.observability import budget_from_settings, traced_config
+
+    budget = budget if budget is not None else budget_from_settings()
+    config = traced_config(node=RUN_NAME, run_id=run_id)
+    config["configurable"] = {"thread_id": run_id}
+
+    compiled = compile_graph(checkpointer=checkpointer)
+    fallback = GraphState.model_validate(compiled.get_state(config).values)
+    state, total = _drive(
+        compiled,
+        Command(resume=decision),
+        config,
+        run_id=run_id,
+        fallback=fallback,
+        budget=budget,
+        on_event=on_event,
+    )
+
+    interrupted = bool(compiled.get_state(config).next)
+    state = stamp_usage(state, total, budget)
+    final_status = RunStatus.AWAITING_REVIEW.value if interrupted else state.status.value
+    _publish(on_event, run_id, END_NODE, final_status, 100)
     return state
 
 

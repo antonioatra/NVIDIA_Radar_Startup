@@ -6,6 +6,18 @@ que executa o grafo persistido (F2.2) e publica o progresso no canal Redis pub/s
 do run (F2.10) consumido pelo SSE (F5.3).
 """
 
-from .jobs import default_queue, enqueue_run, run_graph_job
+from .jobs import (
+    default_queue,
+    enqueue_resume,
+    enqueue_run,
+    resume_graph_job,
+    run_graph_job,
+)
 
-__all__ = ["run_graph_job", "enqueue_run", "default_queue"]
+__all__ = [
+    "run_graph_job",
+    "resume_graph_job",
+    "enqueue_run",
+    "enqueue_resume",
+    "default_queue",
+]

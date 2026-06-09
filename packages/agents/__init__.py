@@ -56,6 +56,7 @@ from .progress import (
     ProgressEvent,
     RedisProgressPublisher,
     progress_channel,
+    resume_pipeline,
     stream_pipeline,
     subscribe_progress,
 )
@@ -168,6 +169,7 @@ __all__ = [
     "review_payload",
     # progresso ao vivo + worker async (F2.10)
     "stream_pipeline",
+    "resume_pipeline",
     "ProgressEvent",
     "progress_channel",
     "RedisProgressPublisher",
