@@ -50,8 +50,26 @@
       de dependência documentado, não implementado aqui). **Gate verde:** `ruff` limpo e `pytest`
       (608 passed, 4 skipped). `requirements-ci.txt` ganhou `fastapi`+`httpx` (test client), no padrão
       do `reportlab`/`pypdf` da F4.6.
-- [ ] **F5.3** Tela de consulta (**dois modos**: single-company lookup e discovery por setor/região,
+- [x] **F5.3** Tela de consulta (**dois modos**: single-company lookup e discovery por setor/região,
       F2.3) + acompanhamento **ao vivo** do pipeline via **SSE**.
+      → `apps/frontend/src/app/consulta/`: casca **server** (`page.tsx`, metadata + cabeçalho PT-BR)
+      sobre o **console client** (`console.tsx`, `"use client"`). O formulário tem os **dois modos**
+      como segmented control (`single_company` / `discovery` → `ExecutionMode`, F2.3) e deriva o
+      `hitl` do modo (single→`sync`, discovery→`auto`, F2.8). Fluxo: `createRun` (`POST /runs`) →
+      `run_id` → **`EventSource`** no `GET /runs/{id}` (F5.2); consome cada `ProgressEvent`
+      (status=running, o nó que acabou) e fecha o stream no **terminal** `END_NODE`, lendo o desfecho
+      real (`completed`/`awaiting_review`/…). A espinha do grafo é espelhada em `src/lib/pipeline.ts`
+      (ordem/nomes de `PIPELINE`, F2.1) com rótulos PT-BR + `statusLabel` (`RunStatus`); a UI desenha
+      a **barra por `pct`** e marca cada etapa (check/spinner/anel) pelos nós já vistos. O
+      `awaiting_review` **degrada gracioso** (nota apontando F5.10, sem antecipar a tela de
+      aprovação). Cliente da API isolado em `src/lib/api.ts` com base por **`NEXT_PUBLIC_API_URL`**
+      (default `http://localhost:8000`; **auth F5.9 deferida** — entra como header aqui). A **home**
+      passou a habilitar "Nova consulta" (`<Link href="/consulta">` via `buttonVariants`); "Ver radar
+      de startups" segue desabilitado (F5.4). **Gate verde** (o gate da fase): `npm run lint` e
+      `npm run build` limpos (TypeScript 0 erros, `/consulta` prerenderizada estática); nenhum Python
+      tocado, então `ruff`/`pytest` do backend seguem verdes. **Nota Next 16:** consultei
+      `node_modules/next/dist/docs/` (App Router, server×client, params Promise) antes de escrever —
+      ícones via CSS (sem depender de nomes do `lucide-react`, que mudam entre versões).
 - [ ] **F5.4** Lista/busca de startups (filtros por setor, AIMI, classificação) **+ ordenação por
       `inception_priority` (F6.13)** — a fila de outreach do gerente.
 - [ ] **F5.5** Detalhe da startup: **radar AIMI** (4 pilares) + evidências com link à fonte.

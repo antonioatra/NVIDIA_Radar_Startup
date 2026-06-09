@@ -1,4 +1,7 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Telas do dashboard (Entregavel 5). O scaffold (F5.1) entrega a casca + tema PT-BR;
 // cada tela chega na sua task (F5.3..F5.8), consumindo a API (F5.2).
@@ -50,13 +53,15 @@ export default function Home() {
             decisao de outreach do gerente de Startups &amp; VCs.
           </p>
           <div className="mt-2 flex flex-wrap gap-3">
-            <Button disabled>Nova consulta</Button>
-            <Button variant="outline" disabled>
+            <Link href="/consulta" className={cn(buttonVariants({ size: "lg" }))}>
+              Nova consulta
+            </Link>
+            <Button variant="outline" size="lg" disabled>
               Ver radar de startups
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Acoes habilitam quando a API (F5.2) e as telas (F5.3+) entrarem.
+            A consulta (F5.3) ja roda; o radar de startups habilita na F5.4.
           </p>
         </header>
 
