@@ -8,6 +8,10 @@ Eval set rotulado (classificação + AIMI esperado, F1.12) — consumido por F6.
 
 Avaliação RAGAS do RAG (F3.9) — espinha verde offline + juiz LLM plugável (F7.3):
 `from packages.eval import evaluate_rag, get_evaluator, load_baseline`.
+
+Aderência ao §5.5 da recomendação (F4.8) — os 7 exemplos do brief como ground-truth do
+recommender (consolidada na F7.2):
+`from packages.eval import evaluate_recommendation_cases, SECTION_55_CASES`.
 """
 
 from .dataset import (
@@ -44,6 +48,15 @@ from .ragas import (
     load_rag_questions,
     write_baseline,
 )
+from .recommend_cases import (
+    SECTION_55_CASES,
+    CaseResult,
+    RecommendationCase,
+    RecommendationEvalReport,
+    evaluate_recommendation_cases,
+    full_recall_retrieval,
+    run_case,
+)
 
 __all__ = [
     "EVAL_DIR",
@@ -76,4 +89,12 @@ __all__ = [
     "evaluate_rag",
     "write_baseline",
     "load_baseline",
+    # aderência ao §5.5 da recomendação (F4.8) — consolidada na F7.2
+    "RecommendationCase",
+    "SECTION_55_CASES",
+    "full_recall_retrieval",
+    "CaseResult",
+    "RecommendationEvalReport",
+    "run_case",
+    "evaluate_recommendation_cases",
 ]

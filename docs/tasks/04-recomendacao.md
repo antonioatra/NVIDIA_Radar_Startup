@@ -163,11 +163,31 @@ NVIDIA citável; o GPU Graduation Engine (F6.11) anexa o **ROI**. A confiabilida
       `tests/test_recommendation_persistence.py` (linha gravada com enums/pilar; evidência dos
       dois lados ligada ao id; ROI ↔ JSON; idempotência no mesmo run sem duplicar evidência;
       upsert enriquecendo em hit; múltiplas techs).
-- [ ] **F4.8** **Casos de teste dos 7 exemplos do §5.5** (aderência ao brief): assevera que o
+- [x] **F4.8** **Casos de teste dos 7 exemplos do §5.5** (aderência ao brief): assevera que o
       recommender produz o esperado — voz→Riva+NIM; dados tabulares→RAPIDS/cuDF/cuML;
       saúde→Clara/MONAI/NIM/Guardrails/AI Enterprise; atendimento via API→NIM/Guardrails/Triton+benchmark;
       robotics→Isaac/Omniverse; latência→Triton/TensorRT-LLM/batching; governança→Guardrails+NeMo.
       Vive em `packages/eval` (consolidado na F7.2).
+      → `packages/eval/recommend_cases.py`: os 7 exemplos do §5.5 como **ground-truth tipado**
+      (`SECTION_55_CASES`) + o harness que roda o recommender (F4.2/F4.3) end-to-end por caso e
+      agrega num `RecommendationEvalReport` (a F7.2 consolida em métrica). Fecha o ponta-a-ponta
+      dos 7 que a `test_recommend_rules.py` (F4.1) só cobria em 5, no nível de regra. **Decisão
+      (espinha verde/offline, igual à RAGAS/F3.9):** a avaliação roda sobre uma **recuperação de
+      recall máximo** (`full_recall_retrieval` — uma citação para **toda** tech recomendável da KB,
+      montada do manifesto real/F3.1), não sobre o `nvidia_rag` (F3.7). Isso **isola a aderência da
+      prescrição** (gap/setor → tech, F4.1) + o invariante dos dois lados (F4.5) do **recall do RAG
+      lexical** — dimensão à parte, já garantida recuperável pela cobertura (F3.8) e medida em
+      qualidade pela RAGAS (F7.3) — e é a única forma de cobrir `dados tabulares→RAPIDS/cuDF/cuML`
+      ponta a ponta, pois esse é um eixo de setor **exclusivo** do mapa de regras (o F3.7 não tem
+      query de setor tabular). O recommender ainda **seleciona** (`match_techs`) e **cruza** por
+      `kb_tech` — o harness não lhe diz a resposta, só não o faz refém do ranqueamento. Cada caso
+      verifica `expected ⊆ produzido` (subconjunto: prescrever mais é ok) por substring do rótulo,
+      e **dois lados em toda recomendação**. `+benchmark` (atendimento) é o ROI do GPU Graduation
+      Engine (F6), não tech; `+batching` (latência) é recurso do Triton — ambos documentados no
+      `nota` do caso, fora do `expected_techs`. O caminho LLM (F4.2) entra por `recommend=` e só
+      refina a redação (aderência/evidência continuam deterministas). Testes em
+      `tests/test_recommend_cases.py` (cada caso adere com dois lados; relatório `adherence==1.0`
+      sobre os 7; cobertura exata dos 7 ids; determinismo; refino LLM preservando a aderência).
 
 ## Tecnologias
 Nemotron-Super · NeMo Guardrails · PostgreSQL · (gancho p/ ROI do F6).
