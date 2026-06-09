@@ -70,8 +70,26 @@
       tocado, então `ruff`/`pytest` do backend seguem verdes. **Nota Next 16:** consultei
       `node_modules/next/dist/docs/` (App Router, server×client, params Promise) antes de escrever —
       ícones via CSS (sem depender de nomes do `lucide-react`, que mudam entre versões).
-- [ ] **F5.4** Lista/busca de startups (filtros por setor, AIMI, classificação) **+ ordenação por
+- [x] **F5.4** Lista/busca de startups (filtros por setor, AIMI, classificação) **+ ordenação por
       `inception_priority` (F6.13)** — a fila de outreach do gerente.
+      → `apps/frontend/src/app/radar/`: casca **server** (`page.tsx`, metadata + cabeçalho PT-BR)
+      sobre o **board client** (`board.tsx`, `"use client"`) que consome o `GET /companies` (F5.2).
+      Os **três filtros** da task — `setor` (input texto), `classificacao` (segmented AI-native/
+      AI-enabled/non-AI, espelha `Classification` §5.1) e `min_aimi` (range 0–100) — combinam em AND
+      no backend; a lista **já vem ordenada por `inception_priority` desc** (a API ordena, F6.13), a
+      UI só numera as linhas. Cada empresa mostra nome + badge de classe (AI-native em destaque) +
+      AIMI + Inception Priority, com `—` quando ainda não pontuada (campos de diagnóstico opcionais).
+      Cliente da API ganhou `listCompanies(filters)` + o tipo `CompanyOut` em `src/lib/api.ts`
+      (monta a query com `URLSearchParams`, omite vazios). O board **rebusca com debounce de 300ms**
+      ao mudar qualquer filtro (sem martelar a API a cada tecla do setor) e degrada com estados
+      `loading`/`error`/vazio. **Sem antecipar fase futura:** as facetas de tech (F5.11) e o detalhe
+      AIMI clicável (F5.5) ficam fora — nota na UI apontando a F5.5. A **home** habilitou "Ver radar
+      de startups" (`<Link href="/radar">` via `buttonVariants`, removido o `<Button disabled>`).
+      **Gate verde** (o gate da fase): `npm run lint` e `npm run build` limpos (TypeScript 0 erros,
+      `/radar` prerenderizada estática); nenhum Python tocado, então `ruff`/`pytest` do backend
+      seguem verdes. **Nota Next 16:** o lint novo do React 19 (`react-hooks/set-state-in-effect`)
+      barra `setState` síncrono no corpo do effect — o `setPhase("loading")` foi para dentro do
+      callback do timer (o estado inicial já é `loading`, então o primeiro load não pisca).
 - [ ] **F5.5** Detalhe da startup: **radar AIMI** (4 pilares) + evidências com link à fonte.
 - [ ] **F5.6** Cartões de recomendação (§5.5) + número de ROI. **ROI é opcional:** vem do F6, que
       roda em paralelo a esta fase — a UI degrada graciosamente (mostra a recomendação sem o ROI

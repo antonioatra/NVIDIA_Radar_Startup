@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // Telas do dashboard (Entregavel 5). O scaffold (F5.1) entrega a casca + tema PT-BR;
@@ -56,12 +56,15 @@ export default function Home() {
             <Link href="/consulta" className={cn(buttonVariants({ size: "lg" }))}>
               Nova consulta
             </Link>
-            <Button variant="outline" size="lg" disabled>
+            <Link
+              href="/radar"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+            >
               Ver radar de startups
-            </Button>
+            </Link>
           </div>
           <p className="text-sm text-muted-foreground">
-            A consulta (F5.3) ja roda; o radar de startups habilita na F5.4.
+            A consulta (F5.3) e o radar de startups (F5.4) ja rodam; o detalhe AIMI habilita na F5.5.
           </p>
         </header>
 
