@@ -4,7 +4,24 @@
 **Dependências:** F2, F4. **Marco:** M5.
 
 ## Tasks
-- [ ] **F5.1** Setup Next.js (App Router) + TypeScript + Tailwind + shadcn/ui. **UI em PT-BR** (F0.13).
+- [x] **F5.1** Setup Next.js (App Router) + TypeScript + Tailwind + shadcn/ui. **UI em PT-BR** (F0.13).
+      → `apps/frontend/`: scaffold via `create-next-app` (decisão já travada no README do app) —
+      **Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui**, `src/`-dir e alias `@/*`.
+      `shadcn init` gravou `components.json` (baseColor neutral), `src/lib/utils.ts` (`cn`) e
+      `src/components/ui/button.tsx`; os design tokens (oklch, dark via classe `.dark`) foram para o
+      `globals.css`. **PT-BR (F0.13):** `<html lang="pt-BR">` + metadata e home page em português — a
+      casca lista as telas do entregável como roadmap (consulta/F5.3, radar/F5.4, diagnóstico
+      AIMI/F5.5, recomendações/F5.6, briefing/F5.8), com os botões shadcn **desabilitados** até a API
+      (F5.2) e as telas (F5.3+) existirem (sem antecipar fase futura). Corrigi a fiação de fontes que o
+      `shadcn init` deixou inconsistente (liguei `--font-sans`/`--font-mono` do `@theme` às fontes Geist
+      do layout) e fixei `turbopack.root` no `next.config.ts` — havia múltiplos `package-lock.json` na
+      árvore (home do usuário + raiz) e o Next inferia o workspace root errado. **Gate verde** (o
+      `npm run build` é o gate da fase, equivalente ao pytest do backend): `npm run lint` e
+      `npm run build` limpos (build estático, 0 erros de TypeScript); ruff/pytest do backend seguem
+      verdes (nenhum Python tocado). `node_modules`/`.next` git-ignored; `package-lock.json` commitado
+      para builds reprodutíveis. **Nota Next 16:** versão pós-cutoff com breaking changes — o
+      `create-next-app` deixou um `apps/frontend/AGENTS.md`/`CLAUDE.md` apontando para os docs
+      empacotados em `node_modules/next/dist/docs/` (consultar antes de mexer no app).
 - [ ] **F5.2** API FastAPI: endpoints `POST /runs`, `GET /runs/{id}`, `GET /companies`,
       `/briefings/{id}` **+ `POST /runs/{id}/resume`** (retoma o grafo após o HITL — F2.8). O SSE
       de `GET /runs/{id}` lê o canal Redis pub/sub publicado pelo worker (F2.10). `GET /companies`
