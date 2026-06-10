@@ -48,6 +48,17 @@ export function runStreamUrl(runId: string): string {
   return `${API_URL}/runs/${encodeURIComponent(runId)}`;
 }
 
+// Formatos do briefing servidos por `GET /briefings/{id}` (F4.6): JSON | Markdown | PDF.
+export type BriefingFormat = "json" | "md" | "pdf";
+
+// URL do briefing executivo renderizado de um run (`GET /briefings/{id}`, F4.4/F4.6 — export
+// F5.8). O backend devolve o PDF com `Content-Disposition: inline`, entao abrir num
+// `<a target="_blank">` exibe o relatorio (o usuario salva de la). A auth (F5.9) entrara como
+// query/header aqui — por isso e uma URL montada, nao um fetch.
+export function briefingUrl(runId: string, format: BriefingFormat = "pdf"): string {
+  return `${API_URL}/briefings/${encodeURIComponent(runId)}?format=${format}`;
+}
+
 // Projecao de empresa da lista (CompanyOut, apps/api/schemas.py — F5.4): perfil achatado com o
 // diagnostico AIMI mais recente. Os campos de diagnostico sao opcionais — empresa coletada mas
 // ainda nao pontuada chega sem classe/AIMI. As facetas de tech (F5.11) ja vem populadas, mas o

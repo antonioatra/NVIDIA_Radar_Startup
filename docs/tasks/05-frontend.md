@@ -182,7 +182,29 @@
       +7 testes (done/skipped/pending, ramo terminal, custo/orçamento/Langfuse, endpoint + 404).
       Frontend `npm run lint` e `npm run build` limpos (TypeScript 0 erros, `/runs/[id]/trace`
       server-rendered como o `/radar/[id]`).
-- [ ] **F5.8** Export do briefing em PDF.
+- [x] **F5.8** Export do briefing em PDF.
+      → **Frontend** (`apps/frontend/`): superfície de export sobre o `GET /briefings/{id}` que a
+      F5.2 já entrega em JSON|Markdown|PDF (renderizadores deterministas da F4.6) — esta task **não
+      tocou backend**. `lib/api.ts` ganhou `briefingUrl(runId, format)` (+ tipo `BriefingFormat`):
+      **monta a URL** do relatório em vez de fazer `fetch`, porque o PDF sai com
+      `Content-Disposition: inline` e a auth (F5.9) entrará como query/header aqui. O **console da
+      consulta** (`consulta/console.tsx`, F5.3) ganhou, ao concluir, o link **"Exportar briefing
+      (PDF)"** ao lado do "Ver passos do run (trace)" (F5.7) — agrupei os dois numa linha de ações.
+      Abre o PDF em nova aba (`target=_blank` + `rel=noopener noreferrer`, mesma disciplina dos links
+      de evidência da F5.5/F5.6); cross-origin ignora `download`, então o relatório inline é o
+      caminho honesto (o gerente salva de lá). **Só oferece o PDF quando há briefing:** novo helper
+      `hasBriefing(status)` em `pipeline.ts` (junto do `STATUS_LABELS`) libera o link só nos
+      desfechos que chegaram ao nó `briefing` — `completed` e os ramos terminais que saltam direto a
+      ele (`insufficient_data` F2.12 / `out_of_scope` F2.13) — e o esconde em `awaiting_review`
+      (pausa ANTES do briefing, F2.8/F5.10) e `failed`, evitando um link que daria 404. O status
+      terminal vem **sempre** no evento `END_NODE` (F2.10), então o gate é confiável mesmo se algum
+      evento intermediário se perder. **Sem antecipar fase futura:** export só do PDF (o helper já
+      aceita md/json para reuso), sem página dedicada de briefing nem auth (F5.9). **Gate verde** (o
+      gate da fase): `npm run lint` e `npm run build` limpos (TypeScript 0 erros, `/consulta` segue
+      prerenderizada estática — o link é client, não muda a rota); nenhum Python tocado, então
+      `ruff`/`pytest` do backend seguem verdes. **Nota Next 16:** só edição de client component
+      existente; link externo (cross-origin para a API) é `<a>` puro, não `next/link` (igual aos
+      links de evidência da F5.5) — `AGENTS.md`/`node_modules/next/dist/docs/` consultados.
 - [ ] **F5.9** **Auth leve (gate interno):** a ferramenta é interna do gerente de Startups & VCs
       da NVIDIA Brasil — não é público. Proteger a API e a UI com autenticação simples
       (API key/bearer token via env, ou login único), aplicada como dependência nos endpoints
@@ -212,7 +234,8 @@
 Next.js · React · TypeScript · Tailwind/shadcn · FastAPI · SSE · auth (API key/bearer).
 
 ## DoD
-- [ ] Fluxo completo navegável: consulta → progresso → empresa → recomendação → export PDF.
+- [x] Fluxo completo navegável: consulta → progresso (F5.3) → empresa (F5.4/F5.5) → recomendação
+      (F5.6) → export PDF (F5.8). *(Auth F5.9, filtro por tech F5.11 e HITL F5.10 seguem abertos.)*
 - [ ] API e UI exigem credencial; endpoints não respondem sem auth (F5.9).
 - [ ] Lista filtrável por tecnologia (tech da startup + tech NVIDIA recomendada), além de
       setor/AIMI/classificação (F5.11, MVP).

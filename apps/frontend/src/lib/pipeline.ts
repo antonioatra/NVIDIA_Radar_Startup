@@ -32,3 +32,14 @@ const STATUS_LABELS: Record<string, string> = {
 export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
+
+// Desfechos terminais em que o run chegou ao no `briefing` — logo, ha relatorio para exportar
+// (F5.8): o caminho completo (completed) e os ramos terminais que saltam direto ao briefing
+// (insufficient_data F2.12 / out_of_scope F2.13). `awaiting_review` pausa ANTES do briefing e
+// `failed` nao o alcanca, entao nao tem o que exportar.
+const BRIEFING_STATES = new Set(["completed", "insufficient_data", "out_of_scope"]);
+
+// Ha briefing exportavel para este desfecho? (gate do botao de export PDF no console, F5.8).
+export function hasBriefing(status: string | null | undefined): boolean {
+  return status != null && BRIEFING_STATES.has(status);
+}

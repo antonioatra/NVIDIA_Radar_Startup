@@ -11,12 +11,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  briefingUrl,
   createRun,
   type ProgressEvent,
   type RunMode,
   runStreamUrl,
 } from "@/lib/api";
-import { END_NODE, PIPELINE_STEPS, statusLabel } from "@/lib/pipeline";
+import { END_NODE, hasBriefing, PIPELINE_STEPS, statusLabel } from "@/lib/pipeline";
 
 type Phase = "idle" | "starting" | "streaming" | "done" | "error";
 
@@ -189,14 +190,28 @@ export function ConsultaConsole() {
             </div>
           )}
 
-          {/* Trace viewer (F5.7): passos dos agentes do run a partir do estado persistido. */}
+          {/* Acoes ao concluir: trace dos agentes (F5.7) + export do briefing em PDF (F5.8). */}
           {phase === "done" && runId && (
-            <Link
-              href={`/runs/${encodeURIComponent(runId)}/trace`}
-              className="w-fit text-sm text-primary hover:underline"
-            >
-              Ver passos do run (trace) →
-            </Link>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <Link
+                href={`/runs/${encodeURIComponent(runId)}/trace`}
+                className="text-sm text-primary hover:underline"
+              >
+                Ver passos do run (trace) →
+              </Link>
+              {/* So oferece o PDF quando o run chegou ao briefing (F5.8): completou ou caiu
+                  num ramo terminal que salta ao briefing — nao em pausa HITL nem falha. */}
+              {hasBriefing(activeFinal) && (
+                <a
+                  href={briefingUrl(runId, "pdf")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Exportar briefing (PDF) ↓
+                </a>
+              )}
+            </div>
           )}
 
           {phase === "error" && error && (
