@@ -19,14 +19,34 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from apps.api.deps import db_session, get_briefing_loader, get_progress_source, get_queue
+from apps.api.deps import (
+    db_session,
+    get_briefing_loader,
+    get_langfuse_url,
+    get_progress_source,
+    get_queue,
+    get_trace_loader,
+)
 from apps.api.main import app
+from apps.api.trace import build_run_trace
 from apps.worker import resume_graph_job, run_graph_job
 from packages.agents.briefing import build_briefing
 from packages.agents.progress import END_NODE, ProgressEvent
 from packages.db.models import Company, Evidence, Run, Score
 from packages.db.models import Recommendation as RecommendationRow
-from packages.schemas import AIMIScore, Classification, PillarScore
+from packages.schemas import (
+    AIMIScore,
+    Classification,
+    GraphState,
+    PillarScore,
+    RawDocument,
+    Recommendation,
+    RetrievedChunk,
+    ROIEstimate,
+    RunStatus,
+    StartupProfile,
+)
+from packages.schemas import Evidence as SchemaEvidence
 from packages.schemas.enums import AIMIPillar
 
 
@@ -394,3 +414,137 @@ def test_briefing_404_when_absent(client: TestClient) -> None:
 def test_briefing_rejects_bad_format(client: TestClient) -> None:
     app.dependency_overrides[get_briefing_loader] = lambda: (lambda run_id: _briefing())
     assert client.get("/briefings/r1?format=xml").status_code == 422
+
+
+# --- run trace (F5.7) ---------------------------------------------------------
+
+
+def _scored_state(status: RunStatus, **extra) -> GraphState:
+    """Run que chegou ao classifier (perfil + AIMI) num dado status — base dos casos de trace."""
+    return GraphState(
+        run_id="r1",
+        query="Acme Health",
+        status=status,
+        search_terms=["acme"],
+        sources=["https://acme.health"],
+        raw_docs=[
+            RawDocument(url="https://acme.health", content="x", fetched_at=datetime.now(UTC))
+        ],
+        profile=StartupProfile(nome="Acme Health"),
+        # score ≤ 6 dispensa evidência (RUBRICA §0); total = 5×4 = 20.
+        aimi=_aimi(5, Classification.AI_NATIVE),
+        **extra,
+    )
+
+
+def _completed_state(run_id: str = "r1") -> GraphState:
+    """Run que percorreu a espinha inteira (briefing pronto) — com rollup de custo carimbado."""
+    now = datetime.now(UTC)
+    state = _scored_state(
+        RunStatus.COMPLETED,
+        retrieved=[RetrievedChunk(text="NIM serve modelos na GPU")],
+        recommendations=[
+            Recommendation(
+                tech="NVIDIA NIM",
+                justificativa_tecnica="serving otimizado",
+                justificativa_negocio="reduz custo",
+                prioridade="alta",
+                complexidade="media",
+                proxima_acao="testar NIM",
+                evidencia_gap=[
+                    SchemaEvidence(
+                        url="https://acme.health/infra", snippet="API externa", fetched_at=now
+                    )
+                ],
+                evidencia_nvidia=[
+                    SchemaEvidence(
+                        url="https://build.nvidia.com/nim", snippet="NIM na GPU", fetched_at=now
+                    )
+                ],
+                roi=ROIEstimate(throughput_speedup=3.0),
+            )
+        ],
+        benchmark=ROIEstimate(throughput_speedup=3.0),
+        briefing=_briefing(),
+        trace={
+            "usage": {
+                "input_tokens": 1200,
+                "output_tokens": 300,
+                "total_tokens": 1500,
+                "calls": 4,
+                "cost_usd": 0.012,
+            }
+        },
+    )
+    return state.model_copy(update={"run_id": run_id})
+
+
+def test_build_run_trace_marks_done_steps_with_summary() -> None:
+    by_node = {s.node: s for s in build_run_trace(_completed_state()).steps}
+
+    assert by_node["search_planner"].summary == "1 termos · 1 fontes"
+    assert by_node["scraper"].summary == "1 documentos coletados"
+    assert by_node["extractor"].summary == "perfil: Acme Health"
+    assert by_node["classifier"].summary.startswith("AI-native · AIMI")
+    assert by_node["evidence_validator"].summary == "evidências validadas"
+    assert by_node["nvidia_rag"].summary == "1 trechos da KB NVIDIA"
+    assert by_node["gpu_benchmark"].summary == "ROI estimado"
+    assert by_node["human_review"].summary == "aprovado"  # completed → revisão concluída
+    assert by_node["briefing"].status == "done"
+    assert all(s.status == "done" for s in by_node.values())
+
+
+def test_build_run_trace_terminal_branch_skips_unreached() -> None:
+    # Ramo terminal de baixa confiança (F2.12): evidence_validator salta ao briefing, pulando o
+    # miolo (rag/recommender/benchmark/human_review) — que sai como `skipped`, não `pending`.
+    state = _scored_state(RunStatus.INSUFFICIENT_DATA, briefing=_briefing())
+    by_node = {s.node: s.status for s in build_run_trace(state).steps}
+
+    assert by_node["classifier"] == "done"
+    assert by_node["evidence_validator"] == "done"
+    assert by_node["briefing"] == "done"
+    for node in ("nvidia_rag", "recommender", "gpu_benchmark", "human_review"):
+        assert by_node[node] == "skipped"
+
+
+def test_build_run_trace_pending_when_not_terminal() -> None:
+    # Run pausado p/ revisão (HITL sync, F2.8): o que ainda não rodou fica `pending`, não `skipped`.
+    steps = build_run_trace(_scored_state(RunStatus.AWAITING_REVIEW)).steps
+    by_node = {s.node: s.status for s in steps}
+    assert by_node["classifier"] == "done"
+    assert by_node["human_review"] == "pending"
+    assert by_node["briefing"] == "pending"
+
+
+def test_build_run_trace_passes_langfuse_url_and_budget() -> None:
+    # Sem `usage` no trace (run offline sem LLM) o rollup é omitido; a nota de orçamento (F2.11)
+    # e o link Langfuse (F0.8) passam adiante.
+    state = _scored_state(RunStatus.COMPLETED, trace={"budget": {"limited": True, "reason": "x"}})
+    trace = build_run_trace(state, langfuse_url="http://langfuse.local")
+    assert trace.langfuse_url == "http://langfuse.local"
+    assert trace.budget_limited is True
+    assert trace.usage is None
+
+
+def test_run_trace_endpoint_returns_steps(client: TestClient) -> None:
+    app.dependency_overrides[get_trace_loader] = lambda: (lambda run_id: _completed_state(run_id))
+    body = client.get("/runs/r1/trace").json()
+
+    assert body["run_id"] == "r1"
+    assert body["status"] == "completed"
+    classifier = next(s for s in body["steps"] if s["node"] == "classifier")
+    assert classifier["status"] == "done"
+    assert body["usage"]["calls"] == 4
+
+
+def test_run_trace_endpoint_404_when_absent(client: TestClient) -> None:
+    app.dependency_overrides[get_trace_loader] = lambda: (lambda run_id: None)
+    assert client.get("/runs/missing/trace").status_code == 404
+
+
+def test_run_trace_endpoint_includes_langfuse_url(client: TestClient) -> None:
+    app.dependency_overrides[get_trace_loader] = lambda: (
+        lambda run_id: _scored_state(RunStatus.COMPLETED)
+    )
+    app.dependency_overrides[get_langfuse_url] = lambda: "http://langfuse.local"
+    assert client.get("/runs/r1/trace").json()["langfuse_url"] == "http://langfuse.local"

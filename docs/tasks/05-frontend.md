@@ -151,7 +151,37 @@
       ordenação por prioridade com ROI ausente degradando); frontend `npm run lint` e `npm run
       build` limpos (TypeScript 0 erros, `/radar/[id]` server-rendered). **Nota Next 16:** só edição
       de client component existente (reuso de `useState`/`useEffect`/`cn`), sem API nova do Next.
-- [ ] **F5.7** Trace viewer: passos dos agentes (consome Langfuse/estado do grafo).
+- [x] **F5.7** Trace viewer: passos dos agentes (consome Langfuse/estado do grafo).
+      → **Backend** (`apps/api/`): novo `GET /runs/{id}/trace` que **reconstrói o trace do estado
+      persistido** do run (checkpoint, F2.2) — fonte offline-reproduzível, sem depender do Langfuse no
+      ar. `apps/api/trace.py` (puro/testável) projeta o `GraphState` em `RunTraceOut`: a espinha de
+      nós (`PIPELINE`, F2.1) vira passos cujo `status` deriva da **presença do artefato** de cada nó
+      no estado — `done` (deixou artefato), `skipped` (run terminou sem passar aqui: ramo terminal
+      F2.12/F2.13, ou etapa opcional sem saída, ex.: `gpu_benchmark` sem ROI) ou `pending` (pausou/
+      falhou antes de chegar) — com `summary` factual nos `done` (ex.: "12 documentos coletados",
+      "AI-native · AIMI 62/100", "5 trechos da KB NVIDIA"). `evidence_validator` herda o `aimi` (roda
+      colado ao classifier, sem campo próprio) e `human_review` só conclui no `completed` (nos ramos
+      terminais o grafo salta direto ao briefing). Soma o rollup de custo (`trace['usage']`, F2.9), a
+      nota de orçamento (F2.11) e os `errors` rastreáveis; o `langfuse_url` (deep-trace, F0.8) entra
+      como link opcional — **honestidade:** sem `trace_id` persistido não há deep-link por run, então
+      expomos o **host** do Langfuse (só quando as chaves estão setadas, F0.3) e mantemos o
+      passo-a-passo no estado do grafo. DTOs novos em `schemas.py`
+      (`RunTraceOut`/`TraceStepOut`/`TraceUsageOut`), loader `get_trace_loader` (espelha o de briefing
+      — devolve o `GraphState` inteiro) e `get_langfuse_url` em `deps.py`. **Frontend**
+      (`apps/frontend/`): rota nova `/runs/[id]/trace` (casca server + `RunTraceView` client, mesmo
+      padrão Next 16 do detalhe F5.5) que consome o endpoint e desenha a **timeline dos passos** —
+      reusa os rótulos PT-BR da espinha (`PIPELINE_STEPS`, F5.3) e o `statusLabel`; marcador por
+      status (✓ concluído · – pulado · anel pendente), resumo por passo, faixa de custo
+      (tokens/chamadas/custo) que **só aparece com `usage`** (run offline esconde), selo de orçamento
+      atingido, botão "Abrir no Langfuse" quando há `langfuse_url` e lista de erros rastreáveis. O
+      console da consulta (F5.3) ganhou o link **"Ver passos do run (trace)"** ao terminar (run_id em
+      mãos). **Sem antecipar fase futura:** sem trace_id por run (deep-link fica para quando o estado
+      carimbar o id) e sem consumir a API do Langfuse direto. **Gate verde:** backend `ruff` limpo e
+      `pytest` verde (suíte completa **618 passed, 4 skipped**; 2 deselected = os smokes de rede
+      `test_smoke_real`/`test_search_real`, que exigem endpoint externo — hoje 504); `tests/test_api.py`
+      +7 testes (done/skipped/pending, ramo terminal, custo/orçamento/Langfuse, endpoint + 404).
+      Frontend `npm run lint` e `npm run build` limpos (TypeScript 0 erros, `/runs/[id]/trace`
+      server-rendered como o `/radar/[id]`).
 - [ ] **F5.8** Export do briefing em PDF.
 - [ ] **F5.9** **Auth leve (gate interno):** a ferramenta é interna do gerente de Startups & VCs
       da NVIDIA Brasil — não é público. Proteger a API e a UI com autenticação simples

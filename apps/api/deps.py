@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from rq import Queue
 
     from packages.agents.progress import ProgressEvent
-    from packages.schemas import Briefing
+    from packages.schemas import Briefing, GraphState
 
 # Sessão SQL por requisição: reusa a dependência do engine (F0.6) — fecha ao fim do escopo.
 db_session = get_session
@@ -74,4 +74,46 @@ def get_briefing_loader() -> Callable[[str], Briefing | None]:
     return _load
 
 
-__all__ = ["db_session", "get_queue", "get_progress_source", "get_briefing_loader"]
+def get_trace_loader() -> Callable[[str], GraphState | None]:
+    """Leitor do estado persistido de um run (F5.7) — lê do checkpoint (F2.2) p/ o trace viewer.
+
+    Espelha o `get_briefing_loader`, mas devolve o **estado inteiro** (`GraphState`) para a
+    projeção do trace (passos dos agentes + custo, ver `apps/api/trace.py`); `None` se o run não
+    tem checkpoint (run inexistente). Em teste, sobrescreve-se por um loader que devolve um
+    `GraphState` montado à mão.
+    """
+    from packages.agents.checkpoint import postgres_checkpointer
+    from packages.agents.graph import compile_graph
+    from packages.schemas import GraphState
+
+    def _load(run_id: str) -> GraphState | None:
+        with postgres_checkpointer(setup=False) as cp:
+            snapshot = compile_graph(checkpointer=cp).get_state(
+                {"configurable": {"thread_id": run_id}}
+            )
+        return GraphState.model_validate(snapshot.values) if snapshot.values else None
+
+    return _load
+
+
+def get_langfuse_url() -> str | None:
+    """Host do Langfuse (deep-trace, F0.8) p/ o trace viewer (F5.7) — `None` com o tracing off.
+
+    Sem um `trace_id` persistido não há deep-link por run; expomos o host (quando as duas chaves
+    estão setadas, F0.3) como ponto de entrada e mantemos o passo-a-passo do viewer no estado do
+    grafo (offline-reproduzível).
+    """
+    from packages.config import get_settings
+
+    s = get_settings()
+    return s.langfuse_host if s.langfuse_enabled else None
+
+
+__all__ = [
+    "db_session",
+    "get_queue",
+    "get_progress_source",
+    "get_briefing_loader",
+    "get_trace_loader",
+    "get_langfuse_url",
+]

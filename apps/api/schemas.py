@@ -140,6 +140,51 @@ class CompanyDetailOut(BaseModel):
     recomendacoes: list[RecommendationOut] = Field(default_factory=list)
 
 
+class TraceUsageOut(BaseModel):
+    """Rollup de tokens/custo de um run (`trace['usage']`, F2.9) — `None` em run offline sem LLM."""
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    calls: int = 0
+    cost_usd: float = 0.0
+
+
+class TraceStepOut(BaseModel):
+    """Um passo (nó) do grafo no trace do run (F5.7).
+
+    `node` é a chave técnica do nó (`PIPELINE`, F2.1) — o rótulo PT-BR é da UI (reusa
+    `PIPELINE_STEPS`). `status`: `done` (deixou artefato no estado persistido), `skipped` (o run
+    terminou sem passar aqui — ramo terminal F2.12/F2.13, ou etapa opcional sem saída, ex.:
+    `gpu_benchmark` sem ROI) ou `pending` (o run pausou/falhou antes de chegar). `summary` é um
+    resumo factual do que o nó produziu (preenchido só nos passos `done`).
+    """
+
+    node: str
+    status: str
+    summary: str | None = None
+
+
+class RunTraceOut(BaseModel):
+    """Trace de um run para o viewer (F5.7): os passos dos agentes + rollup de custo + link.
+
+    Reconstruído do **estado persistido** do run (checkpoint, F2.2): a espinha de nós (`PIPELINE`,
+    F2.1) com o que cada um produziu — offline-reproduzível, sem depender do Langfuse no ar. Soma o
+    `usage` (tokens/custo, F2.9), a nota de orçamento (F2.11), os `errors` rastreáveis e o
+    `langfuse_url` (deep-trace, F0.8) quando o tracing está ligado. `404` quando o run não tem
+    checkpoint.
+    """
+
+    run_id: str
+    status: str
+    prompt_version: str | None = None
+    steps: list[TraceStepOut] = Field(default_factory=list)
+    usage: TraceUsageOut | None = None
+    budget_limited: bool = False
+    errors: list[str] = Field(default_factory=list)
+    langfuse_url: str | None = None
+
+
 __all__ = [
     "RunRequest",
     "RunAccepted",
@@ -149,4 +194,7 @@ __all__ = [
     "ROIOut",
     "RecommendationOut",
     "CompanyDetailOut",
+    "TraceUsageOut",
+    "TraceStepOut",
+    "RunTraceOut",
 ]

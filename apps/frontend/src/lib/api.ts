@@ -170,3 +170,48 @@ export async function getCompany(id: number): Promise<CompanyDetail> {
   }
   return res.json() as Promise<CompanyDetail>;
 }
+
+// Passo (no) do grafo no trace de um run (TraceStepOut, apps/api/trace.py — F5.7). `node` e a
+// chave tecnica (PIPELINE_STEPS rotula em PT-BR); `status`: done (deixou artefato no estado),
+// skipped (run terminou sem passar aqui — ramo terminal ou etapa opcional sem saida) ou pending
+// (run pausou/falhou antes de chegar). `summary` resume o que o no produziu (so nos done).
+export interface RunTraceStep {
+  node: string;
+  status: "done" | "skipped" | "pending";
+  summary: string | null;
+}
+
+// Rollup de tokens/custo do run (TraceUsageOut, F2.9). Ausente (null) em run offline sem LLM.
+export interface RunTraceUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  calls: number;
+  cost_usd: number;
+}
+
+// Trace de um run para o viewer (RunTraceOut, F5.7): passos dos agentes reconstruidos do estado
+// persistido (checkpoint, F2.2) + custo + erros + link Langfuse (deep-trace, quando ligado).
+export interface RunTrace {
+  run_id: string;
+  status: string;
+  prompt_version: string | null;
+  steps: RunTraceStep[];
+  usage: RunTraceUsage | null;
+  budget_limited: boolean;
+  errors: string[];
+  langfuse_url: string | null;
+}
+
+// Trace de um run (`GET /runs/{id}/trace`, F5.7). 404 vira mensagem propria (run sem checkpoint)
+// para a tela distinguir de uma falha de rede.
+export async function getRunTrace(runId: string): Promise<RunTrace> {
+  const res = await fetch(`${API_URL}/runs/${encodeURIComponent(runId)}/trace`);
+  if (res.status === 404) {
+    throw new Error("Run nao encontrado (sem trace registrado).");
+  }
+  if (!res.ok) {
+    throw new Error(`Falha ao carregar o trace do run (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<RunTrace>;
+}

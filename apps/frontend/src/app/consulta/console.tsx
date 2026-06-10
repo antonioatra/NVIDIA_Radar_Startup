@@ -6,6 +6,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -185,6 +187,16 @@ export function ConsultaConsole() {
                 </p>
               )}
             </div>
+          )}
+
+          {/* Trace viewer (F5.7): passos dos agentes do run a partir do estado persistido. */}
+          {phase === "done" && runId && (
+            <Link
+              href={`/runs/${encodeURIComponent(runId)}/trace`}
+              className="w-fit text-sm text-primary hover:underline"
+            >
+              Ver passos do run (trace) →
+            </Link>
           )}
 
           {phase === "error" && error && (

@@ -25,11 +25,19 @@ from sqlmodel import Session
 from apps.worker import enqueue_resume, enqueue_run
 from packages.agents.briefing import render_markdown, render_pdf
 from packages.agents.progress import ProgressEvent
-from packages.schemas import Briefing
+from packages.schemas import Briefing, GraphState
 
 from .companies import get_company_detail, list_companies
-from .deps import db_session, get_briefing_loader, get_progress_source, get_queue
-from .schemas import CompanyDetailOut, CompanyOut, RunAccepted, RunRequest
+from .deps import (
+    db_session,
+    get_briefing_loader,
+    get_langfuse_url,
+    get_progress_source,
+    get_queue,
+    get_trace_loader,
+)
+from .schemas import CompanyDetailOut, CompanyOut, RunAccepted, RunRequest, RunTraceOut
+from .trace import build_run_trace
 
 app = FastAPI(title="TAPI API", version="0.1.0")
 
@@ -38,6 +46,8 @@ SessionDep = Annotated[Session, Depends(db_session)]
 _ProgressSource = Callable[[str], Iterable[ProgressEvent]]
 ProgressSourceDep = Annotated[_ProgressSource, Depends(get_progress_source)]
 BriefingLoaderDep = Annotated[Callable[[str], Briefing | None], Depends(get_briefing_loader)]
+TraceLoaderDep = Annotated[Callable[[str], GraphState | None], Depends(get_trace_loader)]
+LangfuseUrlDep = Annotated[str | None, Depends(get_langfuse_url)]
 
 
 @app.get("/health")
@@ -76,6 +86,20 @@ def resume_run(
     """Retoma um run pausado no HITL sync (F2.8) com a decisão do gerente (F5.10) via worker."""
     enqueue_resume(run_id, decision or {}, queue=queue)
     return RunAccepted(run_id=run_id, status="resuming")
+
+
+@app.get("/runs/{run_id}/trace")
+def get_run_trace(run_id: str, load: TraceLoaderDep, langfuse_url: LangfuseUrlDep) -> RunTraceOut:
+    """Trace de um run (F5.7): os passos dos agentes (estado do grafo) + custo + link Langfuse.
+
+    Reconstrói do estado persistido do run (checkpoint, F2.2) a espinha de nós (F2.1) com o que
+    cada um produziu — offline-reproduzível, sem depender do Langfuse no ar; o `langfuse_url`
+    (F0.8) entra como deep-trace opcional. `404` se o run não tem checkpoint.
+    """
+    state = load(run_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="run não encontrado")
+    return build_run_trace(state, langfuse_url=langfuse_url)
 
 
 # --- companies ----------------------------------------------------------------
