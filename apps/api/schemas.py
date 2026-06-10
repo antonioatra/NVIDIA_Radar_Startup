@@ -73,12 +73,54 @@ class PillarOut(BaseModel):
     evidencias: list[EvidenceOut] = Field(default_factory=list)
 
 
+class ROIOut(BaseModel):
+    """ROI quantificado de uma recomendação (GPU Graduation Engine, F6) — opcional (F5.6).
+
+    Projeta o `roi` JSON da `recommendation` (serializado de `ROIEstimate`, F0.5). Todos os
+    campos são opcionais: a recomendação **degrada graciosamente** sem ROI (a UI mostra o cartão
+    sem o número enquanto a matriz/benchmark do F6 não existir). Convenção de sinal: delta
+    **negativo = melhora** (menos latência / menos custo).
+    """
+
+    throughput_speedup: float | None = None
+    latency_p95_delta_pct: float | None = None
+    cost_delta_pct: float | None = None
+    baseline: str | None = None
+    optimized: str | None = None
+    benchmark_source: str | None = None
+    is_live_run: bool = False
+
+
+class RecommendationOut(BaseModel):
+    """Cartão de recomendação no detalhe (§5.5/F5.6): tech + justificativas + evidência dos 2 lados.
+
+    Projeta a `recommendation` (F4.3) com a **evidência dos dois lados** (tabela `evidence`:
+    `field='gap'` lado startup / `field='nvidia'` lado KB) e o `roi` opcional (F6). `prioridade`/
+    `complexidade` são os valores PT-BR do §5.5; `pilar_origem` é a chave técnica (`AIMIPillar`),
+    com o rótulo PT-BR na UI. A lista vem ordenada por prioridade (alta→baixa), como no briefing.
+    """
+
+    tech: str
+    prioridade: str
+    complexidade: str
+    justificativa_tecnica: str
+    justificativa_negocio: str
+    proxima_acao: str
+    pilar_origem: str | None = None
+    roi: ROIOut | None = None
+    evidencia_gap: list[EvidenceOut] = Field(default_factory=list)
+    evidencia_nvidia: list[EvidenceOut] = Field(default_factory=list)
+
+
 class CompanyDetailOut(BaseModel):
-    """Detalhe de uma startup (F5.5): perfil + radar AIMI (4 pilares) com evidência por pilar.
+    """Detalhe de uma startup (F5.5/F5.6): perfil + radar AIMI + cartões de recomendação.
 
     Estende a projeção da lista (`CompanyOut`) com a descrição/ano e o **breakdown** do AIMI —
-    os 4 sub-scores, suas justificativas e as fontes citáveis. `pilares` vem vazia quando a
-    empresa ainda não foi pontuada (mesma degradação graciosa da lista: sem AIMI, sem radar).
+    os 4 sub-scores, suas justificativas e as fontes citáveis (F5.5) — mais os **cartões de
+    recomendação** (`recomendacoes`, F5.6) com evidência dos dois lados e ROI opcional.
+    `pilares`/`recomendacoes` vêm vazias quando a empresa ainda não foi pontuada/recomendada
+    (mesma degradação graciosa da lista: sem AIMI, sem radar; sem recomendação, sem cartão).
+    `nvidia_techs` segue como o resumo (só os nomes) das techs recomendadas.
     """
 
     id: int
@@ -95,6 +137,7 @@ class CompanyDetailOut(BaseModel):
     heuristic_version: str | None = None
     pilares: list[PillarOut] = Field(default_factory=list)
     nvidia_techs: list[str] = Field(default_factory=list)
+    recomendacoes: list[RecommendationOut] = Field(default_factory=list)
 
 
 __all__ = [
@@ -103,5 +146,7 @@ __all__ = [
     "CompanyOut",
     "EvidenceOut",
     "PillarOut",
+    "ROIOut",
+    "RecommendationOut",
     "CompanyDetailOut",
 ]

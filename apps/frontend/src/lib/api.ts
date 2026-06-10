@@ -108,8 +108,38 @@ export interface PillarOut {
   evidencias: EvidenceOut[];
 }
 
-// Detalhe de uma startup (CompanyDetailOut, F5.5): perfil + radar AIMI (4 pilares) com evidencia
-// por pilar. `pilares` vem vazia quando a empresa ainda nao foi pontuada (degrada como a lista).
+// ROI quantificado de uma recomendacao (ROIOut, F5.6/F6): opcional — vem do GPU Graduation Engine
+// quando ha gap de inferencia. Convencao de sinal: delta negativo = melhora (menos custo/latencia).
+// Quando ausente o cartao degrada gracioso (mostra a recomendacao sem o numero).
+export interface ROIOut {
+  throughput_speedup: number | null;
+  latency_p95_delta_pct: number | null;
+  cost_delta_pct: number | null;
+  baseline: string | null;
+  optimized: string | null;
+  benchmark_source: string | null;
+  is_live_run: boolean;
+}
+
+// Cartao de recomendacao no detalhe (RecommendationOut, §5.5/F5.6): tech + justificativas +
+// evidencia dos dois lados (gap da startup / KB NVIDIA) + ROI opcional. `pilar_origem` e a chave
+// tecnica (AIMIPillar); a lista ja vem ordenada por prioridade (alta->baixa), como no briefing.
+export interface RecommendationOut {
+  tech: string;
+  prioridade: string;
+  complexidade: string;
+  justificativa_tecnica: string;
+  justificativa_negocio: string;
+  proxima_acao: string;
+  pilar_origem: string | null;
+  roi: ROIOut | null;
+  evidencia_gap: EvidenceOut[];
+  evidencia_nvidia: EvidenceOut[];
+}
+
+// Detalhe de uma startup (CompanyDetailOut, F5.5/F5.6): perfil + radar AIMI (4 pilares) com
+// evidencia por pilar + cartoes de recomendacao (justificativa, evidencia dos dois lados, ROI).
+// `pilares`/`recomendacoes` vem vazias quando a empresa ainda nao foi pontuada/recomendada.
 export interface CompanyDetail {
   id: number;
   nome: string;
@@ -125,6 +155,7 @@ export interface CompanyDetail {
   heuristic_version: string | null;
   pilares: PillarOut[];
   nvidia_techs: string[];
+  recomendacoes: RecommendationOut[];
 }
 
 // Detalhe de uma startup pelo id (`GET /companies/{id}`, F5.2/F5.5). 404 vira mensagem propria

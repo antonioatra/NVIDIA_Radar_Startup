@@ -22,9 +22,16 @@ from sqlmodel import select
 from packages.db.models import Company, Evidence, Score
 from packages.db.models import Recommendation as RecommendationRow
 from packages.schemas.aimi import band_for
-from packages.schemas.enums import AIMIPillar
+from packages.schemas.enums import AIMIPillar, Priority
 
-from .schemas import CompanyDetailOut, CompanyOut, EvidenceOut, PillarOut
+from .schemas import (
+    CompanyDetailOut,
+    CompanyOut,
+    EvidenceOut,
+    PillarOut,
+    RecommendationOut,
+    ROIOut,
+)
 
 if TYPE_CHECKING:
     from sqlmodel import Session
@@ -37,6 +44,9 @@ _PILLAR_COLUMNS: tuple[tuple[AIMIPillar, str, str], ...] = (
     (AIMIPillar.TECHNICAL_OPTIMIZATION, "technical_optimization", "just_technical_optimization"),
     (AIMIPillar.DISTRIBUTION_MOAT, "distribution_moat", "just_distribution_moat"),
 )
+
+# Ordem dos cartões de recomendação (F5.6): alta → média → baixa, igual ao briefing (F4.4).
+_PRIORITY_RANK: dict[Priority, int] = {Priority.ALTA: 0, Priority.MEDIA: 1, Priority.BAIXA: 2}
 
 
 def _tech_names(tecnologias: list) -> list[str]:
@@ -146,17 +156,20 @@ def _latest_score_for(session: Session, company_id: int) -> Score | None:
     return latest
 
 
-def _score_evidence(session: Session, score_id: int) -> dict[str, list[EvidenceOut]]:
-    """Evidência de um score agrupada por pilar (`evidence.field`), para o radar (F5.5).
+def _evidence_by_field(
+    session: Session, entity_type: str, entity_id: int
+) -> dict[str, list[EvidenceOut]]:
+    """Evidência de uma entidade agrupada por `field` (proveniência polimórfica, §8).
 
-    Lê as linhas `evidence` com `entity_type='score'`/`entity_id=<score>` e indexa por `field`
-    (o pilar que a fonte sustenta). Pode vir vazia — a persistência do AIMI ainda não grava
-    essas linhas; o detalhe degrada graciosamente (mostra o sub-score sem o link).
+    Lê as linhas `evidence` com `entity_type`/`entity_id` e indexa por `field` — o pilar que a
+    fonte sustenta no score (F5.5: `field=<pilar>`) ou o lado da recomendação (F5.6: `field='gap'`
+    da startup / `field='nvidia'` da KB). Pode vir vazia (degrada gracioso: o item mostra-se sem
+    o link).
     """
     grouped: dict[str, list[EvidenceOut]] = {}
     rows = session.exec(
         select(Evidence).where(
-            Evidence.entity_type == "score", Evidence.entity_id == score_id
+            Evidence.entity_type == entity_type, Evidence.entity_id == entity_id
         )
     ).all()
     for ev in rows:
@@ -166,29 +179,60 @@ def _score_evidence(session: Session, score_id: int) -> dict[str, list[EvidenceO
     return grouped
 
 
+def _recommendation_cards(session: Session, company_id: int) -> list[RecommendationOut]:
+    """Cartões de recomendação de uma startup (§5.5/F5.6), ordenados por prioridade.
+
+    Projeta as linhas `recommendation` (F4.3/F4.7) da empresa com a **evidência dos dois lados**
+    (`field='gap'`/`field='nvidia'`, via `_evidence_by_field`) e o `roi` opcional (F6, JSON →
+    `ROIOut`; ausente quando a matriz/benchmark ainda não existe). Ordena alta→média→baixa, igual
+    ao briefing (F4.4) — a UI só renderiza na ordem que recebe.
+    """
+    rows = sorted(
+        session.exec(
+            select(RecommendationRow).where(RecommendationRow.company_id == company_id)
+        ).all(),
+        key=lambda r: _PRIORITY_RANK.get(r.prioridade, 1),
+    )
+    cards: list[RecommendationOut] = []
+    for row in rows:
+        evidence = _evidence_by_field(session, "recommendation", row.id)
+        cards.append(
+            RecommendationOut(
+                tech=row.tech,
+                prioridade=row.prioridade.value,
+                complexidade=row.complexidade.value,
+                justificativa_tecnica=row.justificativa_tecnica,
+                justificativa_negocio=row.justificativa_negocio,
+                proxima_acao=row.proxima_acao,
+                pilar_origem=row.pilar_origem.value if row.pilar_origem else None,
+                roi=ROIOut.model_validate(row.roi) if row.roi else None,
+                evidencia_gap=evidence.get("gap", []),
+                evidencia_nvidia=evidence.get("nvidia", []),
+            )
+        )
+    return cards
+
+
 def get_company_detail(session: Session, company_id: int) -> CompanyDetailOut | None:
-    """Detalhe de uma startup (F5.5): perfil + radar AIMI (4 pilares) com evidência por pilar.
+    """Detalhe de uma startup (F5.5/F5.6): perfil + radar AIMI + cartões de recomendação.
 
     Achata a `Company` (§2) com o `Score` mais recente — os 4 sub-scores, suas faixas
-    (`band_for`), justificativas e as fontes citáveis (agrupadas por pilar) — e as techs NVIDIA
-    recomendadas (F4.3). `None` quando a empresa não existe (404 na rota). Empresa sem score sai
-    com `pilares=[]` e o diagnóstico nulo (degrada como a lista). `flush`/leitura só.
+    (`band_for`), justificativas e as fontes citáveis por pilar (F5.5) — e os **cartões de
+    recomendação** (F5.6: justificativas, evidência dos dois lados e ROI opcional), com o resumo
+    `nvidia_techs` derivado deles. `None` quando a empresa não existe (404 na rota). Empresa sem
+    score sai com `pilares=[]` (degrada como a lista). `flush`/leitura só.
     """
     company = session.get(Company, company_id)
     if company is None:
         return None
 
     sc = _latest_score_for(session, company_id)
-    nvidia = [
-        row.tech
-        for row in session.exec(
-            select(RecommendationRow).where(RecommendationRow.company_id == company_id)
-        ).all()
-    ]
+    recomendacoes = _recommendation_cards(session, company_id)
+    nvidia = [rec.tech for rec in recomendacoes]
 
     pilares: list[PillarOut] = []
     if sc is not None:
-        evidence = _score_evidence(session, sc.id)
+        evidence = _evidence_by_field(session, "score", sc.id)
         for pilar, score_col, just_col in _PILLAR_COLUMNS:
             value = getattr(sc, score_col)
             pilares.append(
@@ -216,6 +260,7 @@ def get_company_detail(session: Session, company_id: int) -> CompanyDetailOut | 
         heuristic_version=sc.heuristic_version if sc is not None else None,
         pilares=pilares,
         nvidia_techs=nvidia,
+        recomendacoes=recomendacoes,
     )
 
 

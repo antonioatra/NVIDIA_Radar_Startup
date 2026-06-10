@@ -120,9 +120,37 @@
       `ruff` limpo e `pytest` **610 passed, 4 skipped** (1 deselecionado = o smoke de rede
       `test_smoke_real`, que exige endpoint externo). `tests/test_api.py` ganhou 3 testes do detalhe
       (pilares+evidência, empresa sem score, `404`) e o `_seed` passou a semear evidência de score.
-- [ ] **F5.6** Cartões de recomendação (§5.5) + número de ROI. **ROI é opcional:** vem do F6, que
+- [x] **F5.6** Cartões de recomendação (§5.5) + número de ROI. **ROI é opcional:** vem do F6, que
       roda em paralelo a esta fase — a UI degrada graciosamente (mostra a recomendação sem o ROI
       enquanto a matriz/benchmark do F6 não existir; exibe o número quando disponível).
+      → **Backend** (`apps/api/`): o detalhe `GET /companies/{id}` (F5.5) ganhou os **cartões**.
+      Novos DTOs em `schemas.py` — `RecommendationOut` (tech, prioridade/complexidade, as duas
+      justificativas, próxima ação, `pilar_origem`, evidência dos dois lados e `roi`) e `ROIOut`
+      (projeção do `ROIEstimate`/F0.5: throughput/p95/custo, baseline→otimizado, fonte e
+      `is_live_run`) — e o campo `recomendacoes` no `CompanyDetailOut`. Em `companies.py`,
+      `_recommendation_cards` projeta as linhas `recommendation` (F4.3/F4.7) **ordenadas por
+      prioridade** (alta→baixa, igual ao briefing/F4.4), carrega a **evidência dos dois lados** via
+      o helper generalizado `_evidence_by_field` (antes `_score_evidence` — agora serve score E
+      recomendação, `field='gap'`/`'nvidia'`) e desserializa o `roi` JSON com
+      `ROIOut.model_validate` (`None` → cartão sem número). O `nvidia_techs` agora **deriva** dos
+      cartões (removida a query redundante). **Honestidade:** os cartões saem de **todas** as
+      recomendações da empresa (como já era o `nvidia_techs`); filtrar pelo run do score vigente
+      fica para quando houver multiplicidade de runs por empresa. **Frontend** (`apps/frontend/`):
+      `lib/api.ts` ganhou os tipos `RecommendationOut`/`ROIOut` + `recomendacoes` no
+      `CompanyDetail`; `radar/[id]/detail.tsx` trocou os **chips placeholder** (a nota "chegam na
+      F5.6") por uma seção **"Recomendações NVIDIA"** com um `RecommendationCard` por item — header
+      (tech + badge de prioridade, alta em destaque + complexidade), pilar de origem, as duas
+      justificativas e a próxima ação, a faixa **`RoiStrip`** (throughput `Nx`, custo/p95 com sinal
+      explícito = melhora, baseline→otimizado, selo matriz×ao-vivo) que **só aparece com `roi`** e
+      omite cada número ausente, e duas colunas de **evidência** (gap × NVIDIA) com link à fonte
+      (`target=_blank`+`rel=noopener`; "sem fonte registrada ainda" quando vazia). Rótulos PT-BR
+      reusam o `PILLAR_LABELS` da F5.5; sem dependência de chart/UI nova (mesma disciplina das
+      F5.3–F5.5). **Sem antecipar fase futura:** filtro por tech (F5.11) e export do briefing (F5.8)
+      ficam fora. **Gate verde:** backend `ruff` limpo e `pytest` verde (suíte completa exit 0;
+      `test_api.py` **18 passed**, +2 testes novos — cartão completo com ROI/evidência dos 2 lados e
+      ordenação por prioridade com ROI ausente degradando); frontend `npm run lint` e `npm run
+      build` limpos (TypeScript 0 erros, `/radar/[id]` server-rendered). **Nota Next 16:** só edição
+      de client component existente (reuso de `useState`/`useEffect`/`cn`), sem API nova do Next.
 - [ ] **F5.7** Trace viewer: passos dos agentes (consome Langfuse/estado do grafo).
 - [ ] **F5.8** Export do briefing em PDF.
 - [ ] **F5.9** **Auth leve (gate interno):** a ferramenta é interna do gerente de Startups & VCs

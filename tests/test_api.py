@@ -108,16 +108,46 @@ def _seed(session: Session) -> None:
             distribution_moat=10,
         )
     )
+    acme_rec = RecommendationRow(
+        company_id=acme.id,
+        run_id="r1",
+        tech="NVIDIA NIM",
+        justificativa_tecnica="serving otimizado",
+        justificativa_negocio="reduz custo",
+        prioridade="alta",
+        complexidade="media",
+        proxima_acao="testar NIM",
+        pilar_origem=AIMIPillar.TECHNICAL_OPTIMIZATION,
+        # ROI opcional (F6): número degrada gracioso quando ausente; aqui presente.
+        roi={
+            "throughput_speedup": 3.0,
+            "cost_delta_pct": -60.0,
+            "baseline": "API externa",
+            "optimized": "NIM local",
+            "is_live_run": False,
+        },
+    )
+    session.add(acme_rec)
+    session.flush()
+    # Evidência dos dois lados da recomendação (F4.7): field='gap' (startup) / 'nvidia' (KB).
     session.add(
-        RecommendationRow(
-            company_id=acme.id,
-            run_id="r1",
-            tech="NVIDIA NIM",
-            justificativa_tecnica="serving otimizado",
-            justificativa_negocio="reduz custo",
-            prioridade="alta",
-            complexidade="media",
-            proxima_acao="testar NIM",
+        Evidence(
+            url="https://acme.health/inferencia",
+            snippet="usa API externa paga para toda a inferência",
+            fetched_at=datetime.now(UTC),
+            entity_type="recommendation",
+            entity_id=acme_rec.id,
+            field="gap",
+        )
+    )
+    session.add(
+        Evidence(
+            url="https://build.nvidia.com/nim",
+            snippet="NIM serve modelos otimizados na própria GPU",
+            fetched_at=datetime.now(UTC),
+            entity_type="recommendation",
+            entity_id=acme_rec.id,
+            field="nvidia",
         )
     )
     session.commit()
@@ -271,6 +301,52 @@ def test_company_detail_returns_pillars_and_evidence(client: TestClient) -> None
     assert data_moat["evidencias"][0]["url"] == "https://acme.health/dados"
     # Pilar sem evidência persistida degrada gracioso (lista vazia, não erro).
     assert pilares["workflow_depth"]["evidencias"] == []
+
+
+def test_company_detail_returns_recommendation_cards(client: TestClient) -> None:
+    # Cartão da recomendação (§5.5/F5.6): justificativas, pilar de origem, ROI e os dois lados.
+    cid = _company_id(client, "Acme Health")
+    recs = client.get(f"/companies/{cid}").json()["recomendacoes"]
+    assert len(recs) == 1
+
+    nim = recs[0]
+    assert nim["tech"] == "NVIDIA NIM"
+    assert nim["prioridade"] == "alta"
+    assert nim["complexidade"] == "media"
+    assert nim["proxima_acao"] == "testar NIM"
+    assert nim["pilar_origem"] == "technical_optimization"
+    # ROI (F6) presente: ganho de throughput + economia de custo.
+    assert nim["roi"]["throughput_speedup"] == 3.0
+    assert nim["roi"]["cost_delta_pct"] == -60.0
+    assert nim["roi"]["optimized"] == "NIM local"
+    # Evidência dos dois lados, cada uma com link à fonte (invariante F4.5).
+    assert nim["evidencia_gap"][0]["url"] == "https://acme.health/inferencia"
+    assert nim["evidencia_nvidia"][0]["url"] == "https://build.nvidia.com/nim"
+
+
+def test_company_detail_orders_recommendations_and_roi_optional(
+    client: TestClient, session: Session
+) -> None:
+    # Insere fora de ordem e sem ROI: o detalhe reordena alta→baixa e degrada sem o número.
+    bolt_id = _company_id(client, "Bolt Pay")
+    for tech, prioridade in (("Tech Baixa", "baixa"), ("Tech Alta", "alta")):
+        session.add(
+            RecommendationRow(
+                company_id=bolt_id,
+                run_id="r2",
+                tech=tech,
+                justificativa_tecnica="jt",
+                justificativa_negocio="jn",
+                prioridade=prioridade,
+                complexidade="baixa",
+                proxima_acao="acao",
+            )
+        )
+    session.commit()
+
+    recs = client.get(f"/companies/{bolt_id}").json()["recomendacoes"]
+    assert [r["tech"] for r in recs] == ["Tech Alta", "Tech Baixa"]
+    assert recs[0]["roi"] is None  # sem ROI → cartão degrada gracioso (F5.6)
 
 
 def test_company_detail_without_score_has_no_pillars(client: TestClient) -> None:

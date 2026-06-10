@@ -10,7 +10,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
-import { getCompany, type CompanyDetail, type PillarOut } from "@/lib/api";
+import {
+  getCompany,
+  type CompanyDetail,
+  type EvidenceOut,
+  type PillarOut,
+  type RecommendationOut,
+  type ROIOut,
+} from "@/lib/api";
 
 // Rotulos PT-BR dos pilares (RUBRICA/F0.11) — espelham o texto do briefing (packages/agents/
 // briefing.py). A chave tecnica (`AIMIPillar`) vem da API; o rotulo e da camada de apresentacao.
@@ -28,6 +35,11 @@ const PILLAR_SHORT: Record<string, string> = {
   technical_optimization: "Tech Opt.",
   distribution_moat: "Distribution",
 };
+
+// Rotulos PT-BR de prioridade/complexidade (§5.5) — os valores vem em PT-BR sem acento da API
+// (Priority/Complexity, enums.py); aqui so acentuamos para a apresentacao.
+const PRIORITY_LABELS: Record<string, string> = { alta: "Alta", media: "Media", baixa: "Baixa" };
+const COMPLEXITY_LABELS: Record<string, string> = { alta: "Alta", media: "Media", baixa: "Baixa" };
 
 type Phase = "loading" | "ready" | "error";
 
@@ -136,25 +148,159 @@ function Body({ company }: { company: CompanyDetail }) {
         </section>
       )}
 
-      {company.nvidia_techs.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">Tecnologias NVIDIA recomendadas</h2>
-          <div className="flex flex-wrap gap-2">
-            {company.nvidia_techs.map((t) => (
-              <span
-                key={t}
-                className="rounded-full border border-primary/40 px-3 py-1 text-sm text-primary"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
+      {company.recomendacoes.length > 0 && (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold">Recomendacoes NVIDIA</h2>
           <p className="text-xs text-muted-foreground">
-            Os cartoes de recomendacao com justificativa e ROI chegam na F5.6.
+            Cada recomendacao traz evidencia dos dois lados (gap da startup + base NVIDIA) e, quando
+            ha gap de inferencia, o ROI de migrar API → stack otimizada (GPU Graduation Engine).
           </p>
+          <ul className="flex flex-col gap-4">
+            {company.recomendacoes.map((rec) => (
+              <RecommendationCard key={rec.tech} rec={rec} />
+            ))}
+          </ul>
         </section>
       )}
     </div>
+  );
+}
+
+// Cartao de uma recomendacao (§5.5/F5.6): tech + prioridade/complexidade + pilar de origem +
+// justificativas + proxima acao + ROI (opcional, degrada gracioso) + evidencia dos dois lados.
+function RecommendationCard({ rec }: { rec: RecommendationOut }) {
+  return (
+    <li className="rounded-lg border border-border bg-card p-5 text-card-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-primary">{rec.tech}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <PriorityBadge prioridade={rec.prioridade} />
+          <span className="text-xs text-muted-foreground">
+            Complexidade {COMPLEXITY_LABELS[rec.complexidade] ?? rec.complexidade}
+          </span>
+        </div>
+      </div>
+
+      {rec.pilar_origem && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Fecha o gap em {PILLAR_LABELS[rec.pilar_origem] ?? rec.pilar_origem}
+        </p>
+      )}
+
+      {rec.roi && <RoiStrip roi={rec.roi} />}
+
+      <dl className="mt-3 flex flex-col gap-2 text-sm">
+        <Field label="Justificativa tecnica">{rec.justificativa_tecnica}</Field>
+        <Field label="Justificativa de negocio">{rec.justificativa_negocio}</Field>
+        <Field label="Proxima acao">{rec.proxima_acao}</Field>
+      </dl>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <EvidenceColumn label="Evidencia — gap da startup" itens={rec.evidencia_gap} />
+        <EvidenceColumn label="Evidencia — base NVIDIA" itens={rec.evidencia_nvidia} />
+      </div>
+    </li>
+  );
+}
+
+// Faixa de ROI (F6): so os numeros que existem (throughput / custo / p95), baseline→otimizado e a
+// origem do dado (matriz ou medido ao vivo na GPU). Ausente quando nao ha ROI (cartao degrada).
+function RoiStrip({ roi }: { roi: ROIOut }) {
+  const numeros: { label: string; value: string }[] = [];
+  if (roi.throughput_speedup != null) {
+    numeros.push({ label: "Throughput", value: `${roi.throughput_speedup}x` });
+  }
+  if (roi.cost_delta_pct != null) {
+    numeros.push({ label: "Custo", value: deltaPct(roi.cost_delta_pct) });
+  }
+  if (roi.latency_p95_delta_pct != null) {
+    numeros.push({ label: "p95", value: deltaPct(roi.latency_p95_delta_pct) });
+  }
+  const migracao = roi.baseline && roi.optimized ? `${roi.baseline} → ${roi.optimized}` : null;
+
+  return (
+    <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-primary">ROI</span>
+        <span className="rounded-full border border-primary/30 px-2 py-0.5 text-[10px] text-primary">
+          {roi.is_live_run ? "medido ao vivo na GPU" : "matriz de benchmark"}
+        </span>
+      </div>
+      {numeros.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-4">
+          {numeros.map((n) => (
+            <div key={n.label} className="flex flex-col">
+              <span className="text-xs text-muted-foreground">{n.label}</span>
+              <span className="font-mono text-sm font-semibold text-primary">{n.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {migracao && <p className="mt-2 text-xs text-muted-foreground">{migracao}</p>}
+      {roi.benchmark_source && (
+        <p className="mt-1 text-[10px] text-muted-foreground">Fonte: {roi.benchmark_source}</p>
+      )}
+    </div>
+  );
+}
+
+// Delta percentual com sinal explicito; negativo = melhora (menos custo/latencia).
+function deltaPct(pct: number): string {
+  const signal = pct > 0 ? "+" : "";
+  return `${signal}${pct}%`;
+}
+
+// Coluna de evidencia de um lado (gap/NVIDIA) com link a fonte; "sem fonte" quando vazia.
+function EvidenceColumn({ label, itens }: { label: string; itens: EvidenceOut[] }) {
+  return (
+    <div className="rounded-md border border-border bg-background/40 p-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      {itens.length === 0 ? (
+        <p className="mt-1 text-xs text-muted-foreground">Sem fonte registrada ainda.</p>
+      ) : (
+        <ul className="mt-1 flex flex-col gap-1">
+          {itens.map((ev, i) => (
+            <li key={`${ev.url}-${i}`} className="text-xs">
+              <a
+                href={ev.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                {ev.source_title ?? ev.url}
+              </a>
+              {ev.snippet && <span className="text-muted-foreground"> — {ev.snippet}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Campo rotulado de um cartao (justificativa / proxima acao).
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 leading-relaxed text-foreground">{children}</dd>
+    </div>
+  );
+}
+
+// Badge de prioridade: alta em destaque (cor primaria), demais neutras.
+function PriorityBadge({ prioridade }: { prioridade: string }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full border px-2 py-0.5 text-xs font-medium",
+        prioridade === "alta"
+          ? "border-primary/40 text-primary"
+          : "border-border text-muted-foreground",
+      )}
+    >
+      Prioridade {PRIORITY_LABELS[prioridade] ?? prioridade}
+    </span>
   );
 }
 
