@@ -11,7 +11,10 @@ aplicada aos endpoints; a F5.2 só monta as rotas e deixa o gancho documentado.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import secrets
+from typing import TYPE_CHECKING, Annotated
+
+from fastapi import Depends, Header, HTTPException, Query
 
 from packages.db.engine import get_session
 
@@ -109,6 +112,53 @@ def get_langfuse_url() -> str | None:
     return s.langfuse_host if s.langfuse_enabled else None
 
 
+# --- Auth (gate interno — F5.9) ----------------------------------------------
+
+
+def get_auth_token() -> str:
+    """Token do gate interno (F5.9) — `""` significa **gate aberto** (dev/offline, espinha verde).
+
+    Vem da config (`TAPI_API_TOKEN`, F0.3). É um provider próprio (e não `get_settings()` direto)
+    para os testes trocarem por stub e exercitarem aberto/fechado sem depender do `.env` do dev.
+    """
+    from packages.config import get_settings
+
+    return get_settings().tapi_api_token
+
+
+def _bearer(authorization: str | None) -> str | None:
+    """Extrai o token de um header `Authorization: Bearer <token>` (esquema case-insensitive)."""
+    if authorization and authorization[:7].lower() == "bearer ":
+        return authorization[7:].strip()
+    return None
+
+
+def require_auth(
+    expected: Annotated[str, Depends(get_auth_token)],
+    authorization: Annotated[str | None, Header()] = None,
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    token: Annotated[str | None, Query()] = None,
+) -> None:
+    """Gate interno (F5.9): exige o token compartilhado quando há um configurado; senão, passa.
+
+    A ferramenta é interna do gerente de Startups & VCs da NVIDIA Brasil — não é pública (F5.9).
+    Sem `TAPI_API_TOKEN` configurado o gate fica **aberto** (dev/offline reproduzível). Com token,
+    aceita-o por `Authorization: Bearer <token>`, `X-API-Key: <token>` **ou** `?token=` na query —
+    este último porque o SSE (`EventSource`) e o PDF (`<a>`) do front não mandam header (F5.2/F5.8);
+    é um trade-off conhecido de ferramenta interna (token pode vazar em log de URL). Comparação em
+    tempo constante (`secrets.compare_digest`); `401` com `WWW-Authenticate: Bearer` se não bater.
+    """
+    if not expected:
+        return
+    presented = _bearer(authorization) or x_api_key or token
+    if not presented or not secrets.compare_digest(presented, expected):
+        raise HTTPException(
+            status_code=401,
+            detail="credencial inválida ou ausente",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 __all__ = [
     "db_session",
     "get_queue",
@@ -116,4 +166,6 @@ __all__ = [
     "get_briefing_loader",
     "get_trace_loader",
     "get_langfuse_url",
+    "get_auth_token",
+    "require_auth",
 ]

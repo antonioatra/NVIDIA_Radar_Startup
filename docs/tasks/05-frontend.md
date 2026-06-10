@@ -205,12 +205,41 @@
       `ruff`/`pytest` do backend seguem verdes. **Nota Next 16:** só edição de client component
       existente; link externo (cross-origin para a API) é `<a>` puro, não `next/link` (igual aos
       links de evidência da F5.5) — `AGENTS.md`/`node_modules/next/dist/docs/` consultados.
-- [ ] **F5.9** **Auth leve (gate interno):** a ferramenta é interna do gerente de Startups & VCs
+- [x] **F5.9** **Auth leve (gate interno):** a ferramenta é interna do gerente de Startups & VCs
       da NVIDIA Brasil — não é público. Proteger a API e a UI com autenticação simples
       (API key/bearer token via env, ou login único), aplicada como dependência nos endpoints
       do F5.2. Não expor `POST /runs` nem dados de empresas sem credencial. Mantém-se leve
       (sem IdP/OAuth completo) — proporcional a uma ferramenta interna de demo, mas fecha o
       buraco de "endpoint aberto" coerente com a governança/LGPD do projeto (F1.13).
+      → **Backend** (`apps/api/`): o gate vive em `deps.py` como `require_auth` (+ o provider
+      `get_auth_token`, que lê `TAPI_API_TOKEN` da config F0.3). `main.py` move os **endpoints de
+      negócio** para um `APIRouter(dependencies=[Depends(require_auth)])` — todos atrás do gate de
+      uma vez (DRY) — e deixa **só `/health` aberto** (liveness; passou a devolver `auth_required`
+      p/ o front decidir se pede login). **Open-by-default (chave da espinha verde):** sem
+      `TAPI_API_TOKEN` o gate fica **aberto** (dev/offline reproduzível, todos os testes existentes
+      seguem sem credencial); com token, exige-o. Aceita o token por `Authorization: Bearer`,
+      `X-API-Key` **ou** `?token=` na query — este último porque o **SSE** (`EventSource`) e o
+      **PDF** (`<a>`) do front (F5.2/F5.8) navegam sem poder setar header. **Honestidade:** token na
+      URL pode vazar em log — trade-off assumido de ferramenta interna (não é OAuth); comparação em
+      tempo constante (`secrets.compare_digest`), `401` + `WWW-Authenticate: Bearer`. **Frontend**
+      (`apps/frontend/`): `lib/auth.ts` guarda o token compartilhado no `localStorage` (digitado em
+      runtime — **não** vai pro bundle, nada de `NEXT_PUBLIC_*` com segredo) e expõe `authHeaders`
+      (fetch) / `appendToken` (SSE+PDF). `lib/api.ts` ganhou o wrapper `req` que injeta o header e,
+      no **401**, limpa a sessão e dispara `tapi:unauthorized` (volta a UI pro login), além de
+      `fetchHealth`/`pingAuth`. O novo `components/auth-gate.tsx` (client, envolve os `children`
+      server no `layout.tsx` — padrão de provider do App Router) sonda o `/health` no boot: API sem
+      gate → abre direto; com gate e sem token → **tela de login** (valida o token via `pingAuth`
+      antes de liberar); ouve o `tapi:unauthorized` p/ reexigir login. **Sem antecipar fase futura:**
+      gate por token único compartilhado (não há multiusuário/IdP — fora do escopo "leve"); a tela
+      HITL (F5.10) e o filtro por tech (F5.11) seguem nas suas tasks. **Gate verde:** backend `ruff`
+      limpo e `pytest` **628 passed, 4 skipped** (`test_api.py` +9 testes de auth — health
+      aberto/`auth_required`, gate aberto×fechado, bearer/X-API-Key/query token aceitos, sem/errada
+      credencial = 401; o fixture `client` força o modo aberto p/ os testes existentes serem
+      determinísticos); frontend `npm run lint` e `npm run build` limpos (TypeScript 0 erros, rotas
+      preservadas). **Nota Next 16:** o `react-hooks/set-state-in-effect` (React 19) barrou o
+      `setState` síncrono do probe no effect — movido p/ o callback async da Promise (`resolveGate`),
+      com o "checking" do retry no event handler; `node_modules/next/dist/docs/` (server×client,
+      provider no layout) consultado antes de escrever.
 - [ ] **F5.10** **Tela de revisão/aprovação HITL (modo `sync`):** quando o grafo pausa no interrupt
       (F2.8), a UI mostra a classificação/AIMI/recomendação para o gerente **aprovar, editar ou
       rejeitar** e então chama `POST /runs/{id}/resume` (F5.2) com a decisão. Sem essa tela o
@@ -235,8 +264,10 @@ Next.js · React · TypeScript · Tailwind/shadcn · FastAPI · SSE · auth (API
 
 ## DoD
 - [x] Fluxo completo navegável: consulta → progresso (F5.3) → empresa (F5.4/F5.5) → recomendação
-      (F5.6) → export PDF (F5.8). *(Auth F5.9, filtro por tech F5.11 e HITL F5.10 seguem abertos.)*
-- [ ] API e UI exigem credencial; endpoints não respondem sem auth (F5.9).
+      (F5.6) → export PDF (F5.8), atrás do gate interno (F5.9). *(Filtro por tech F5.11 e HITL
+      F5.10 seguem abertos.)*
+- [x] API e UI exigem credencial; endpoints não respondem sem auth (F5.9). *(Gate por token único
+      compartilhado via `TAPI_API_TOKEN`; aberto quando não configurado — dev/offline.)*
 - [ ] Lista filtrável por tecnologia (tech da startup + tech NVIDIA recomendada), além de
       setor/AIMI/classificação (F5.11, MVP).
 - [ ] *(stretch)* Chat de descoberta responde em linguagem natural com cards de empresa citados

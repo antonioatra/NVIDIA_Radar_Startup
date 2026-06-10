@@ -8,8 +8,9 @@ Redis pub/sub do worker); `POST /runs/{id}/resume` retoma o grafo após o HITL (
 executivo (F4.4) em JSON/Markdown/PDF (F4.6, base do export F5.8).
 
 Recursos vivos (fila, Redis, sessão SQL, leitor de briefing) entram por **dependência**
-(`apps/api/deps.py`), sobrescrevíveis em teste. A **autenticação** (gate interno) é a F5.9 —
-aplicada como dependência sobre estes endpoints; aqui ficam só as rotas.
+(`apps/api/deps.py`), sobrescrevíveis em teste. A **autenticação** (gate interno, F5.9) entra
+como `Depends(require_auth)` no `router` que carrega os endpoints de negócio — `/health` fica
+fora do gate (probe de liveness, devolve `auth_required` p/ o front decidir se pede login).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Annotated, Any
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Query
 from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 from rq import Queue
 from sqlmodel import Session
@@ -30,16 +31,21 @@ from packages.schemas import Briefing, GraphState
 from .companies import get_company_detail, list_companies
 from .deps import (
     db_session,
+    get_auth_token,
     get_briefing_loader,
     get_langfuse_url,
     get_progress_source,
     get_queue,
     get_trace_loader,
+    require_auth,
 )
 from .schemas import CompanyDetailOut, CompanyOut, RunAccepted, RunRequest, RunTraceOut
 from .trace import build_run_trace
 
 app = FastAPI(title="TAPI API", version="0.1.0")
+
+# Endpoints de negócio: todos atrás do gate interno (F5.9). `/health` fica no `app` (sem gate).
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 QueueDep = Annotated[Queue, Depends(get_queue)]
 SessionDep = Annotated[Session, Depends(db_session)]
@@ -48,17 +54,23 @@ ProgressSourceDep = Annotated[_ProgressSource, Depends(get_progress_source)]
 BriefingLoaderDep = Annotated[Callable[[str], Briefing | None], Depends(get_briefing_loader)]
 TraceLoaderDep = Annotated[Callable[[str], GraphState | None], Depends(get_trace_loader)]
 LangfuseUrlDep = Annotated[str | None, Depends(get_langfuse_url)]
+AuthTokenDep = Annotated[str, Depends(get_auth_token)]
 
 
 @app.get("/health")
-def health() -> dict:
-    return {"status": "ok"}
+def health(token: AuthTokenDep) -> dict:
+    """Liveness probe (aberto, sem gate F5.9) + diz se a API exige credencial (`auth_required`).
+
+    O front (F5.3+) consulta isto no boot: `auth_required=true` (há `TAPI_API_TOKEN`) faz a UI
+    pedir login antes de mostrar qualquer tela; `false` (dev/offline) libera direto.
+    """
+    return {"status": "ok", "auth_required": bool(token)}
 
 
 # --- runs ---------------------------------------------------------------------
 
 
-@app.post("/runs", status_code=202)
+@router.post("/runs", status_code=202)
 def create_run(req: RunRequest, queue: QueueDep) -> RunAccepted:
     """Enfileira um run do grafo (worker RQ, F2.10) e devolve o `run_id` p/ acompanhar via SSE."""
     run_id = enqueue_run(req.query, queue=queue, mode=req.mode, hitl=req.hitl)
@@ -71,13 +83,13 @@ def _sse(events: Iterable[ProgressEvent]) -> Iterable[str]:
         yield f"data: {event.model_dump_json()}\n\n"
 
 
-@app.get("/runs/{run_id}")
+@router.get("/runs/{run_id}")
 def stream_run(run_id: str, source: ProgressSourceDep) -> StreamingResponse:
     """Acompanha um run ao vivo (SSE): assina o canal de progresso (F2.10) e repassa ao front."""
     return StreamingResponse(_sse(source(run_id)), media_type="text/event-stream")
 
 
-@app.post("/runs/{run_id}/resume", status_code=202)
+@router.post("/runs/{run_id}/resume", status_code=202)
 def resume_run(
     run_id: str,
     queue: QueueDep,
@@ -88,7 +100,7 @@ def resume_run(
     return RunAccepted(run_id=run_id, status="resuming")
 
 
-@app.get("/runs/{run_id}/trace")
+@router.get("/runs/{run_id}/trace")
 def get_run_trace(run_id: str, load: TraceLoaderDep, langfuse_url: LangfuseUrlDep) -> RunTraceOut:
     """Trace de um run (F5.7): os passos dos agentes (estado do grafo) + custo + link Langfuse.
 
@@ -105,7 +117,7 @@ def get_run_trace(run_id: str, load: TraceLoaderDep, langfuse_url: LangfuseUrlDe
 # --- companies ----------------------------------------------------------------
 
 
-@app.get("/companies")
+@router.get("/companies")
 def get_companies(
     session: SessionDep,
     setor: Annotated[str | None, Query()] = None,
@@ -129,7 +141,7 @@ def get_companies(
     )
 
 
-@app.get("/companies/{company_id}")
+@router.get("/companies/{company_id}")
 def get_company(company_id: int, session: SessionDep) -> CompanyDetailOut:
     """Detalhe de uma startup (F5.5): perfil + radar AIMI (4 pilares) com evidência por pilar.
 
@@ -146,7 +158,7 @@ def get_company(company_id: int, session: SessionDep) -> CompanyDetailOut:
 # --- briefings ----------------------------------------------------------------
 
 
-@app.get("/briefings/{run_id}")
+@router.get("/briefings/{run_id}")
 def get_briefing(
     run_id: str,
     load: BriefingLoaderDep,
@@ -169,3 +181,7 @@ def get_briefing(
             headers={"Content-Disposition": f'inline; filename="briefing-{run_id}.pdf"'},
         )
     return briefing
+
+
+# Liga os endpoints de negócio (todos atrás do gate F5.9) ao app; `/health` segue aberto acima.
+app.include_router(router)

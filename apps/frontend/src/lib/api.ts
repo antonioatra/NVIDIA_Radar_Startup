@@ -3,8 +3,24 @@
 // SSE em `GET /runs/{id}` (canal Redis pub/sub do worker, F2.10) — ver `runStreamUrl`.
 //
 // A base da API vem de `NEXT_PUBLIC_API_URL` (inlinada no bundle no build); o default
-// `http://localhost:8000` cobre o dev local. A auth (F5.9) entrara aqui como header.
+// `http://localhost:8000` cobre o dev local. Auth (gate interno, F5.9): as chamadas fetch
+// levam o `Authorization: Bearer` (authHeaders); o SSE e o PDF, que navegam sem header, levam
+// o token na query (appendToken). Um 401 limpa a sessao e devolve a UI pro login (`reqJson`).
+import { appendToken, authHeaders, signalUnauthorized } from "./auth";
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+// fetch + tratamento uniforme do gate (F5.9): no 401 limpa o token e sinaliza o AuthGate, depois
+// estoura um erro legivel; nos demais erros HTTP usa a mensagem do chamador. Devolve a Response
+// pronta p/ `.json()`/checagem de 404 especifica de cada endpoint.
+async function req(url: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(url, { ...init, headers: { ...(init.headers ?? {}), ...authHeaders() } });
+  if (res.status === 401) {
+    signalUnauthorized();
+    throw new Error("Sessao expirada ou credencial invalida. Entre novamente.");
+  }
+  return res;
+}
 
 // Modos de consulta (espelha ExecutionMode, packages/schemas/enums.py — F2.3).
 export type RunMode = "single_company" | "discovery";
@@ -32,7 +48,7 @@ export interface ProgressEvent {
 // interrupt (sync, F2.8/F5.10), discovery roda em lote sem bloquear a fila (auto).
 export async function createRun(query: string, mode: RunMode): Promise<RunAccepted> {
   const hitl: HitlMode = mode === "single_company" ? "sync" : "auto";
-  const res = await fetch(`${API_URL}/runs`, {
+  const res = await req(`${API_URL}/runs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, mode, hitl }),
@@ -43,9 +59,10 @@ export async function createRun(query: string, mode: RunMode): Promise<RunAccept
   return res.json() as Promise<RunAccepted>;
 }
 
-// URL do stream SSE do run — passada direto a `new EventSource(...)` no console (F5.3).
+// URL do stream SSE do run — passada direto a `new EventSource(...)` no console (F5.3). O
+// EventSource nao manda header, entao o token (F5.9) vai na query via `appendToken`.
 export function runStreamUrl(runId: string): string {
-  return `${API_URL}/runs/${encodeURIComponent(runId)}`;
+  return appendToken(`${API_URL}/runs/${encodeURIComponent(runId)}`);
 }
 
 // Formatos do briefing servidos por `GET /briefings/{id}` (F4.6): JSON | Markdown | PDF.
@@ -53,10 +70,10 @@ export type BriefingFormat = "json" | "md" | "pdf";
 
 // URL do briefing executivo renderizado de um run (`GET /briefings/{id}`, F4.4/F4.6 — export
 // F5.8). O backend devolve o PDF com `Content-Disposition: inline`, entao abrir num
-// `<a target="_blank">` exibe o relatorio (o usuario salva de la). A auth (F5.9) entrara como
-// query/header aqui — por isso e uma URL montada, nao um fetch.
+// `<a target="_blank">` exibe o relatorio (o usuario salva de la). Como o `<a>` navega sem
+// header, a auth (F5.9) vai como query (`appendToken`) — por isso e uma URL montada, nao um fetch.
 export function briefingUrl(runId: string, format: BriefingFormat = "pdf"): string {
-  return `${API_URL}/briefings/${encodeURIComponent(runId)}?format=${format}`;
+  return appendToken(`${API_URL}/briefings/${encodeURIComponent(runId)}?format=${format}`);
 }
 
 // Projecao de empresa da lista (CompanyOut, apps/api/schemas.py — F5.4): perfil achatado com o
@@ -94,7 +111,7 @@ export async function listCompanies(filters: CompanyFilters = {}): Promise<Compa
     params.set("min_aimi", String(filters.minAimi));
   }
   const qs = params.toString();
-  const res = await fetch(`${API_URL}/companies${qs ? `?${qs}` : ""}`);
+  const res = await req(`${API_URL}/companies${qs ? `?${qs}` : ""}`);
   if (!res.ok) {
     throw new Error(`Falha ao carregar as startups (HTTP ${res.status}).`);
   }
@@ -172,7 +189,7 @@ export interface CompanyDetail {
 // Detalhe de uma startup pelo id (`GET /companies/{id}`, F5.2/F5.5). 404 vira mensagem propria
 // (empresa inexistente) para a tela distinguir de uma falha de rede.
 export async function getCompany(id: number): Promise<CompanyDetail> {
-  const res = await fetch(`${API_URL}/companies/${id}`);
+  const res = await req(`${API_URL}/companies/${id}`);
   if (res.status === 404) {
     throw new Error("Startup nao encontrada.");
   }
@@ -217,7 +234,7 @@ export interface RunTrace {
 // Trace de um run (`GET /runs/{id}/trace`, F5.7). 404 vira mensagem propria (run sem checkpoint)
 // para a tela distinguir de uma falha de rede.
 export async function getRunTrace(runId: string): Promise<RunTrace> {
-  const res = await fetch(`${API_URL}/runs/${encodeURIComponent(runId)}/trace`);
+  const res = await req(`${API_URL}/runs/${encodeURIComponent(runId)}/trace`);
   if (res.status === 404) {
     throw new Error("Run nao encontrado (sem trace registrado).");
   }
@@ -225,4 +242,32 @@ export async function getRunTrace(runId: string): Promise<RunTrace> {
     throw new Error(`Falha ao carregar o trace do run (HTTP ${res.status}).`);
   }
   return res.json() as Promise<RunTrace>;
+}
+
+// Estado de saude da API (`GET /health`, aberto/sem gate). `auth_required` diz se a API exige
+// credencial (ha TAPI_API_TOKEN configurado) — o AuthGate (F5.9) usa isso no boot p/ decidir se
+// pede login antes de mostrar a UI.
+export interface HealthInfo {
+  status: string;
+  auth_required: boolean;
+}
+
+export async function fetchHealth(): Promise<HealthInfo> {
+  const res = await fetch(`${API_URL}/health`);
+  if (!res.ok) {
+    throw new Error(`API indisponivel (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<HealthInfo>;
+}
+
+// Valida o token guardado contra um endpoint protegido (gate F5.9) — usado pelo login do
+// AuthGate p/ dar feedback imediato. true = aceito; false = credencial recusada (401). O 401 aqui
+// NAO dispara o sinal global de logout (o proprio fluxo de login trata), por isso usa `fetch`.
+export async function pingAuth(): Promise<boolean> {
+  const res = await fetch(`${API_URL}/companies?limit=1`, { headers: authHeaders() });
+  if (res.status === 401) return false;
+  if (!res.ok) {
+    throw new Error(`Falha ao validar a credencial (HTTP ${res.status}).`);
+  }
+  return true;
 }

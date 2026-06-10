@@ -21,6 +21,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from apps.api.deps import (
     db_session,
+    get_auth_token,
     get_briefing_loader,
     get_langfuse_url,
     get_progress_source,
@@ -193,6 +194,9 @@ def queue() -> _RecordingQueue:
 def client(session: Session, queue: _RecordingQueue):
     app.dependency_overrides[db_session] = lambda: session
     app.dependency_overrides[get_queue] = lambda: queue
+    # Gate F5.9 aberto por padrão (token vazio) — determinístico, independe do `.env` do dev.
+    # Os testes de auth abaixo sobrescrevem `get_auth_token` p/ o modo fechado.
+    app.dependency_overrides[get_auth_token] = lambda: ""
     yield TestClient(app)
     app.dependency_overrides.clear()
 
@@ -548,3 +552,60 @@ def test_run_trace_endpoint_includes_langfuse_url(client: TestClient) -> None:
     )
     app.dependency_overrides[get_langfuse_url] = lambda: "http://langfuse.local"
     assert client.get("/runs/r1/trace").json()["langfuse_url"] == "http://langfuse.local"
+
+
+# --- auth / gate interno (F5.9) -----------------------------------------------
+
+TOKEN = "s3cret-interno"
+
+
+def _gate_closed() -> None:
+    """Fecha o gate (token configurado) — os endpoints de negócio passam a exigir credencial."""
+    app.dependency_overrides[get_auth_token] = lambda: TOKEN
+
+
+def test_health_open_and_reports_auth_not_required(client: TestClient) -> None:
+    # /health fica fora do gate; em modo aberto (token vazio) sinaliza auth_required=False.
+    body = client.get("/health").json()
+    assert body == {"status": "ok", "auth_required": False}
+
+
+def test_health_reports_auth_required_when_token_set(client: TestClient) -> None:
+    # /health continua aberto (sem credencial) mas avisa o front que a API exige login.
+    _gate_closed()
+    body = client.get("/health").json()
+    assert body == {"status": "ok", "auth_required": True}
+
+
+def test_gate_open_allows_business_endpoints(client: TestClient) -> None:
+    # Sem token configurado (default do fixture) os endpoints respondem sem credencial.
+    assert client.get("/companies").status_code == 200
+
+
+def test_gate_rejects_business_endpoints_without_credential(client: TestClient) -> None:
+    _gate_closed()
+    assert client.get("/companies").status_code == 401
+    assert client.post("/runs", json={"query": "Acme AI"}).status_code == 401
+    assert client.get("/companies/1").status_code == 401
+
+
+def test_gate_accepts_bearer_token(client: TestClient) -> None:
+    _gate_closed()
+    resp = client.get("/companies", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert resp.status_code == 200
+
+
+def test_gate_accepts_x_api_key_header(client: TestClient) -> None:
+    _gate_closed()
+    assert client.get("/companies", headers={"X-API-Key": TOKEN}).status_code == 200
+
+
+def test_gate_accepts_query_token_for_sse_and_pdf(client: TestClient) -> None:
+    # SSE (EventSource) e o PDF (<a>) não mandam header, então o token vai na query (F5.2/F5.8).
+    _gate_closed()
+    assert client.get(f"/companies?token={TOKEN}").status_code == 200
+
+
+def test_gate_rejects_wrong_credential(client: TestClient) -> None:
+    _gate_closed()
+    assert client.get("/companies", headers={"Authorization": "Bearer errado"}).status_code == 401
