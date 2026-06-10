@@ -1,10 +1,11 @@
 "use client";
 
-// Radar de startups (F5.4): a lista filtravel por setor, classe de maturidade e AIMI minimo,
-// ja ordenada por inception_priority (a fila de outreach do gerente, F6.13). Consome o
-// `GET /companies` (F5.2) — os filtros combinam em AND e a ordenacao vem do backend. Cada linha
-// abre o detalhe AIMI da startup (radar dos 4 pilares + evidencias, F5.5). As facetas de tech
-// (F5.11) chegam na sua task.
+// Radar de startups (F5.4/F5.11): a lista filtravel por setor, classe de maturidade, AIMI minimo
+// e tecnologia — a tech que a startup usa e a tech NVIDIA recomendada — ja ordenada por
+// inception_priority (a fila de outreach do gerente, F6.13). Consome o `GET /companies` (F5.2);
+// os filtros combinam em AND e a ordenacao vem do backend. As tags de tech vem do vocabulario
+// controlado (`GET /companies/facets`, F5.11), entao os selects so oferecem tags que existem.
+// Cada linha abre o detalhe AIMI da startup (radar dos 4 pilares + evidencias, F5.5).
 
 import { useEffect, useState } from "react";
 
@@ -12,7 +13,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { listCompanies, type CompanyOut } from "@/lib/api";
+import { listCompanies, listTechFacets, type CompanyOut, type TechFacets } from "@/lib/api";
 
 // Classes de maturidade (Classification, packages/schemas/enums.py — §5.1). null = sem filtro.
 const CLASSES: ReadonlyArray<{ value: string | null; label: string }> = [
@@ -28,9 +29,24 @@ export function RadarBoard() {
   const [setor, setSetor] = useState("");
   const [classe, setClasse] = useState<string | null>(null);
   const [minAimi, setMinAimi] = useState(0);
+  const [tech, setTech] = useState("");
+  const [nvidiaTech, setNvidiaTech] = useState("");
+  const [facets, setFacets] = useState<TechFacets>({ tech: [], nvidia_tech: [] });
   const [companies, setCompanies] = useState<CompanyOut[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
+
+  // Vocabulario controlado das facetas de tech (F5.11) — carregado uma vez; alimenta os selects.
+  // Falha silenciosa: sem facetas os selects ficam vazios, a lista (abaixo) ainda funciona.
+  useEffect(() => {
+    let alive = true;
+    listTechFacets()
+      .then((f) => alive && setFacets(f))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Recarrega quando um filtro muda; debounce curto para nao buscar a cada tecla do setor.
   useEffect(() => {
@@ -41,6 +57,8 @@ export function RadarBoard() {
         setor,
         classificacao: classe ?? undefined,
         minAimi,
+        tech: tech || undefined,
+        nvidiaTech: nvidiaTech || undefined,
       })
         .then((rows) => {
           if (!alive) return;
@@ -57,7 +75,7 @@ export function RadarBoard() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [setor, classe, minAimi]);
+  }, [setor, classe, minAimi, tech, nvidiaTech]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -86,6 +104,22 @@ export function RadarBoard() {
               className="h-9 w-full accent-primary"
             />
           </label>
+        </div>
+
+        {/* Facetas de tech (F5.11): vocabulario controlado vindo de `listTechFacets`. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <TechSelect
+            label="Tecnologia que usa"
+            value={tech}
+            onChange={setTech}
+            options={facets.tech}
+          />
+          <TechSelect
+            label="Tech NVIDIA recomendada"
+            value={nvidiaTech}
+            onChange={setNvidiaTech}
+            options={facets.nvidia_tech}
+          />
         </div>
 
         <div className="inline-flex w-fit flex-wrap gap-1 rounded-lg border border-border p-1">
@@ -166,6 +200,40 @@ export function RadarBoard() {
         )}
       </section>
     </div>
+  );
+}
+
+// Faceta de tech (F5.11): select do vocabulario controlado. "" = sem filtro ("Todas"); as opcoes
+// sao as tags normalizadas que o backend (`/companies/facets`) garante existirem na coorte. Some
+// quando nao ha tag (ex.: coorte sem recomendacao ainda) — nada de filtro vazio na tela.
+function TechSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+}) {
+  if (options.length === 0) return null;
+  return (
+    <label className="flex w-full flex-col gap-1 sm:w-56">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <option value="">Todas</option>
+        {options.map((tag) => (
+          <option key={tag} value={tag}>
+            {tag}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

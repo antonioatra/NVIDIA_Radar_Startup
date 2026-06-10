@@ -29,7 +29,7 @@ from packages.agents.human_review import review_payload
 from packages.agents.progress import ProgressEvent
 from packages.schemas import Briefing, GraphState
 
-from .companies import get_company_detail, list_companies
+from .companies import get_company_detail, list_companies, list_tech_facets
 from .deps import (
     db_session,
     get_auth_token,
@@ -48,6 +48,7 @@ from .schemas import (
     RunRequest,
     RunReviewOut,
     RunTraceOut,
+    TechFacetsOut,
 )
 from .trace import build_run_trace
 
@@ -169,6 +170,19 @@ def get_companies(
         nvidia_tech=nvidia_tech,
         limit=limit,
     )
+
+
+@router.get("/companies/facets")
+def get_company_facets(session: SessionDep) -> TechFacetsOut:
+    """Vocabulário controlado dos filtros de tech da lista (F5.11): tags usadas + recomendadas.
+
+    Varre a coorte inteira (independe dos filtros vigentes) e devolve as tags normalizadas de
+    cada faceta — a startup **usa** (`tech`) / NVIDIA **recomenda** (`nvidia_tech`). A UI monta os
+    controles a partir disto, então o `GET /companies?tech=&nvidia_tech=` só recebe tags que
+    existem. Declarada **antes** de `/companies/{company_id}` p/ a rota fixa vencer a paramétrica.
+    """
+    tech, nvidia_tech = list_tech_facets(session)
+    return TechFacetsOut(tech=tech, nvidia_tech=nvidia_tech)
 
 
 @router.get("/companies/{company_id}")

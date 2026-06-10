@@ -70,6 +70,19 @@ class CompanyOut(BaseModel):
     nvidia_techs: list[str] = Field(default_factory=list)
 
 
+class TechFacetsOut(BaseModel):
+    """Tags disponíveis para os filtros de tech da lista (F5.11): o vocabulário controlado.
+
+    `tech` são as tags que as startups da coorte **usam** (`Company.tecnologias`); `nvidia_tech`
+    são as tags NVIDIA **recomendadas** (`Recommendation`). Já normalizadas e ordenadas — a UI
+    monta os controles a partir delas e só envia ao `GET /companies` uma tag que existe (filtro
+    determinístico, sem texto livre).
+    """
+
+    tech: list[str] = Field(default_factory=list)
+    nvidia_tech: list[str] = Field(default_factory=list)
+
+
 class EvidenceOut(BaseModel):
     """Fonte citável de um sub-score (tabela `evidence`, §8): o link que sustenta o pilar."""
 
@@ -210,6 +223,7 @@ __all__ = [
     "RunAccepted",
     "RunReviewOut",
     "CompanyOut",
+    "TechFacetsOut",
     "EvidenceOut",
     "PillarOut",
     "ROIOut",

@@ -9,8 +9,10 @@ gerente, F6.13), com o AIMI como desempate.
 
 Determinístico e portável (SQLite no teste, Postgres em prod): carrega as linhas e resolve
 "score mais recente por empresa" + facetas de tech em Python — o volume é de ferramenta
-interna e o match de tech é por substring case-insensitive (a normalização de vocabulário
-controlado fica na F5.11). `flush`/leitura só; a sessão é do caller (dependência da API).
+interna. As tags de tech passam pelo **vocabulário controlado** (`packages.schemas.tech_vocab`,
+F5.11): grafias soltas colapsam numa tag canônica e o filtro casa por **igualdade** sobre ela
+(`list_tech_facets` expõe as tags disponíveis p/ a UI só oferecer o que existe). `flush`/leitura
+só; a sessão é do caller (dependência da API).
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from packages.db.models import Company, Evidence, Score
 from packages.db.models import Recommendation as RecommendationRow
 from packages.schemas.aimi import band_for
 from packages.schemas.enums import AIMIPillar, Priority
+from packages.schemas.tech_vocab import normalize_techs, tech_matches
 
 from .schemas import (
     CompanyDetailOut,
@@ -49,24 +52,6 @@ _PILLAR_COLUMNS: tuple[tuple[AIMIPillar, str, str], ...] = (
 _PRIORITY_RANK: dict[Priority, int] = {Priority.ALTA: 0, Priority.MEDIA: 1, Priority.BAIXA: 2}
 
 
-def _tech_names(tecnologias: list) -> list[str]:
-    """Nomes das techs que a startup usa (a partir do JSON `{nome, categoria, uso, ...}`)."""
-    names: list[str] = []
-    for t in tecnologias:
-        nome = t.get("nome") if isinstance(t, dict) else t
-        if nome:
-            names.append(str(nome))
-    return names
-
-
-def _matches(needle: str | None, haystack: list[str]) -> bool:
-    """Faceta de tech: `needle` casa (substring, case-insensitive) com algum nome da lista."""
-    if not needle:
-        return True
-    low = needle.lower()
-    return any(low in name.lower() for name in haystack)
-
-
 def _latest_scores(session: Session) -> dict[int, Score]:
     """Score AIMI mais recente por `company_id` (o diagnóstico vigente da empresa)."""
     latest: dict[int, Score] = {}
@@ -78,11 +63,15 @@ def _latest_scores(session: Session) -> dict[int, Score]:
 
 
 def _recommended_techs(session: Session) -> dict[int, list[str]]:
-    """Techs NVIDIA recomendadas por `company_id` (faceta (b) do filtro F5.11)."""
-    techs: dict[int, list[str]] = {}
+    """Tags NVIDIA recomendadas por `company_id` (faceta (b) do filtro F5.11), normalizadas.
+
+    Colapsa o rótulo de exibição da `Recommendation` ("NVIDIA NIM", "NeMo Retriever (RAG)") na
+    tag canônica do vocabulário controlado e deduplica por empresa.
+    """
+    raw: dict[int, list[str]] = {}
     for row in session.exec(select(RecommendationRow)).all():
-        techs.setdefault(row.company_id, []).append(row.tech)
-    return techs
+        raw.setdefault(row.company_id, []).append(row.tech)
+    return {cid: normalize_techs(techs) for cid, techs in raw.items()}
 
 
 def _sort_key(company: CompanyOut) -> tuple:
@@ -114,7 +103,7 @@ def list_companies(
     out: list[CompanyOut] = []
     for company in session.exec(select(Company)).all():
         sc = scores.get(company.id)
-        usadas = _tech_names(company.tecnologias)
+        usadas = normalize_techs(company.tecnologias)
         nvidia = rec_techs.get(company.id, [])
 
         if setor and (company.setor or "").lower() != setor.lower():
@@ -125,7 +114,7 @@ def list_companies(
             continue
         if min_aimi is not None and (sc is None or sc.total < min_aimi):
             continue
-        if not _matches(tech, usadas) or not _matches(nvidia_tech, nvidia):
+        if not tech_matches(tech, usadas) or not tech_matches(nvidia_tech, nvidia):
             continue
 
         out.append(
@@ -145,6 +134,27 @@ def list_companies(
 
     out.sort(key=_sort_key)
     return out[:limit]
+
+
+def list_tech_facets(session: Session) -> tuple[list[str], list[str]]:
+    """Tags de tech disponíveis para os filtros da lista (F5.11): (usadas, recomendadas).
+
+    Varre **toda** a coorte (independe dos filtros vigentes) e devolve o vocabulário controlado
+    de cada faceta — as tags que a startup **usa** (`Company.tecnologias`) e as tags NVIDIA
+    **recomendadas** (`Recommendation`), normalizadas, deduplicadas e ordenadas (case-insensitive).
+    A UI monta os controles a partir disto: o filtro só oferece tags que existem (determinístico).
+    """
+    used: set[str] = set()
+    for company in session.exec(select(Company)).all():
+        used.update(normalize_techs(company.tecnologias))
+    nvidia: set[str] = set()
+    for techs in _recommended_techs(session).values():
+        nvidia.update(techs)
+
+    def _key(tag: str) -> str:
+        return tag.lower()
+
+    return sorted(used, key=_key), sorted(nvidia, key=_key)
 
 
 def _latest_score_for(session: Session, company_id: int) -> Score | None:
@@ -228,7 +238,8 @@ def get_company_detail(session: Session, company_id: int) -> CompanyDetailOut | 
 
     sc = _latest_score_for(session, company_id)
     recomendacoes = _recommendation_cards(session, company_id)
-    nvidia = [rec.tech for rec in recomendacoes]
+    # Resumo de tags (vocabulário controlado, F5.11) — os cartões abaixo guardam o rótulo completo.
+    nvidia = normalize_techs([rec.tech for rec in recomendacoes])
 
     pilares: list[PillarOut] = []
     if sc is not None:
@@ -264,4 +275,4 @@ def get_company_detail(session: Session, company_id: int) -> CompanyDetailOut | 
     )
 
 
-__all__ = ["list_companies", "get_company_detail"]
+__all__ = ["list_companies", "list_tech_facets", "get_company_detail"]

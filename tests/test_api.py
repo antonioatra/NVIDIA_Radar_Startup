@@ -262,7 +262,8 @@ def test_companies_projects_profile_and_aimi(client: TestClient) -> None:
     assert acme["aimi_total"] == 80
     assert acme["inception_priority"] == 90
     assert sorted(acme["tecnologias"]) == ["LangChain", "OpenAI"]
-    assert acme["nvidia_techs"] == ["NVIDIA NIM"]
+    # Tag normalizada (vocabulário controlado F5.11): "NVIDIA NIM" -> "NIM".
+    assert acme["nvidia_techs"] == ["NIM"]
     # Empresa sem score aparece sem diagnóstico (não alucina AIMI).
     assert by_name["Cold Start"]["aimi_total"] is None
 
@@ -285,9 +286,23 @@ def test_companies_filter_by_min_aimi_and_classe(client: TestClient) -> None:
 
 
 def test_companies_filter_by_tech_facets(client: TestClient) -> None:
-    # tech que a startup usa (substring, case-insensitive) e tech NVIDIA recomendada (F5.11).
+    # Filtro pelo vocabulário controlado (F5.11): a tag normalizada casa por igualdade,
+    # qualquer que seja a grafia enviada (apelido, prefixo "NVIDIA", caixa).
     assert [r["nome"] for r in client.get("/companies?tech=langchain").json()] == ["Acme Health"]
     assert [r["nome"] for r in client.get("/companies?nvidia_tech=nim").json()] == ["Acme Health"]
+    assert [r["nome"] for r in client.get("/companies?nvidia_tech=NVIDIA NIM").json()] == [
+        "Acme Health"
+    ]
+    # Substring não casa mais (determinístico): "Lang" não é a tag "LangChain".
+    assert client.get("/companies?tech=Lang").json() == []
+
+
+def test_companies_facets_lists_controlled_vocabulary(client: TestClient) -> None:
+    facets = client.get("/companies/facets").json()
+    # Tags usadas pela coorte (Acme: OpenAI/LangChain; Bolt: PyTorch), normalizadas e ordenadas.
+    assert facets["tech"] == ["LangChain", "OpenAI", "PyTorch"]
+    # Tag NVIDIA recomendada, colapsada do rótulo de exibição "NVIDIA NIM".
+    assert facets["nvidia_tech"] == ["NIM"]
 
 
 def test_companies_limit(client: TestClient) -> None:
@@ -308,7 +323,7 @@ def test_company_detail_returns_pillars_and_evidence(client: TestClient) -> None
     assert detail["nome"] == "Acme Health"
     assert detail["classificacao"] == "AI-native"
     assert detail["aimi_total"] == 80
-    assert detail["nvidia_techs"] == ["NVIDIA NIM"]
+    assert detail["nvidia_techs"] == ["NIM"]
 
     # Os 4 pilares na ordem canônica, com faixa derivada do sub-score (RUBRICA §1).
     pilares = {p["pilar"]: p for p in detail["pilares"]}

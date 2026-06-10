@@ -133,8 +133,8 @@ export function briefingUrl(runId: string, format: BriefingFormat = "pdf"): stri
 
 // Projecao de empresa da lista (CompanyOut, apps/api/schemas.py — F5.4): perfil achatado com o
 // diagnostico AIMI mais recente. Os campos de diagnostico sao opcionais — empresa coletada mas
-// ainda nao pontuada chega sem classe/AIMI. As facetas de tech (F5.11) ja vem populadas, mas o
-// radar (F5.4) ainda nao as expoe como filtro.
+// ainda nao pontuada chega sem classe/AIMI. `tecnologias`/`nvidia_techs` sao as tags do
+// vocabulario controlado (F5.11): a tech que a startup usa e a tech NVIDIA recomendada.
 export interface CompanyOut {
   id: number;
   nome: string;
@@ -148,12 +148,15 @@ export interface CompanyOut {
   nvidia_techs: string[];
 }
 
-// Filtros do radar (F5.4): setor, classe de maturidade e AIMI minimo. Combinam em AND no
-// backend; todos opcionais. As facetas de tech (F5.11) entram aqui depois.
+// Filtros do radar (F5.4/F5.11): setor, classe de maturidade, AIMI minimo e as duas facetas de
+// tech — `tech` (a startup usa) e `nvidiaTech` (NVIDIA recomendada). Combinam em AND no backend;
+// todos opcionais. As tags de tech vem do vocabulario controlado (`listTechFacets`).
 export interface CompanyFilters {
   setor?: string;
   classificacao?: string;
   minAimi?: number;
+  tech?: string;
+  nvidiaTech?: string;
 }
 
 // Lista as startups (perfil + AIMI) ja ordenadas por inception_priority desc (a fila de
@@ -165,12 +168,31 @@ export async function listCompanies(filters: CompanyFilters = {}): Promise<Compa
   if (filters.minAimi != null && filters.minAimi > 0) {
     params.set("min_aimi", String(filters.minAimi));
   }
+  if (filters.tech) params.set("tech", filters.tech);
+  if (filters.nvidiaTech) params.set("nvidia_tech", filters.nvidiaTech);
   const qs = params.toString();
   const res = await req(`${API_URL}/companies${qs ? `?${qs}` : ""}`);
   if (!res.ok) {
     throw new Error(`Falha ao carregar as startups (HTTP ${res.status}).`);
   }
   return res.json() as Promise<CompanyOut[]>;
+}
+
+// Vocabulario controlado dos filtros de tech (TechFacetsOut, F5.11): as tags que as startups da
+// coorte usam (`tech`) e as tags NVIDIA recomendadas (`nvidia_tech`), normalizadas e ordenadas
+// pelo backend. O radar monta os controles a partir disto — so filtra por tag que existe.
+export interface TechFacets {
+  tech: string[];
+  nvidia_tech: string[];
+}
+
+// Carrega as tags disponiveis para os filtros de tech (`GET /companies/facets`, F5.11).
+export async function listTechFacets(): Promise<TechFacets> {
+  const res = await req(`${API_URL}/companies/facets`);
+  if (!res.ok) {
+    throw new Error(`Falha ao carregar as tecnologias (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<TechFacets>;
 }
 
 // Fonte citavel de um sub-score (EvidenceOut, apps/api/schemas.py — F5.5): o link que sustenta

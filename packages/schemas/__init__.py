@@ -36,6 +36,7 @@ from .profile import (
 )
 from .recommendation import Recommendation, ROIEstimate
 from .state import GraphState, RawDocument, RetrievedChunk
+from .tech_vocab import normalize_tech, normalize_techs, tech_matches
 
 __all__ = [
     # evidência
@@ -56,6 +57,10 @@ __all__ = [
     # recomendação
     "Recommendation",
     "ROIEstimate",
+    # vocabulário de tech (facetas F5.11)
+    "normalize_tech",
+    "normalize_techs",
+    "tech_matches",
     # briefing
     "Briefing",
     # estado do grafo

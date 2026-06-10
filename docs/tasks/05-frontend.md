@@ -266,13 +266,34 @@
       backend `ruff` limpo e `pytest` **631 passed, 4 skipped** (`test_api.py` +3: payload projetado
       com `awaiting_review=true`, run já retomado = `false`, 404 sem checkpoint); frontend `npm run
       lint` e `npm run build` limpos (TypeScript 0 erros, rotas preservadas).
-- [ ] **F5.11** **Filtro por tecnologia (estende a lista F5.4):** duas facetas novas no
+- [x] **F5.11** **Filtro por tecnologia (estende a lista F5.4):** duas facetas novas no
       `GET /companies` (F5.2) e na UI — (a) **tech que a startup usa**, derivada de
       `StartupProfile.tecnologias` (F2.5) + sinais AI-native (F1.11); (b) **tech NVIDIA
       recomendada**, derivada do `Recommendation` (F4.3) — ex.: filtrar "candidatas a Riva/NIM/
       RAPIDS". Tags normalizadas (vocabulário controlado) para o filtro ser determinístico e sem
       LLM. Soma-se aos filtros já existentes (setor/AIMI/classificação) e à ordenação por
       `inception_priority`. **MVP.**
+      → **Vocabulário controlado** (`packages/schemas/tech_vocab.py`, novo): `normalize_tech`/
+      `normalize_techs`/`tech_matches` — puro texto, offline, idempotente. Colapsa as grafias soltas
+      ("NVIDIA NIM", "NeMo Retriever (RAG)", "lang chain") numa **tag canônica**: tira o qualificador
+      entre parênteses e o prefixo "NVIDIA", colapsa espaços e resolve um pequeno mapa de apelidos
+      ("triton inference server"→"Triton", "nim"→"NIM"). Famílias distintas (NeMo × NeMo Retriever ×
+      NeMo Guardrails) seguem como tags **separadas** de propósito; o que não está no mapa volta limpo
+      (a faceta funciona, só não funde). **Backend** (`apps/api/`): a projeção da lista
+      (`companies.py`) agora normaliza `tecnologias`/`nvidia_techs` e o filtro casa por **igualdade**
+      sobre a tag (substituiu o substring — `tech=Lang` não casa mais "LangChain", é vocabulário
+      controlado); novo `list_tech_facets` + rota **`GET /companies/facets`** (declarada **antes** de
+      `/companies/{id}` p/ a rota fixa vencer a paramétrica) devolve as tags disponíveis de cada
+      faceta (varre a coorte inteira, independe dos filtros), então a UI só oferece tag que existe; o
+      resumo `nvidia_techs` do detalhe (F5.5) também virou tag canônica (os cartões F5.6 guardam o
+      rótulo completo). `RunReviewOut`/`CompanyOut` intactos; novo `TechFacetsOut`. **Frontend**
+      (`apps/frontend/`): `lib/api.ts` ganhou `tech`/`nvidiaTech` em `CompanyFilters`, o tipo
+      `TechFacets` e `listTechFacets`; o radar (`board.tsx`) carrega as facetas uma vez (falha
+      silenciosa) e renderiza dois `<select>` do vocabulário controlado (`TechSelect`, somem sem
+      tag), somando-se aos filtros em AND com debounce. **Gate verde:** backend `ruff` limpo e
+      `pytest` **645 passed, 4 skipped** (`test_tech_vocab.py` novo: normalização/idempotência/match
+      exato; `test_api.py` +1 facetas + asserts de tag normalizada); frontend `npm run lint` e
+      `npm run build` limpos (TypeScript 0 erros).
 - [ ] **F5.12** *(stretch)* **Chat de descoberta da coorte (linguagem natural → empresas):** caixa
       de busca conversacional (ex.: "startups de saúde com Workflow alto e Technical Optimization
       baixo") que devolve **cards de empresa fundamentados + citações**, com streaming via SSE
@@ -285,12 +306,12 @@ Next.js · React · TypeScript · Tailwind/shadcn · FastAPI · SSE · auth (API
 
 ## DoD
 - [x] Fluxo completo navegável: consulta → progresso (F5.3) → empresa (F5.4/F5.5) → recomendação
-      (F5.6) → export PDF (F5.8), atrás do gate interno (F5.9). *(Filtro por tech F5.11 segue
-      aberto.)*
+      (F5.6) → export PDF (F5.8), atrás do gate interno (F5.9). *(Filtro por tech F5.11 entregue.)*
 - [x] API e UI exigem credencial; endpoints não respondem sem auth (F5.9). *(Gate por token único
       compartilhado via `TAPI_API_TOKEN`; aberto quando não configurado — dev/offline.)*
-- [ ] Lista filtrável por tecnologia (tech da startup + tech NVIDIA recomendada), além de
-      setor/AIMI/classificação (F5.11, MVP).
+- [x] Lista filtrável por tecnologia (tech da startup + tech NVIDIA recomendada), além de
+      setor/AIMI/classificação (F5.11, MVP). *(Vocabulário controlado em `tech_vocab.py`; facetas
+      via `GET /companies/facets`; filtro por igualdade na tag normalizada — determinístico, sem LLM.)*
 - [ ] *(stretch)* Chat de descoberta responde em linguagem natural com cards de empresa citados
       e nunca retorna empresa sem evidência (F5.12).
 - [x] No modo `sync`, o run pausa no HITL e só segue após aprovação na UI via `resume` (F5.10).
