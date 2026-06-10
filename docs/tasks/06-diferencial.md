@@ -25,7 +25,20 @@
       fica para o eval F6.4. **Gate verde:** `ruff` limpo e `pytest` **646 passed, 4 skipped** (o
       teste do teto v0 virou dois da v1 — Forte com corroboração ×, Estabelecido sem ela; nada
       downstream regrediu, pois wrapper P3 ≤6 e classe se preservam).
-- [ ] **F6.2** Cálculo do score no `classifier`; cada sub-score com evidência citada (explicável).
+- [x] **F6.2** Cálculo do score no `classifier`; cada sub-score com evidência citada (explicável).
+      → `packages\agents\classifier.py`: `_band_score` passa a devolver `(score, breakdown)` — o
+      **mesmo** cálculo que gera o número, agora em texto auditável (base por *breadth* + `+N`
+      profundidade dos sinais fortes + `+N` tração/contexto `= score`, e qual **teto** o limitou:
+      "Estabelecido (sem corroboração)", "faixa Forte liberada (corroboração: X forte × Y fontes)"
+      ou "sem evidência" RUBRICA §0). `_justify` ganha o parâmetro `breakdown` e anexa
+      `Cálculo: …` à `justificativa` de cada pilar — o sub-score deixa de ser caixa-preta (lê-se
+      *quais* sinais pesaram **e** *como* viraram o score). Alimenta direto o radar da UI
+      (F5.4/F5.5) e os **fatores** exigidos pelo Inception Priority (F6.13). **Sem mudar o contrato
+      `AIMIScore`/`PillarScore`** (princípio travado na F6.1): a explicabilidade vive no campo
+      `justificativa` que já existe e já é exibido. Contrato/RUBRICA intactos; só a heurística
+      ganhou rastro. **Gate verde:** `ruff` limpo e `pytest` **650 passed, 4 skipped** (4 testes
+      novos: cada sub-score traz "Cálculo: … = N", e o breakdown explica os 3 tetos — Estabelecido,
+      Forte e graduação por API).
 - [ ] **F6.3** Acoplamento: Technical Optimization baixo **dispara** recomendações NVIDIA no F4.
 - [ ] **F6.4** Eval do índice: correlação do AIMI com os rótulos do **eval set de F1.12**
       (consome o conjunto já criado; F7.2 consolida a métrica).

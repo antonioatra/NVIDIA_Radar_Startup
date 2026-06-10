@@ -247,8 +247,8 @@ def _n_sources(evidence: Iterable[Evidence]) -> int:
 
 def _band_score(
     distinct: int, strong: int, n_sources: int, *, has_evidence: bool, boost: int = 0
-) -> int:
-    """Sinais → score 0–25 (heurística **v1**); sem evidência, trava em ≤6.
+) -> tuple[int, str]:
+    """Sinais → `(score 0–25, breakdown)` (heurística **v1**); sem evidência, trava em ≤6.
 
     *Breadth* (sinais distintos) dá a base — 0 → 3 (ausente) · 1 → 9 · 2 → 12 (emergente) · 3+ →
     15 (estabelecido); cada sinal **forte** soma profundidade (+2) e `boost` (sinais estruturados)
@@ -256,25 +256,50 @@ def _band_score(
     ao menos um sinal forte **e** ≥ `MIN_SOURCES_FOR_STRONG` fontes independentes (RUBRICA §0/§1);
     sem isso o teto é `ESTABLISHED_CEILING` (18). A trava de evidência (RUBRICA §0) é aplicada por
     último — o validator de `PillarScore` a reforça.
+
+    **Explicabilidade (F6.2):** além do número, devolve um `breakdown` determinístico — os fatores
+    que compõem o sub-score (base + profundidade + boost) e qual teto, se algum, o limitou. É a
+    mesma conta que produz o `score`, em texto auditável: alimenta a `justificativa` do pilar (UI
+    F5.4/F5.5, briefing) e os "fatores" exigidos pelo Inception Priority (F6.13).
     """
     base = {0: 3, 1: 9, 2: 12}.get(distinct, 15)
     raw = base + boost + 2 * strong
+    parts = [f"base {base} ({distinct} sinal(is))"]
+    if strong:
+        parts.append(f"+{2 * strong} profundidade ({strong} forte(s))")
+    if boost:
+        parts.append(f"+{boost} tração/contexto")
+    cap = ""
+    corroborated = strong >= 1 and n_sources >= MIN_SOURCES_FOR_STRONG
     # Sem corroboração (sinal forte + fontes independentes), não cruza para "Forte/Defensável".
-    if not (strong >= 1 and n_sources >= MIN_SOURCES_FOR_STRONG):
+    if not corroborated:
+        if raw > ESTABLISHED_CEILING:
+            cap = f"teto Estabelecido {ESTABLISHED_CEILING} (sem corroboração: " \
+                f"{strong} forte × {n_sources} fonte(s))"
         raw = min(raw, ESTABLISHED_CEILING)
+    elif raw >= STRONG_BAND_FLOOR:
+        cap = f"faixa Forte liberada (corroboração: {strong} forte × {n_sources} fontes)"
     raw = max(0, min(25, raw))
     if not has_evidence:
+        if raw > MAX_SCORE_WITHOUT_EVIDENCE:
+            cap = f"teto sem evidência {MAX_SCORE_WITHOUT_EVIDENCE} (RUBRICA §0)"
         raw = min(raw, MAX_SCORE_WITHOUT_EVIDENCE)
-    return raw
+    breakdown = " ".join(parts) + f" = {raw}" + (f"; {cap}" if cap else "")
+    return raw, breakdown
 
 
-def _justify(label: str, signals: set[str], *, extra: str = "") -> str:
-    """Justificativa curta do pilar citando os sinais que pesaram (auditável)."""
+def _justify(label: str, signals: set[str], *, extra: str = "", breakdown: str = "") -> str:
+    """Justificativa curta do pilar citando os sinais que pesaram (auditável).
+
+    Quando `breakdown` (F6.2) é dado, anexa o cálculo do sub-score — o número deixa de ser
+    caixa-preta: lê-se *quais* sinais pesaram **e** *como* viraram o score.
+    """
     if signals:
         base = f"Sinais de {label}: {', '.join(sorted(signals))}."
     else:
         base = f"Sem sinais públicos claros de {label} no perfil."
-    return f"{base} {extra}".strip()
+    calc = f"Cálculo: {breakdown}." if breakdown else ""
+    return " ".join(p for p in (base, extra, calc) if p).strip()
 
 
 # ----------------------------------------------------------------- heurística v0 por pilar
@@ -295,14 +320,16 @@ def _pillar_data_moat(profile: StartupProfile) -> PillarScore:
         boost = 3
         evidence = _dedup_ev([*evidence, *client_ev])
         extra = f"{len(profile.clientes)} clientes (potencial de dado de uso)."
-    score = _band_score(
+    score, breakdown = _band_score(
         len(signals), _strong_count(signals, DATA_STRONG), _n_sources(evidence),
         has_evidence=bool(evidence), boost=boost,
     )
     return PillarScore(
         pilar=AIMIPillar.DATA_MOAT,
         score=score,
-        justificativa=_justify("dado proprietário/feedback loop", signals, extra=extra),
+        justificativa=_justify(
+            "dado proprietário/feedback loop", signals, extra=extra, breakdown=breakdown
+        ),
         evidencia=evidence,
     )
 
@@ -314,14 +341,14 @@ def _pillar_workflow_depth(profile: StartupProfile) -> PillarScore:
         + _items_src(profile.tecnologias, ("nome", "categoria", "uso"))
     )
     signals, evidence = _scan(src, WORKFLOW_TERMS)
-    score = _band_score(
+    score, breakdown = _band_score(
         len(signals), _strong_count(signals, WORKFLOW_STRONG), _n_sources(evidence),
         has_evidence=bool(evidence),
     )
     return PillarScore(
         pilar=AIMIPillar.WORKFLOW_DEPTH,
         score=score,
-        justificativa=_justify("workflow/automação multi-passo", signals),
+        justificativa=_justify("workflow/automação multi-passo", signals, breakdown=breakdown),
         evidencia=evidence,
     )
 
@@ -332,7 +359,7 @@ def _pillar_technical_optimization(profile: StartupProfile) -> PillarScore:
     )
     opt_signals, opt_ev = _scan(src, OPT_TERMS)
     api_signals, _ = _scan(src, API_TERMS)
-    score = _band_score(
+    score, breakdown = _band_score(
         len(opt_signals), _strong_count(opt_signals, OPT_STRONG), _n_sources(opt_ev),
         has_evidence=bool(opt_ev),
     )
@@ -347,7 +374,9 @@ def _pillar_technical_optimization(profile: StartupProfile) -> PillarScore:
     return PillarScore(
         pilar=AIMIPillar.TECHNICAL_OPTIMIZATION,
         score=score,
-        justificativa=_justify("stack de inferência própria", opt_signals, extra=extra),
+        justificativa=_justify(
+            "stack de inferência própria", opt_signals, extra=extra, breakdown=breakdown
+        ),
         evidencia=opt_ev,
     )
 
@@ -374,7 +403,7 @@ def _pillar_distribution_moat(profile: StartupProfile) -> PillarScore:
         boost += 2
         extras.append("captação divulgada")
     evidence = _dedup_ev([*evidence, *client_ev, *fund_ev]) if boost else evidence
-    score = _band_score(
+    score, breakdown = _band_score(
         len(signals), _strong_count(signals, DIST_STRONG), _n_sources(evidence),
         has_evidence=bool(evidence), boost=boost,
     )
@@ -382,7 +411,9 @@ def _pillar_distribution_moat(profile: StartupProfile) -> PillarScore:
     return PillarScore(
         pilar=AIMIPillar.DISTRIBUTION_MOAT,
         score=score,
-        justificativa=_justify("distribuição/defensabilidade", signals, extra=extra),
+        justificativa=_justify(
+            "distribuição/defensabilidade", signals, extra=extra, breakdown=breakdown
+        ),
         evidencia=evidence,
     )
 
@@ -436,8 +467,10 @@ def heuristic_score(profile: StartupProfile) -> AIMIScore:
     Refina a v0 provisória (F2.6): além da *breadth* de sinais, pesa sinais **fortes** e exige
     **corroboração** (sinal forte + ≥2 fontes) p/ a faixa "Forte/Defensável" (RUBRICA §0/§1).
     Pontua os 4 pilares pela RUBRICA (F0.11) a partir dos sinais estruturados do perfil, com
-    evidência colada a cada sub-score, e deriva a classe (§5.1). Pura/reprodutível — sem
-    rede/LLM. `total`/`band` são recomputados pelo validator do `AIMIScore`.
+    evidência colada a cada sub-score, e deriva a classe (§5.1). Cada sub-score é **explicável**
+    (F6.2): a `justificativa` carrega os sinais que pesaram **e** o cálculo (base + profundidade +
+    boost + teto aplicado) — o número nunca é caixa-preta. Pura/reprodutível — sem rede/LLM.
+    `total`/`band` são recomputados pelo validator do `AIMIScore`.
     """
     p1 = _pillar_data_moat(profile)
     p2 = _pillar_workflow_depth(profile)

@@ -205,6 +205,40 @@ def test_heuristic_distribution_uses_enterprise_and_funding() -> None:
     assert "Tração" in p4.justificativa
 
 
+# ---------------------------------------------------------- explicabilidade do sub-score (F6.2)
+
+
+def test_every_subscore_is_explainable() -> None:
+    # Cada pilar carrega o cálculo ("base ... = N") na justificativa — o número não é caixa-preta.
+    aimi = heuristic_score(_ai_native_own_stack())
+    for p in aimi.pillars:
+        assert "Cálculo:" in p.justificativa
+        # o total citado no breakdown bate com o score real do pilar.
+        assert f"= {p.score}" in p.justificativa
+
+
+def test_breakdown_explains_established_ceiling_without_corroboration() -> None:
+    # Stack própria forte de fonte única: o cálculo deve dizer por que parou em "Estabelecido".
+    p3 = heuristic_score(_ai_native_own_stack()).technical_optimization
+    assert "teto Estabelecido" in p3.justificativa
+    assert "sem corroboração" in p3.justificativa
+
+
+def test_breakdown_explains_forte_band_with_corroboration() -> None:
+    # Faixa Forte liberada → o cálculo cita a corroboração que a habilitou.
+    p3 = heuristic_score(_ai_native_corroborated()).technical_optimization
+    assert "faixa Forte liberada" in p3.justificativa
+    assert "corroboração" in p3.justificativa
+
+
+def test_breakdown_explains_graduation_trigger_for_api_wrapper() -> None:
+    # Wrapper 100% API externa: justificativa cita o gatilho de graduação + traz o cálculo.
+    p3 = heuristic_score(_wrapper()).technical_optimization
+    assert "alvo de graduação" in p3.justificativa
+    assert "Cálculo:" in p3.justificativa
+    assert p3.score <= 6
+
+
 # ------------------------------------------------------------------------- parse_score (LLM)
 
 
