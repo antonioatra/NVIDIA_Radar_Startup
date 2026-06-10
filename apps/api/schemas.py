@@ -29,6 +29,26 @@ class RunAccepted(BaseModel):
     status: str
 
 
+class RunReviewOut(BaseModel):
+    """Payload da revisão HITL de um run (F5.10): o que o gerente revisa antes do briefing.
+
+    Projeta o `review_payload` (F2.8) lido do estado persistido (checkpoint, F2.2) — classe
+    (§5.1) + AIMI + as techs recomendadas — quando o run pausou no interrupt sync. A tela de
+    aprovação (F5.10) mostra isto e chama `POST /runs/{id}/resume` com a decisão do gerente.
+    `awaiting_review` diz se o run está **de fato** parado esperando o humano (a UI distingue
+    "pausado p/ revisar" de "já seguiu", ex.: ao recarregar a tela). Os campos de diagnóstico são
+    opcionais: run offline sem extração sai com `None`/lista vazia — o payload nunca alucina.
+    """
+
+    run_id: str
+    awaiting_review: bool
+    query: str | None = None
+    empresa: str | None = None
+    classificacao: str | None = None
+    aimi_total: int | None = None
+    recomendacoes: list[str] = Field(default_factory=list)
+
+
 class CompanyOut(BaseModel):
     """Projeção de empresa para a lista (F5.4/F5.11): perfil + diagnóstico AIMI mais recente.
 
@@ -188,6 +208,7 @@ class RunTraceOut(BaseModel):
 __all__ = [
     "RunRequest",
     "RunAccepted",
+    "RunReviewOut",
     "CompanyOut",
     "EvidenceOut",
     "PillarOut",

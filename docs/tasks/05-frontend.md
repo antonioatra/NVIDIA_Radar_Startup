@@ -240,11 +240,32 @@
       `setState` síncrono do probe no effect — movido p/ o callback async da Promise (`resolveGate`),
       com o "checking" do retry no event handler; `node_modules/next/dist/docs/` (server×client,
       provider no layout) consultado antes de escrever.
-- [ ] **F5.10** **Tela de revisão/aprovação HITL (modo `sync`):** quando o grafo pausa no interrupt
+- [x] **F5.10** **Tela de revisão/aprovação HITL (modo `sync`):** quando o grafo pausa no interrupt
       (F2.8), a UI mostra a classificação/AIMI/recomendação para o gerente **aprovar, editar ou
       rejeitar** e então chama `POST /runs/{id}/resume` (F5.2) com a decisão. Sem essa tela o
       interrupt fica inalcançável pela UI. Só no *single-company lookup* (`hitl=sync`); em lote o
       `hitl=auto` (F1.14) não usa esta superfície.
+      → **Backend** (`apps/api/`): novo **`GET /runs/{id}/review`** que projeta o `review_payload`
+      (F2.8 — empresa/classe/AIMI/recs) do **estado persistido** (checkpoint F2.2), espelhando o
+      loader do trace (F5.7): o novo `get_review_loader` lê o snapshot e devolve `(GraphState,
+      awaiting)`, onde `awaiting = bool(snapshot.next)` distingue "pausado no interrupt" de "já
+      seguiu" — `RunReviewOut` carrega esse flag, então recarregar a tela de um run já retomado dá
+      `awaiting_review=false` (não 404, que fica só p/ run inexistente). O `POST /runs/{id}/resume`
+      **não mudou**: já aceitava um `decision` arbitrário, então a decisão estruturada (aprovado +
+      `nota` + `edicoes`) flui por ele e é registrada em `trace["human_review"]` (auditável).
+      **Decisão de escopo:** a tela **captura/audita** a edição (classe + AIMI), mas *aplicá-la* p/
+      alterar o diagnóstico no briefing é gancho futuro de backend (F2.8/F4.4) — não antecipado
+      aqui. **Frontend** (`apps/frontend/`): `lib/api.ts` ganhou `getRunReview`/`resumeRun` + os
+      tipos `RunReview`/`ResumeDecision`; o console (F5.3) virou o dono do laço HITL — extraí a
+      abertura do SSE em `openStream` (reusada no início **e** na retomada, **sem** resetar a
+      espinha, então os nós das duas passagens acumulam), e ao chegar o terminal `awaiting_review`
+      busca o payload (no **event handler**, não em effect — evita o `set-state-in-effect` do React
+      19, F5.9) e renderiza o `ReviewPanel`: diagnóstico + **editar** (select de classe §5.1 + AIMI
+      0–100) + nota, com **Aprovar/retomar** e **Rejeitar** → `resume` → reabre o stream p/ seguir
+      `human_review → briefing` até o desfecho (re-pausa mostra o painel de novo). **Gate verde:**
+      backend `ruff` limpo e `pytest` **631 passed, 4 skipped** (`test_api.py` +3: payload projetado
+      com `awaiting_review=true`, run já retomado = `false`, 404 sem checkpoint); frontend `npm run
+      lint` e `npm run build` limpos (TypeScript 0 erros, rotas preservadas).
 - [ ] **F5.11** **Filtro por tecnologia (estende a lista F5.4):** duas facetas novas no
       `GET /companies` (F5.2) e na UI — (a) **tech que a startup usa**, derivada de
       `StartupProfile.tecnologias` (F2.5) + sinais AI-native (F1.11); (b) **tech NVIDIA
@@ -264,12 +285,14 @@ Next.js · React · TypeScript · Tailwind/shadcn · FastAPI · SSE · auth (API
 
 ## DoD
 - [x] Fluxo completo navegável: consulta → progresso (F5.3) → empresa (F5.4/F5.5) → recomendação
-      (F5.6) → export PDF (F5.8), atrás do gate interno (F5.9). *(Filtro por tech F5.11 e HITL
-      F5.10 seguem abertos.)*
+      (F5.6) → export PDF (F5.8), atrás do gate interno (F5.9). *(Filtro por tech F5.11 segue
+      aberto.)*
 - [x] API e UI exigem credencial; endpoints não respondem sem auth (F5.9). *(Gate por token único
       compartilhado via `TAPI_API_TOKEN`; aberto quando não configurado — dev/offline.)*
 - [ ] Lista filtrável por tecnologia (tech da startup + tech NVIDIA recomendada), além de
       setor/AIMI/classificação (F5.11, MVP).
 - [ ] *(stretch)* Chat de descoberta responde em linguagem natural com cards de empresa citados
       e nunca retorna empresa sem evidência (F5.12).
-- [ ] No modo `sync`, o run pausa no HITL e só segue após aprovação na UI via `resume` (F5.10).
+- [x] No modo `sync`, o run pausa no HITL e só segue após aprovação na UI via `resume` (F5.10).
+      *(Painel de aprovação no console: `GET /runs/{id}/review` projeta o diagnóstico do checkpoint;
+      aprovar/editar/rejeitar → `resume` → reabre o SSE até o briefing.)*

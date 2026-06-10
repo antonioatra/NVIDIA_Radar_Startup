@@ -25,6 +25,7 @@ from sqlmodel import Session
 
 from apps.worker import enqueue_resume, enqueue_run
 from packages.agents.briefing import render_markdown, render_pdf
+from packages.agents.human_review import review_payload
 from packages.agents.progress import ProgressEvent
 from packages.schemas import Briefing, GraphState
 
@@ -36,10 +37,18 @@ from .deps import (
     get_langfuse_url,
     get_progress_source,
     get_queue,
+    get_review_loader,
     get_trace_loader,
     require_auth,
 )
-from .schemas import CompanyDetailOut, CompanyOut, RunAccepted, RunRequest, RunTraceOut
+from .schemas import (
+    CompanyDetailOut,
+    CompanyOut,
+    RunAccepted,
+    RunRequest,
+    RunReviewOut,
+    RunTraceOut,
+)
 from .trace import build_run_trace
 
 app = FastAPI(title="TAPI API", version="0.1.0")
@@ -53,6 +62,9 @@ _ProgressSource = Callable[[str], Iterable[ProgressEvent]]
 ProgressSourceDep = Annotated[_ProgressSource, Depends(get_progress_source)]
 BriefingLoaderDep = Annotated[Callable[[str], Briefing | None], Depends(get_briefing_loader)]
 TraceLoaderDep = Annotated[Callable[[str], GraphState | None], Depends(get_trace_loader)]
+ReviewLoaderDep = Annotated[
+    Callable[[str], tuple[GraphState, bool] | None], Depends(get_review_loader)
+]
 LangfuseUrlDep = Annotated[str | None, Depends(get_langfuse_url)]
 AuthTokenDep = Annotated[str, Depends(get_auth_token)]
 
@@ -98,6 +110,24 @@ def resume_run(
     """Retoma um run pausado no HITL sync (F2.8) com a decisão do gerente (F5.10) via worker."""
     enqueue_resume(run_id, decision or {}, queue=queue)
     return RunAccepted(run_id=run_id, status="resuming")
+
+
+@router.get("/runs/{run_id}/review")
+def get_run_review(run_id: str, load: ReviewLoaderDep) -> RunReviewOut:
+    """Payload da revisão HITL de um run (F5.10): classe/AIMI/recs p/ aprovar, editar ou rejeitar.
+
+    Lê do estado persistido (checkpoint, F2.2) o `review_payload` (F2.8) e diz se o run está
+    pausado no interrupt sync (`awaiting_review`). A tela de aprovação (F5.10) mostra o diagnóstico
+    e, com a decisão do gerente, chama `POST /runs/{id}/resume`. `404` se o run não tem checkpoint
+    (run inexistente); um run que já seguiu/concluiu responde `awaiting_review=false` (a UI sabe que
+    não há mais o que aprovar). A decisão é registrada em `trace["human_review"]` (auditável, F2.8);
+    *aplicá-la* para alterar o diagnóstico no briefing é gancho futuro de backend (F2.8/F4.4).
+    """
+    loaded = load(run_id)
+    if loaded is None:
+        raise HTTPException(status_code=404, detail="run não encontrado")
+    state, awaiting = loaded
+    return RunReviewOut(awaiting_review=awaiting, **review_payload(state))
 
 
 @router.get("/runs/{run_id}/trace")

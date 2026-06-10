@@ -65,6 +65,61 @@ export function runStreamUrl(runId: string): string {
   return appendToken(`${API_URL}/runs/${encodeURIComponent(runId)}`);
 }
 
+// Payload da revisao HITL de um run (RunReviewOut, apps/api/schemas.py — F5.10): o diagnostico
+// (classe/AIMI/recs) que o gerente revisa antes do briefing, lido do estado persistido (F2.8/F2.2).
+// `awaiting_review` diz se o run esta de fato parado no interrupt (a UI distingue "pausado p/
+// revisar" de "ja seguiu", ex.: ao recarregar). Campos de diagnostico opcionais — run offline sem
+// extracao vem com null/lista vazia.
+export interface RunReview {
+  run_id: string;
+  awaiting_review: boolean;
+  query: string | null;
+  empresa: string | null;
+  classificacao: string | null;
+  aimi_total: number | null;
+  recomendacoes: string[];
+}
+
+// Decisao do gerente enviada ao `POST /runs/{id}/resume` (F5.2/F5.10). Vira o retorno do
+// `interrupt()` e fica registrada em trace["human_review"] (auditavel, F2.8). `aprovado=false` =
+// rejeicao. `edicoes` carrega as correcoes (classe/AIMI) do modo editar — capturadas/auditadas;
+// aplica-las p/ alterar o diagnostico no briefing e gancho futuro de backend (F2.8/F4.4).
+export interface ResumeDecision {
+  approved: boolean;
+  nota?: string;
+  edicoes?: {
+    classificacao?: string;
+    aimi_total?: number;
+  };
+}
+
+// Carrega o payload de revisao de um run (`GET /runs/{id}/review`, F5.10). 404 vira mensagem
+// propria (run inexistente) para a tela distinguir de uma falha de rede.
+export async function getRunReview(runId: string): Promise<RunReview> {
+  const res = await req(`${API_URL}/runs/${encodeURIComponent(runId)}/review`);
+  if (res.status === 404) {
+    throw new Error("Run nao encontrado (sem revisao pendente).");
+  }
+  if (!res.ok) {
+    throw new Error(`Falha ao carregar a revisao do run (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<RunReview>;
+}
+
+// Retoma um run pausado no HITL sync com a decisao do gerente (`POST /runs/{id}/resume`, F5.2/
+// F5.10): enfileira o job de resume e devolve o `run_id` (o SSE acompanha os nos restantes).
+export async function resumeRun(runId: string, decision: ResumeDecision): Promise<RunAccepted> {
+  const res = await req(`${API_URL}/runs/${encodeURIComponent(runId)}/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(decision),
+  });
+  if (!res.ok) {
+    throw new Error(`Falha ao retomar o run (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<RunAccepted>;
+}
+
 // Formatos do briefing servidos por `GET /briefings/{id}` (F4.6): JSON | Markdown | PDF.
 export type BriefingFormat = "json" | "md" | "pdf";
 

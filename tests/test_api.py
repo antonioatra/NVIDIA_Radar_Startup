@@ -26,6 +26,7 @@ from apps.api.deps import (
     get_langfuse_url,
     get_progress_source,
     get_queue,
+    get_review_loader,
     get_trace_loader,
 )
 from apps.api.main import app
@@ -552,6 +553,39 @@ def test_run_trace_endpoint_includes_langfuse_url(client: TestClient) -> None:
     )
     app.dependency_overrides[get_langfuse_url] = lambda: "http://langfuse.local"
     assert client.get("/runs/r1/trace").json()["langfuse_url"] == "http://langfuse.local"
+
+
+# --- run review / HITL (F5.10) ------------------------------------------------
+
+
+def test_run_review_endpoint_projects_payload_when_awaiting(client: TestClient) -> None:
+    # Run pausado no interrupt sync (F2.8): o loader devolve (estado, awaiting=True). O endpoint
+    # projeta o review_payload — classe/AIMI/recs — que a tela de aprovação (F5.10) mostra.
+    app.dependency_overrides[get_review_loader] = lambda: (
+        lambda run_id: (_completed_state(run_id), True)
+    )
+    body = client.get("/runs/r1/review").json()
+
+    assert body["run_id"] == "r1"
+    assert body["awaiting_review"] is True
+    assert body["empresa"] == "Acme Health"
+    assert body["classificacao"] == "AI-native"
+    assert body["aimi_total"] == 20  # _aimi(5, ...) → 5×4 pilares
+    assert body["recomendacoes"] == ["NVIDIA NIM"]
+
+
+def test_run_review_endpoint_not_awaiting_when_resumed(client: TestClient) -> None:
+    # Run que já seguiu/concluiu (checkpoint sem `next`): existe, mas não há mais o que aprovar —
+    # 200 com awaiting_review=False (a UI distingue de 404/run inexistente).
+    app.dependency_overrides[get_review_loader] = lambda: (
+        lambda run_id: (_completed_state(run_id), False)
+    )
+    assert client.get("/runs/r1/review").json()["awaiting_review"] is False
+
+
+def test_run_review_endpoint_404_when_absent(client: TestClient) -> None:
+    app.dependency_overrides[get_review_loader] = lambda: (lambda run_id: None)
+    assert client.get("/runs/missing/review").status_code == 404
 
 
 # --- auth / gate interno (F5.9) -----------------------------------------------

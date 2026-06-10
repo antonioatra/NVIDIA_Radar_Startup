@@ -99,6 +99,31 @@ def get_trace_loader() -> Callable[[str], GraphState | None]:
     return _load
 
 
+def get_review_loader() -> Callable[[str], tuple[GraphState, bool] | None]:
+    """Leitor do estado + flag de pausa de um run (F5.10) — para a tela de revisão HITL.
+
+    Espelha o `get_trace_loader`, mas além do `GraphState` reporta se o run está **pausado no
+    interrupt** sync (F2.8): `snapshot.next` não-vazio = o `human_review` está aguardando a
+    decisão humana. Devolve `(GraphState, awaiting)`, ou `None` se o run não tem checkpoint (run
+    inexistente → 404). Em teste, sobrescreve-se por um loader que devolve um `GraphState` montado
+    à mão + a flag.
+    """
+    from packages.agents.checkpoint import postgres_checkpointer
+    from packages.agents.graph import compile_graph
+    from packages.schemas import GraphState
+
+    def _load(run_id: str) -> tuple[GraphState, bool] | None:
+        with postgres_checkpointer(setup=False) as cp:
+            snapshot = compile_graph(checkpointer=cp).get_state(
+                {"configurable": {"thread_id": run_id}}
+            )
+        if not snapshot.values:
+            return None
+        return GraphState.model_validate(snapshot.values), bool(snapshot.next)
+
+    return _load
+
+
 def get_langfuse_url() -> str | None:
     """Host do Langfuse (deep-trace, F0.8) p/ o trace viewer (F5.7) — `None` com o tracing off.
 
@@ -165,6 +190,7 @@ __all__ = [
     "get_progress_source",
     "get_briefing_loader",
     "get_trace_loader",
+    "get_review_loader",
     "get_langfuse_url",
     "get_auth_token",
     "require_auth",
