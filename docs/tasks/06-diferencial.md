@@ -8,11 +8,23 @@
 > por isso **não** são renumerados. Leia por seção (6.1 AIMI · 6.2 coorte · 6.3 GPU), não por número.
 
 ## 6.1 AI-Native Maturity Index (AIMI)
-- [ ] **F6.1** Rubrica AIMI **v1** (refina a v0 provisória de F2.6): 4 pilares × 0–25 (Data Moat ·
+- [x] **F6.1** Rubrica AIMI **v1** (refina a v0 provisória de F2.6): 4 pilares × 0–25 (Data Moat ·
       Workflow Depth · Technical Optimization · Distribution), regras de pontuação por evidência.
       Mantém o contrato `AIMIScore` (F0.5) estável; só melhora a heurística de pontuação.
       Rubrica **fundamentada (grounding)** nos materiais de AI-native services do §10.1 (F3.1d) —
       os 4 pilares derivam dessa definição, não são invenção arbitrária.
+      → `packages\agents\classifier.py`: a heurística (`heuristic_score`) passa de **v0 → v1**
+      (carimba `heuristic_version="v1"`; `parse_score` do caminho Super idem). O que muda **só na
+      heurística** (RUBRICA e contrato `AIMIScore` intactos): além da *breadth* de sinais (base
+      0→3·1→9·2→12·3+→15), cada **sinal forte** do pilar soma profundidade (+2) e a faixa
+      **"Forte/Defensável" (19–25)** deixa de ser proibida — mas só com **corroboração**: sinal
+      forte **e** ≥2 fontes independentes (`MIN_SOURCES_FOR_STRONG`); sem isso o teto é
+      "Estabelecido" (18, `ESTABLISHED_CEILING`). Subconjuntos `*_STRONG` por pilar (ex.: P3 =
+      serving/fine-tuning/Triton/TensorRT/NIM — não "gpu"/"cuda" genéricos). A trava §0 (sub-score
+      >6 exige evidência) e o gatilho de graduação (P3 100% API → ≤6) seguem; calibração dos cortes
+      fica para o eval F6.4. **Gate verde:** `ruff` limpo e `pytest` **646 passed, 4 skipped** (o
+      teste do teto v0 virou dois da v1 — Forte com corroboração ×, Estabelecido sem ela; nada
+      downstream regrediu, pois wrapper P3 ≤6 e classe se preservam).
 - [ ] **F6.2** Cálculo do score no `classifier`; cada sub-score com evidência citada (explicável).
 - [ ] **F6.3** Acoplamento: Technical Optimization baixo **dispara** recomendações NVIDIA no F4.
 - [ ] **F6.4** Eval do índice: correlação do AIMI com os rótulos do **eval set de F1.12**

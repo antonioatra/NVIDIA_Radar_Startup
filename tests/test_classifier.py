@@ -2,12 +2,14 @@
 
 Tudo offline/determinista (o caminho LLM é opt-in via `classifier_use_llm` + chave, ou
 injetando um adapter `classify=`). Exercita:
-- `heuristic_score` (v0): classe pelo *papel* da IA (§5.1) + 4 pilares 0–25 pela RUBRICA
+- `heuristic_score` (v1): classe pelo *papel* da IA (§5.1) + 4 pilares 0–25 pela RUBRICA
   (F0.11), com evidência colada ao sub-score e a trava §0 (>6 exige evidência);
+- a faixa "Forte/Defensável" (19–25) só com corroboração (sinal forte + ≥2 fontes), e o teto
+  "Estabelecido" (18) sem ela;
 - a região "wrapper" emergindo (AI-native + P3 baixo quando só há API externa);
 - `parse_score`: JSON do Super → `AIMIScore` ancorado na proveniência do perfil, rebaixando
   sub-score sem evidência; `classify_with_llm` degradando p/ None sem alucinar;
-- `make_aimi`: heurística por default, Super quando ligado, fallback à v0;
+- `make_aimi`: heurística por default, Super quando ligado, fallback à heurística;
 - o nó: no-op sem perfil (espinha verde, M2), `aimi` com perfil, e `classify=` injetado.
 """
 
@@ -25,6 +27,7 @@ from packages.agents.classifier import (
     parse_score,
 )
 from packages.schemas import (
+    AIMIBand,
     AIMIScore,
     Claim,
     Classification,
@@ -77,6 +80,33 @@ def _ai_native_own_stack() -> StartupProfile:
     )
 
 
+def _ai_native_corroborated() -> StartupProfile:
+    """Stack própria forte **com evidência multi-fonte** → habilita a faixa Forte (v1).
+
+    Sinais fortes de P3 (serving próprio, fine-tuning, Triton/TensorRT) ancorados em ≥2 URLs
+    independentes — a corroboração que a v1 exige para cruzar de "Estabelecido" para "Forte".
+    """
+    return StartupProfile(
+        nome="DeepStack AI",
+        descricao=_claim(
+            "Plataforma que serve modelos próprios com fine-tuning e Triton em GPU.",
+            evidence=[_ev(url="https://deepstack.ai")],
+        ),
+        tecnologias=[
+            Technology(
+                nome="Triton + TensorRT-LLM",
+                categoria="serving",
+                uso="serving próprio com fine-tuning e quantização",
+                evidence=[
+                    _ev(url="https://deepstack.ai/tech"),
+                    _ev(url="https://blog.deepstack.ai/infra"),
+                ],
+            )
+        ],
+        source_urls=["https://deepstack.ai"],
+    )
+
+
 def _wrapper() -> StartupProfile:
     """AI-native pelo papel da IA, mas 100% API externa → região 'wrapper' (P3 baixo)."""
     return StartupProfile(
@@ -106,14 +136,14 @@ def _non_ai() -> StartupProfile:
     )
 
 
-# ------------------------------------------------------------------- heuristic_score (v0)
+# ------------------------------------------------------------------- heuristic_score (v1)
 
 
 def test_heuristic_ai_native_with_own_stack() -> None:
     aimi = heuristic_score(_ai_native_own_stack())
     assert isinstance(aimi, AIMIScore)
     assert aimi.classificacao is Classification.AI_NATIVE
-    assert aimi.heuristic_version == "v0"
+    assert aimi.heuristic_version == "v1"
     # stack própria (serving/fine-tuning) → P3 sobe da faixa de wrapper.
     assert aimi.technical_optimization.score >= 13
     assert aimi.technical_optimization.evidencia  # sub-score alto vem com evidência
@@ -134,10 +164,22 @@ def test_heuristic_non_ai() -> None:
     assert aimi.classificacao is Classification.NON_AI
 
 
-def test_heuristic_v0_never_claims_forte_band() -> None:
-    # teto de humildade v0: nenhum pilar entra na faixa Forte/Defensável (19–25).
+def test_heuristic_v1_caps_at_established_without_corroboration() -> None:
+    # Stack própria forte, mas evidência de uma única fonte (acme.ai): sem corroboração, o
+    # sub-score não cruza para "Forte" — fica no teto "Estabelecido" (18).
     aimi = heuristic_score(_ai_native_own_stack())
-    assert all(p.score <= cl.V0_SCORE_CEILING for p in aimi.pillars)
+    p3 = aimi.technical_optimization
+    assert p3.score <= cl.ESTABLISHED_CEILING
+    assert p3.band is AIMIBand.ESTABELECIDO
+
+
+def test_heuristic_v1_reaches_forte_with_corroboration() -> None:
+    # Sinais fortes de stack própria + ≥2 fontes independentes → faixa "Forte/Defensável" (19–25).
+    aimi = heuristic_score(_ai_native_corroborated())
+    p3 = aimi.technical_optimization
+    assert p3.score >= cl.STRONG_BAND_FLOOR
+    assert p3.band is AIMIBand.FORTE
+    assert cl._n_sources(p3.evidencia) >= cl.MIN_SOURCES_FOR_STRONG  # corroboração real
 
 
 def test_heuristic_evidence_gate_caps_score_without_evidence() -> None:
@@ -257,7 +299,7 @@ def test_classify_with_llm_returns_none_when_adapter_raises() -> None:
 def test_make_aimi_default_is_heuristic() -> None:
     profile = _wrapper()
     aimi = make_aimi(profile)
-    assert aimi.heuristic_version == "v0"
+    assert aimi.heuristic_version == "v1"
     assert aimi.classificacao is heuristic_score(profile).classificacao
 
 

@@ -4,8 +4,8 @@ Quarto nó do grafo (ARQUITETURA §3). Consome o perfil do extractor (F2.5) e em
 diagnóstico de maturidade: a **classe** (`AI-native` | `AI-enabled` | `non-AI`, §5.1) e os
 **4 sub-scores** do AIMI (0–25 cada) no schema `AIMIScore` (F0.5). A **definição** dos
 pilares e a escala 0–25 vivem em `docs/RUBRICA-AIMI.md` (F0.11) e são imutáveis; aqui mora
-só a **heurística v0** que preenche os números — a v1 refinada entra na F6.1 (não muda nem a
-definição nem o contrato de saída).
+a **heurística v1** (F6.1, refina a v0 provisória de F2.6) que preenche os números — **sem
+mudar** nem a definição (RUBRICA) nem o contrato de saída (`AIMIScore`).
 
 Dois eixos que **não se confundem** (RUBRICA §6): a **classe** é o *papel* da IA (decidido
 pela descrição do produto + Workflow Depth, não pelo total do AIMI) e o **AIMI** é a
@@ -16,11 +16,13 @@ classe é `AI-native` mas os pilares ficam baixos.
 **Regra de evidência (RUBRICA §0, princípio nº1 §8):** todo sub-score > 6 **exige** evidência
 citável. A heurística cola a evidência do próprio perfil ao sub-score; sem evidência relevante,
 o pilar **não passa de 6** (`MAX_SCORE_WITHOUT_EVIDENCE`) — score alto sem fonte é bloqueado,
-não suposto. Como teto adicional de humildade, a **v0 não atribui a faixa "Forte/Defensável"
-(19–25)**: esse julgamento depende da heurística refinada/eval (F6.1/F6.4) — o teto v0 é 18.
+não suposto. A faixa **"Forte/Defensável" (19–25)** só é atribuída com **corroboração** — um
+sinal *forte* do pilar **e** ≥2 fontes independentes (`MIN_SOURCES_FOR_STRONG`); sem isso o teto
+fica em "Estabelecido" (18, `ESTABLISHED_CEILING`). Score alto exige largura de evidência, não
+suposição — a calibração final dos cortes é do eval (F6.4).
 
 **Decisão de design (política headless b/d):** como nos nós anteriores (F2.3/F2.4/F2.5), o
-caminho **determinista/offline é o default** — a heurística v0 pontua a partir dos sinais
+caminho **determinista/offline é o default** — a heurística v1 pontua a partir dos sinais
 estruturados do perfil **sem rede/LLM/GPU**, deixando os runs reprodutíveis (ethos F2.14). A
 peça LLM (Nemotron-Super, reasoning ON — `classifier@v1`, F0.12) é **plugável** atrás de
 `settings.classifier_use_llm` + chave **ou** de um adapter `classify=` injetado (testes/worker
@@ -59,9 +61,13 @@ from packages.scraping.source_policy import annotate as source_policy_for
 # Adapter de classificação injetável: profile -> JSON cru do modelo. Default = Nemotron-Super.
 ClassifyFn = Callable[[StartupProfile], str]
 
-#: Teto de pontos da heurística v0: não reivindica a faixa "Forte/Defensável" (19–25), que
-#: depende da v1/eval (F6.1/F6.4). A escala 0–25 do schema permanece intacta — só a v0 se contém.
-V0_SCORE_CEILING = 18
+#: Teto da faixa "Estabelecido" (RUBRICA §1). A heurística v1 só ultrapassa (→ "Forte/Defensável",
+#: 19–25) com **corroboração**: sinal forte do pilar + ≥ `MIN_SOURCES_FOR_STRONG` fontes
+#: independentes. Sem isso o sub-score trava aqui — score alto exige largura de evidência, não
+#: suposição. A escala 0–25 do schema permanece intacta (calibração dos cortes no eval, F6.4).
+ESTABLISHED_CEILING = 18
+STRONG_BAND_FLOOR = 19
+MIN_SOURCES_FOR_STRONG = 2
 
 #: Piso de confiança p/ o terminal **"non-AI fora de escopo" (F2.13)**: abaixo disto a classe
 #: `non-AI` não é firme o bastante p/ descartar a empresa — o run segue o caminho normal. A
@@ -122,6 +128,36 @@ DIST_TERMS: tuple[str, ...] = (
     "enterprise", "corporativo", "lock-in", "contrato", "parceria", "parcerias",
     "go-to-market", "gtm", "white label", "white-label", "marketplace", "api pública",
     "integração enterprise",
+)
+
+# Sinais **fortes** por pilar (subconjunto dos termos acima): denotam capacidade real/defensável,
+# não só menção. Na v1 cada sinal forte soma profundidade ao score e, com corroboração (≥2 fontes),
+# habilita a faixa "Forte/Defensável" (19–25). Termos genéricos/de apoio (ex.: "gpu", "cuda",
+# "marketplace") ficam de fora — sustentam "Emergente/Estabelecido", não "Forte" sozinhos.
+DATA_STRONG: frozenset[str] = frozenset(
+    {
+        "dados proprietários", "dados proprietarios", "proprietary data", "dado proprietário",
+        "feedback loop", "loop de feedback", "dataset proprietário", "dataset proprietario",
+        "dados próprios", "dados proprios", "data moat", "ativo de dados", "fine-tun",
+        "treinado com dados",
+    }
+)
+WORKFLOW_STRONG: frozenset[str] = frozenset(
+    {
+        "end-to-end", "ponta a ponta", "multiagente", "multi-agente", "orquestra",
+        "orchestration", "orchestrate",
+    }
+)
+OPT_STRONG: frozenset[str] = frozenset(
+    {
+        "fine-tun", "fine tuning", "ajuste fino", "serving", "inferência própria", "self-host",
+        "self host", "on-premise", "on-prem", "triton", "tensorrt", "tensor-rt", "vllm", "nim",
+        "rapids", "modelo próprio", "modelos próprios", "lora", "peft", "quantiz", "destila",
+        "destilação",
+    }
+)
+DIST_STRONG: frozenset[str] = frozenset(
+    {"enterprise", "lock-in", "contrato", "integração enterprise"}
 )
 
 
@@ -199,15 +235,34 @@ def _collect_evidence(items: Sequence[Any]) -> list[Evidence]:
     return _dedup_ev(out)
 
 
-def _band_score(distinct: int, *, has_evidence: bool, boost: int = 0) -> int:
-    """Sinais distintos → score conservador v0 (teto 18); sem evidência, trava em ≤6.
+def _strong_count(signals: set[str], strong: frozenset[str]) -> int:
+    """Quantos dos sinais casados são **fortes** (subconjunto que denota capacidade real)."""
+    return len(signals & strong)
 
-    Mapeamento humilde (v0): 0 sinais → 3 (ausente) · 1 → 9 · 2 → 12 (emergente) · 3+ → 15
-    (estabelecido). `boost` (sinais estruturados) soma dentro do teto v0. A trava de evidência
-    (RUBRICA §0) é aplicada por último — o validator de `PillarScore` a reforça.
+
+def _n_sources(evidence: Iterable[Evidence]) -> int:
+    """Nº de fontes **independentes** (URLs distintas) que ancoram o pilar — mede corroboração."""
+    return len({str(e.url) for e in evidence})
+
+
+def _band_score(
+    distinct: int, strong: int, n_sources: int, *, has_evidence: bool, boost: int = 0
+) -> int:
+    """Sinais → score 0–25 (heurística **v1**); sem evidência, trava em ≤6.
+
+    *Breadth* (sinais distintos) dá a base — 0 → 3 (ausente) · 1 → 9 · 2 → 12 (emergente) · 3+ →
+    15 (estabelecido); cada sinal **forte** soma profundidade (+2) e `boost` (sinais estruturados)
+    entra por cima. A faixa **"Forte/Defensável" (19–25)** só é alcançável com **corroboração** —
+    ao menos um sinal forte **e** ≥ `MIN_SOURCES_FOR_STRONG` fontes independentes (RUBRICA §0/§1);
+    sem isso o teto é `ESTABLISHED_CEILING` (18). A trava de evidência (RUBRICA §0) é aplicada por
+    último — o validator de `PillarScore` a reforça.
     """
-    raw = {0: 3, 1: 9, 2: 12}.get(distinct, 15)
-    raw = min(V0_SCORE_CEILING, raw + boost)
+    base = {0: 3, 1: 9, 2: 12}.get(distinct, 15)
+    raw = base + boost + 2 * strong
+    # Sem corroboração (sinal forte + fontes independentes), não cruza para "Forte/Defensável".
+    if not (strong >= 1 and n_sources >= MIN_SOURCES_FOR_STRONG):
+        raw = min(raw, ESTABLISHED_CEILING)
+    raw = max(0, min(25, raw))
     if not has_evidence:
         raw = min(raw, MAX_SCORE_WITHOUT_EVIDENCE)
     return raw
@@ -240,7 +295,10 @@ def _pillar_data_moat(profile: StartupProfile) -> PillarScore:
         boost = 3
         evidence = _dedup_ev([*evidence, *client_ev])
         extra = f"{len(profile.clientes)} clientes (potencial de dado de uso)."
-    score = _band_score(len(signals), has_evidence=bool(evidence), boost=boost)
+    score = _band_score(
+        len(signals), _strong_count(signals, DATA_STRONG), _n_sources(evidence),
+        has_evidence=bool(evidence), boost=boost,
+    )
     return PillarScore(
         pilar=AIMIPillar.DATA_MOAT,
         score=score,
@@ -256,7 +314,10 @@ def _pillar_workflow_depth(profile: StartupProfile) -> PillarScore:
         + _items_src(profile.tecnologias, ("nome", "categoria", "uso"))
     )
     signals, evidence = _scan(src, WORKFLOW_TERMS)
-    score = _band_score(len(signals), has_evidence=bool(evidence))
+    score = _band_score(
+        len(signals), _strong_count(signals, WORKFLOW_STRONG), _n_sources(evidence),
+        has_evidence=bool(evidence),
+    )
     return PillarScore(
         pilar=AIMIPillar.WORKFLOW_DEPTH,
         score=score,
@@ -271,7 +332,10 @@ def _pillar_technical_optimization(profile: StartupProfile) -> PillarScore:
     )
     opt_signals, opt_ev = _scan(src, OPT_TERMS)
     api_signals, _ = _scan(src, API_TERMS)
-    score = _band_score(len(opt_signals), has_evidence=bool(opt_ev))
+    score = _band_score(
+        len(opt_signals), _strong_count(opt_signals, OPT_STRONG), _n_sources(opt_ev),
+        has_evidence=bool(opt_ev),
+    )
     extra = ""
     # 100% API externa, sem sinal de otimização própria → pilar baixo = gatilho (RUBRICA §4).
     if not opt_signals and api_signals:
@@ -310,7 +374,10 @@ def _pillar_distribution_moat(profile: StartupProfile) -> PillarScore:
         boost += 2
         extras.append("captação divulgada")
     evidence = _dedup_ev([*evidence, *client_ev, *fund_ev]) if boost else evidence
-    score = _band_score(len(signals), has_evidence=bool(evidence), boost=boost)
+    score = _band_score(
+        len(signals), _strong_count(signals, DIST_STRONG), _n_sources(evidence),
+        has_evidence=bool(evidence), boost=boost,
+    )
     extra = ("Tração: " + ", ".join(extras) + ".") if extras else ""
     return PillarScore(
         pilar=AIMIPillar.DISTRIBUTION_MOAT,
@@ -364,8 +431,10 @@ def _confidence(profile: StartupProfile) -> float:
 
 
 def heuristic_score(profile: StartupProfile) -> AIMIScore:
-    """Heurística AIMI **v0** (default determinista/offline): perfil → `AIMIScore`.
+    """Heurística AIMI **v1** (default determinista/offline): perfil → `AIMIScore`.
 
+    Refina a v0 provisória (F2.6): além da *breadth* de sinais, pesa sinais **fortes** e exige
+    **corroboração** (sinal forte + ≥2 fontes) p/ a faixa "Forte/Defensável" (RUBRICA §0/§1).
     Pontua os 4 pilares pela RUBRICA (F0.11) a partir dos sinais estruturados do perfil, com
     evidência colada a cada sub-score, e deriva a classe (§5.1). Pura/reprodutível — sem
     rede/LLM. `total`/`band` são recomputados pelo validator do `AIMIScore`.
@@ -381,7 +450,7 @@ def heuristic_score(profile: StartupProfile) -> AIMIScore:
         distribution_moat=p4,
         classificacao=_classify_class(profile, p2.score),
         confidence=_confidence(profile),
-        heuristic_version="v0",
+        heuristic_version="v1",
     )
 
 
@@ -497,7 +566,7 @@ def parse_score(text: str, *, profile: StartupProfile) -> AIMIScore:
         distribution_moat=pillar("distribution_moat", AIMIPillar.DISTRIBUTION_MOAT),
         classificacao=_parse_class(data.get("classificacao", data.get("classe"))),
         confidence=_clamp_conf(data.get("confidence")),
-        heuristic_version="v0",
+        heuristic_version="v1",
     )
 
 
