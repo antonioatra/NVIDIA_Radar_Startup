@@ -96,15 +96,27 @@ services:
     # Cria o bucket de eventos no boot e sobe o MinIO.
     command: -c 'mkdir -p /data/langfuse && minio server /data --console-address ":9001"'
 
+  # API e worker compartilham a imagem Python (apps/Dockerfile); contexto = raiz do repo
+  # (importam `packages.*`). O `environment` sobrepõe o `.env` (que aponta p/ localhost no
+  # dev) com os hosts da rede do compose — é o que liga os serviços de fato (F0.2 DoD).
   api:
-    build: ./apps/api
+    build: &python-build
+      context: .
+      dockerfile: apps/Dockerfile
     env_file: .env
+    environment: &service-hosts
+      POSTGRES_URL: postgresql://tapi:tapi@postgres:5432/tapi
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
+      LANGFUSE_HOST: http://langfuse-web:3000
     depends_on: [postgres, qdrant, redis]
     ports: ["8080:8080"]
 
   worker:
-    build: ./apps/worker
+    build: *python-build
+    command: ["rq", "worker", "tapi", "--url", "redis://redis:6379/0"]
     env_file: .env
+    environment: *service-hosts
     depends_on: [postgres, qdrant, redis]
 
   frontend:

@@ -5,7 +5,17 @@
 
 ## Tasks
 - [x] **F0.1** `git init` + `.gitignore` + README + estrutura `apps/packages/data/docs`.
-- [ ] **F0.2** `docker-compose.yml`: postgres, qdrant, redis, langfuse, api, worker, frontend, nim(GPU).
+- [x] **F0.2** `docker-compose.yml`: postgres, qdrant, redis, langfuse, api, worker, frontend, nim(GPU).
+      → O compose já definia os 8 serviços; faltava só o `build:` de api/worker/frontend ter
+      **Dockerfile** (eram stubs até F4/F5 — agora prontos). **Python (api+worker)** compartilham
+      `apps/Dockerfile` (contexto = raiz do repo, pois importam `packages.*`; `build-essential` p/
+      as extensões C de `nemoguardrails`/`annoy`, ver [[dev-env-windows]]); o compose usa anchor
+      YAML (`*python-build`) e sobrepõe os hosts da rede do Compose (`POSTGRES_URL`/`QDRANT_URL`/
+      `REDIS_URL`/`LANGFUSE_HOST` → nomes de serviço, não `localhost` do `.env`). O `worker` roda
+      `rq worker tapi`. **Frontend** tem `apps/frontend/Dockerfile` (Next 16, `npm ci`→build→start).
+      `.dockerignore` na raiz e no frontend enxugam o contexto. `docker compose config` valida
+      (exit 0); o `docker build`/`up` ao vivo **não** foi rodado nesta sessão (deps pesadas; o NIM
+      segue sem caber na GPU de 4GB, F0.4).
 - [x] **F0.3** `.env.example` + carregamento de config (pydantic-settings) em `packages/config`.
 - [x] **F0.4** NVIDIA Container Toolkit validado (GPU visível no container — `nvidia-smi`).
       Verificado ao vivo (2026-06-02): `docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04
@@ -71,8 +81,10 @@ PostgreSQL · Qdrant · Redis · Docker Compose · NVIDIA Container Toolkit · P
 
 ## DoD
 - [~] `docker compose up` sobe todos os serviços; GPU acessível no container NIM.
-      GPU no container **validada** (F0.4, 2026-06-02). Pendente: `build:` de `api`/`worker`/`frontend`
-      ainda sem Dockerfile (apps são stubs até F4/F5) e o NIM não cabe na GPU de 4GB local.
+      GPU no container **validada** (F0.4, 2026-06-02); os Dockerfiles de `api`/`worker`/`frontend`
+      passaram a existir (F0.2) e `docker compose config` valida o arquivo (exit 0). Residual
+      (mantém `[~]`): o `up` ao vivo não foi executado nesta sessão e o NIM (Nemotron Nano 8B) não
+      cabe na GPU de 4GB local — serving self-hosted fica p/ host com VRAM suficiente (F6).
 - [x] `python -c "from packages.schemas import StartupProfile"` funciona.
 - [x] Smoke test de chamada ao Nemotron aparece como trace no Langfuse.
       Verificado ao vivo (2026-06-02): `smoke('fast'/'reason')` → Nemotron Nano/Super retornam OK;
