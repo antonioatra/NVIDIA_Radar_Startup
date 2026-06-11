@@ -49,6 +49,7 @@ from .guardrails import (
     guard_recommendations,
 )
 from .human_review import review_payload
+from .inception import inception_priority
 from .llm import Profile, get_chat, reasoning_system_message, smoke
 from .nodes import NODES
 from .nvidia_rag import build_rag_queries, gap_pillars, get_kb_retriever, retrieve_evidence
@@ -123,6 +124,8 @@ __all__ = [
     "classify_with_llm",
     "make_aimi",
     "is_confident_non_ai",
+    # Inception Priority — fila de outreach 0–100 derivada do AIMI (F6.13)
+    "inception_priority",
     # evidence_validator (F2.7) — o nó é acessado via NODES (evita shadowing do submódulo)
     "evidence_sources",
     "is_sufficient",

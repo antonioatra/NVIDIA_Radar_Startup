@@ -58,6 +58,8 @@ from packages.schemas import (
 from packages.scraping.provenance import make_snippet
 from packages.scraping.source_policy import annotate as source_policy_for
 
+from .inception import inception_priority
+
 # Adapter de classificação injetável: profile -> JSON cru do modelo. Default = Nemotron-Super.
 ClassifyFn = Callable[[StartupProfile], str]
 
@@ -476,7 +478,7 @@ def heuristic_score(profile: StartupProfile) -> AIMIScore:
     p2 = _pillar_workflow_depth(profile)
     p3 = _pillar_technical_optimization(profile)
     p4 = _pillar_distribution_moat(profile)
-    return AIMIScore(
+    aimi = AIMIScore(
         data_moat=p1,
         workflow_depth=p2,
         technical_optimization=p3,
@@ -485,6 +487,9 @@ def heuristic_score(profile: StartupProfile) -> AIMIScore:
         confidence=_confidence(profile),
         heuristic_version="v1",
     )
+    # F6.13 — fila de outreach: potencial AI-native × upside NVIDIA, derivado do próprio AIMI.
+    aimi.inception_priority = inception_priority(aimi)[0]
+    return aimi
 
 
 # ------------------------------------------------------------------ caminho LLM (opt-in)
@@ -592,7 +597,7 @@ def parse_score(text: str, *, profile: StartupProfile) -> AIMIScore:
             evidencia=evidence,
         )
 
-    return AIMIScore(
+    aimi = AIMIScore(
         data_moat=pillar("data_moat", AIMIPillar.DATA_MOAT),
         workflow_depth=pillar("workflow_depth", AIMIPillar.WORKFLOW_DEPTH),
         technical_optimization=pillar("technical_optimization", AIMIPillar.TECHNICAL_OPTIMIZATION),
@@ -601,6 +606,9 @@ def parse_score(text: str, *, profile: StartupProfile) -> AIMIScore:
         confidence=_clamp_conf(data.get("confidence")),
         heuristic_version="v1",
     )
+    # F6.13 — Inception Priority também no caminho LLM (deriva do AIMI, não do que o modelo alegar).
+    aimi.inception_priority = inception_priority(aimi)[0]
+    return aimi
 
 
 def classify_with_llm(profile: StartupProfile, *, classify: ClassifyFn) -> AIMIScore | None:

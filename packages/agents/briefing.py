@@ -48,6 +48,7 @@ from packages.schemas import (
 )
 
 from .guardrails import GuardFn, guard_recommendations
+from .inception import inception_priority
 from .nvidia_rag import gap_pillars
 from .terminals import insufficient_data_briefing, out_of_scope_briefing
 
@@ -179,6 +180,8 @@ def build_briefing(
         acao_comercial=_acao_comercial(aimi, recs),
         acao_tecnica=_acao_tecnica(recs),
         acao_comunitaria=_acao_comunitaria(recs),
+        # F6.13 — a prioridade de outreach (fila do gerente) no artefato de decisão.
+        inception_priority=inception_priority(aimi)[0],
         run_id=run_id,
     )
 
@@ -198,9 +201,11 @@ def _evidence_urls(items: Sequence[Any]) -> str:
 
 def _aimi_lines(aimi: AIMIScore) -> list[str]:
     """Linhas do bloco AIMI no Markdown (classe + os 4 pilares com score/faixa/justificativa)."""
+    prio, fatores = inception_priority(aimi)  # F6.13 — score explicável (fatores na mesma linha)
     lines = [
         f"- **Classe:** {aimi.classificacao.value}",
         f"- **AIMI total:** {aimi.total}/100",
+        f"- **Inception Priority:** {prio}/100 — {fatores}.",
     ]
     for p in aimi.pillars:
         banda = p.band.value if p.band else "n/d"
@@ -309,6 +314,8 @@ def render_pdf(briefing: Briefing) -> bytes:
         story += [gap, Paragraph("Diagnóstico (AIMI)", h2)]
         story.append(Paragraph(_pdf_field("Classe", briefing.aimi.classificacao.value), body))
         story.append(Paragraph(_pdf_field("AIMI total", f"{briefing.aimi.total}/100"), body))
+        prio, fatores = inception_priority(briefing.aimi)  # F6.13 — paridade com o Markdown
+        story.append(Paragraph(_pdf_field("Inception Priority", f"{prio}/100 — {fatores}."), body))
         for p in briefing.aimi.pillars:
             banda = p.band.value if p.band else "n/d"
             story.append(

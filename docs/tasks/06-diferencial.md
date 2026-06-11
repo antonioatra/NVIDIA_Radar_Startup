@@ -73,7 +73,7 @@
       puro — identidade/inversa, valor conhecido 0,6, monotônica não-linear, empates/constante,
       validação — + correlação ≥ gate, P3 recuperado, P4 o mais fraco, per-entry rastreável,
       heurística v1 determinista, CLI exit 0).
-- [ ] **F6.13** **Inception Priority (fila de outreach):** score 0–100 por empresa = **potencial
+- [x] **F6.13** **Inception Priority (fila de outreach):** score 0–100 por empresa = **potencial
       AI-native × upside NVIDIA**, derivado do AIMI (alto potencial em Data Moat/Workflow +
       **Technical Optimization baixo** = maior upside de graduação → maior prioridade). Serve
       diretamente o §1 ("atrair, qualificar e nutrir"): dá ao gerente uma **fila priorizada** de
@@ -81,6 +81,26 @@
       (F0.5), exibido na lista da UI (F5.4) e no briefing. Explicável: cada score com os fatores
       que o compõem. **Complementa** o radar de coorte (F6.7): F6.7 ranqueia *clusters*, F6.13
       ranqueia *empresas*.
+      → `packages\agents\inception.py` (+ `tests\test_inception.py`): função pura
+      `inception_priority(aimi) → (score 0–100, fatores)` — `100 × peso(classe) × potencial ×
+      upside`, com **potencial** `=(P1+P2)/50` (moat + workflow reais) e **upside** `=(25−P3)/25`
+      (P3 baixo = stack imatura = maior upside de graduação, RUBRICA §4). **Multiplicativo de
+      propósito** (o "×" do §9): exige os **dois** lados — quem já internalizou a inferência (P3
+      alto) cai por upside menor; wrapper sem moat (P1/P2 baixo) cai por potencial menor. O **peso
+      da classe** (§5.1: `AI-native` 1.0 · `AI-enabled` 0.5 · `non-AI` 0.0) realiza a região "alvo
+      de graduação ★" (ALINHAMENTO §5): `AI-native` + P1/P2 alto + P3 baixo → topo da fila. Puro/
+      determinista (sem rede/LLM/GPU). **Wiring:** o `classifier` carimba o campo nos **dois**
+      caminhos (heurística v1 **e** parse do Super — deriva do AIMI, não do que o modelo alegar);
+      o `briefing` (F4.4) preenche `Briefing.inception_priority` e **exibe os fatores** no Markdown
+      e no PDF (paridade), na mesma linha do diagnóstico — score nunca caixa-preta (§9). **Sem
+      mudar contrato:** só preenche o campo `inception_priority` que já existia em `AIMIScore`/
+      `Briefing`/`Score`(DB); a API (`GET /companies`, ordena por ele desc) e a UI (lista F5.4 +
+      detalhe) já o liam — agora vem com valor real, não `None`. (A *persistência* do `Score` no
+      banco — mapear `aimi → Score` — segue como lacuna à parte; o campo flui por contrato.)
+      **Gate verde:** `ruff` limpo e `pytest` **671 passed, 4 skipped** (8 testes novos: limites
+      [0,100], alvo-de-graduação > já-otimizado [upside] e > wrapper [potencial], ordem por classe
+      native>enabled>non-AI=0, fatores explicáveis, carimbo na heurística e no parse, e o briefing
+      exibindo o score + a linha no Markdown).
 
 ## 6.2 Camada de coorte (RAPIDS/cuML)
 - [ ] **F6.5** **cuDF**: normalização/dedup da **coorte acumulada** (tabela `company` populada
