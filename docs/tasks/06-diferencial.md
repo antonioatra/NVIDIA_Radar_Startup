@@ -95,12 +95,24 @@
       e no PDF (paridade), na mesma linha do diagnóstico — score nunca caixa-preta (§9). **Sem
       mudar contrato:** só preenche o campo `inception_priority` que já existia em `AIMIScore`/
       `Briefing`/`Score`(DB); a API (`GET /companies`, ordena por ele desc) e a UI (lista F5.4 +
-      detalhe) já o liam — agora vem com valor real, não `None`. (A *persistência* do `Score` no
-      banco — mapear `aimi → Score` — segue como lacuna à parte; o campo flui por contrato.)
+      detalhe) já o liam — agora vem com valor real, não `None`.
       **Gate verde:** `ruff` limpo e `pytest` **671 passed, 4 skipped** (8 testes novos: limites
       [0,100], alvo-de-graduação > já-otimizado [upside] e > wrapper [potencial], ordem por classe
       native>enabled>non-AI=0, fatores explicáveis, carimbo na heurística e no parse, e o briefing
       exibindo o score + a linha no Markdown).
+      → **Lacuna fechada (`aimi → Score` no banco):** antes o AIMI fluía só por contrato
+      (`AIMIScore`), nunca era gravado na tabela `score` (F0.6) — a UI degradava os deep-links por
+      pilar (`apps/api/schemas.py`: "vazia até a persistência do AIMI gravá-las"). Novo
+      `persist_score` em `packages\agents\persistence.py` (+ `tests\test_score_persistence.py`):
+      contraparte de `persist_recommendations` (F4.7) — upsert idempotente da linha `score` por
+      `(run_id, company_id)` e evidência de **cada pilar** na tabela `evidence` polimórfica
+      (`entity_type='score'`, `field=<pilar>`, ex.: 'data_moat'). Reusa o `_evidence_row`
+      (generalizado p/ receber `entity_type`) e o `persist_evidence` (dedup por url/hash/alvo →
+      reprocesso não infla). Mesmo nível do irmão (módulo + testes; o wiring no worker F2.10 segue
+      à parte, como o de `persist_recommendations`). **Gate verde:** `ruff` limpo e `pytest`
+      **677 passed, 4 skipped** (6 testes novos: linha gravada, 4 pilares + total derivado,
+      evidência por pilar [3 com fonte, P3 ≤6 sem], idempotência no run, upsert enriquece em hit,
+      runs distintos = linhas distintas).
 
 ## 6.2 Camada de coorte (RAPIDS/cuML)
 - [ ] **F6.5** **cuDF**: normalização/dedup da **coorte acumulada** (tabela `company` populada
