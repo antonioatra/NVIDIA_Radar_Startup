@@ -118,6 +118,15 @@ def test_mature_startup_still_gets_a_recommendation() -> None:
     assert all(c.pilar_origem is AIMIPillar.TECHNICAL_OPTIMIZATION for c in cand)
 
 
+def test_low_technical_optimization_triggers_graduation_even_when_not_lowest() -> None:
+    # Acoplamento F6.3: P3 baixo DISPARA a recomendação de graduação (NIM/TensorRT-LLM/Triton),
+    # mesmo quando P1/P2/P4 (2/3/5) estão ainda mais baixos — pela severidade pura P3=12 cairia
+    # fora do corte MAX_GAPS=3 e a graduação não dispararia. A F6.3 garante que dispara e lidera.
+    cand = match_techs(_aimi(2, 3, 12, 5))
+    assert cand[0].pilar_origem is AIMIPillar.TECHNICAL_OPTIMIZATION  # P3 encabeça a prescrição
+    assert "NVIDIA NIM" in _techs(cand)  # gatilho de graduação API→stack disparado
+
+
 def test_sector_techs_are_appended_with_no_pillar_origin() -> None:
     cand = match_techs(_aimi(20, 22, 20, 24), _profile(setor="Healthtech / saúde digital"))
     setor = [c for c in cand if c.pilar_origem is None]

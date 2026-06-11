@@ -112,6 +112,18 @@ def test_without_explicit_gap_uses_lowest_pillar() -> None:
     assert queries[0].pilar is AIMIPillar.TECHNICAL_OPTIMIZATION
 
 
+def test_technical_optimization_gap_leads_and_survives_max_gaps() -> None:
+    # Acoplamento F6.3: P3 baixo é o gatilho de graduação, mesmo NÃO sendo o gap mais severo.
+    # Aqui P1/P2/P4 (2/3/5) estão abaixo de P3 (12) — pela severidade pura P3 cairia fora do
+    # corte MAX_GAPS=3 e a recomendação de graduação NÃO dispararia. A priorização da F6.3 põe
+    # P3 à frente e garante que ele sobreviva ao corte.
+    queries = build_rag_queries(_aimi(2, 3, 12, 5), profile=None)
+    assert queries[0].pilar is AIMIPillar.TECHNICAL_OPTIMIZATION  # P3 encabeça
+    assert queries[0].text == PILLAR_QUERIES[AIMIPillar.TECHNICAL_OPTIMIZATION]
+    # P3 está entre os MAX_GAPS selecionados (não foi cortado pelos pilares mais baixos).
+    assert AIMIPillar.TECHNICAL_OPTIMIZATION in {q.pilar for q in queries}
+
+
 # --- O nó: evidência citável guiada pelos gaps ----------------------------------------------
 
 

@@ -39,7 +39,20 @@
       ganhou rastro. **Gate verde:** `ruff` limpo e `pytest` **650 passed, 4 skipped** (4 testes
       novos: cada sub-score traz "Cálculo: … = N", e o breakdown explica os 3 tetos — Estabelecido,
       Forte e graduação por API).
-- [ ] **F6.3** Acoplamento: Technical Optimization baixo **dispara** recomendações NVIDIA no F4.
+- [x] **F6.3** Acoplamento: Technical Optimization baixo **dispara** recomendações NVIDIA no F4.
+      → `packages\agents\nvidia_rag.py`: a seleção de gaps (`gap_pillars`, fonte única do RAG/F3.7
+      **e** das regras/F4.1 — consistência gap↔evidência) passa a **priorizar P3**. Novo
+      `_gap_sort_key`: quando Technical Optimization é gap (score ≤ `GAP_CEILING`), ele encabeça a
+      lista e **sobrevive ao corte `MAX_GAPS`** — antes, por severidade pura, um P3 gap podia ser
+      descartado se outros 3 pilares pontuassem mais baixo, e a graduação **não disparava**. Agora
+      P3 baixo sempre aciona NIM/TensorRT-LLM/Triton (o maior upside NVIDIA, `ALINHAMENTO §8` /
+      `RUBRICA §4`) e lidera a prescrição; P3 **não**-gap (score alto) não recebe prioridade (vale
+      só severidade/nome — startup com stack forte não é alvo de graduação). Efeito de borda
+      desejado no briefing (F4.4): `gap_pillars(aimi)[0]` vira P3 sempre que P3 é gap, reforçando o
+      ramo "alvo de graduação" do eixo comercial. **Sem mudar contrato nem `GAP_CEILING`/`MAX_GAPS`**
+      — só a ordem/garantia de seleção. **Gate verde:** `ruff` limpo e `pytest` **652 passed, 4
+      skipped** (2 testes novos: P3 gap lidera e sobrevive ao corte mesmo não sendo o mais severo —
+      no nível de query/F3.7 e de regra/F4.1; os 7 casos §5.5 e a ordenação por severidade seguem).
 - [ ] **F6.4** Eval do índice: correlação do AIMI com os rótulos do **eval set de F1.12**
       (consome o conjunto já criado; F7.2 consolida a métrica).
 - [ ] **F6.13** **Inception Priority (fila de outreach):** score 0–100 por empresa = **potencial

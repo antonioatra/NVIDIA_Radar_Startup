@@ -130,16 +130,33 @@ class RagQuery:
     text: str
 
 
-def gap_pillars(aimi: AIMIScore) -> list[PillarScore]:
-    """Pilares-gap em ordem de severidade (menor score primeiro), limitados a `MAX_GAPS`.
+def _gap_sort_key(p: PillarScore) -> tuple[int, int, str]:
+    """Chave de ordenação dos gaps — **acoplamento F6.3**: P3 (Technical Optimization), quando é
+    gap, vem primeiro; depois por severidade (menor score), desempate estável pelo nome do pilar.
 
-    Gap = score ≤ `GAP_CEILING` (ausente/emergente). Se nenhum pilar é gap (startup madura), usa
-    o **mais baixo** mesmo assim — sempre há uma tech NVIDIA que aprofunda o moat, e o nó nunca
-    fica sem consulta a partir de um diagnóstico válido. Público: o mapa de regras gap→tech (F4.1)
-    reusa exatamente esta seleção para que o recommender recomende sobre os mesmos gaps que o RAG
-    recuperou evidência (consistência gap↔evidência).
+    P3 baixo é **o** gatilho de graduação API→stack — o maior upside NVIDIA (`ALINHAMENTO §8`,
+    `RUBRICA §4`). Por isso, quando P3 é gap (score ≤ `GAP_CEILING`), ele **lidera** a seleção e
+    **nunca** é cortado pelo teto `MAX_GAPS`: a recomendação de graduação dispara mesmo que outro
+    pilar esteja ainda mais baixo. P3 fora da faixa de gap (score > `GAP_CEILING`) **não** recebe
+    prioridade — aí valem só severidade/nome, como nos demais pilares (uma startup com P3 forte
+    não é alvo de graduação).
     """
-    ordered = sorted(aimi.pillars, key=lambda p: (p.score, p.pilar.value))
+    p3_gap = p.pilar is AIMIPillar.TECHNICAL_OPTIMIZATION and p.score <= GAP_CEILING
+    return (0 if p3_gap else 1, p.score, p.pilar.value)
+
+
+def gap_pillars(aimi: AIMIScore) -> list[PillarScore]:
+    """Pilares-gap priorizados (P3 primeiro, depois severidade), limitados a `MAX_GAPS`.
+
+    Gap = score ≤ `GAP_CEILING` (ausente/emergente). **Acoplamento F6.3:** Technical Optimization
+    baixo **dispara** a recomendação NVIDIA — quando P3 é gap ele encabeça a lista e sobrevive ao
+    corte `MAX_GAPS` (vide `_gap_sort_key`); os demais gaps seguem por severidade (menor primeiro).
+    Se nenhum pilar é gap (startup madura), usa o **mais baixo** mesmo assim — sempre há uma tech
+    NVIDIA que aprofunda o moat, e o nó nunca fica sem consulta a partir de um diagnóstico válido.
+    Público: o mapa de regras gap→tech (F4.1) reusa exatamente esta seleção para que o recommender
+    recomende sobre os mesmos gaps que o RAG recuperou evidência (consistência gap↔evidência).
+    """
+    ordered = sorted(aimi.pillars, key=_gap_sort_key)
     gaps = [p for p in ordered if p.score <= GAP_CEILING] or ordered[:1]
     return gaps[:MAX_GAPS]
 
