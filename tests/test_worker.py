@@ -1,7 +1,8 @@
 """Testes do worker async (F2.10) — job RQ + enfileiramento.
 
-Offline: o job recebe Redis/checkpointer/runner **injetados** (sem broker nem Postgres).
-Exercita:
+Offline: o job recebe Redis/checkpointer/sessão/runner **injetados** (sem broker nem
+Postgres). A **gravação** das saídas do run (run/company/score/recs) é da
+`tests/test_worker_persistence.py`; aqui a sessão é injetada nula (no-op). Exercita:
 - `run_graph_job`: roda o grafo de verdade (offline) com checkpointer nulo e um Redis
   stub → resumo `completed` e progresso publicado no canal (por nó + terminal);
 - coerção de `mode`/`hitl` vindos como string (sobrevivem ao pickle da fila);
@@ -45,6 +46,11 @@ def _no_checkpointer():
     return nullcontext(None)
 
 
+def _no_session():
+    # contextmanager que entrega None: o job roda offline sem gravar no banco (M2/DoD).
+    return nullcontext(None)
+
+
 # --- run_graph_job ------------------------------------------------------------
 
 
@@ -55,6 +61,7 @@ def test_run_graph_job_runs_graph_and_publishes_progress() -> None:
         run_id="r1",
         redis_client=redis,
         open_checkpointer=_no_checkpointer,
+        open_session=_no_session,
     )
 
     assert summary == {
@@ -81,6 +88,7 @@ def test_run_graph_job_coerces_str_mode_and_hitl() -> None:
         hitl="auto",
         redis_client=redis,
         open_checkpointer=_no_checkpointer,
+        open_session=_no_session,
     )
     assert summary["status"] == RunStatus.COMPLETED.value
     assert summary["run_id"] == "r2"
@@ -89,7 +97,10 @@ def test_run_graph_job_coerces_str_mode_and_hitl() -> None:
 def test_run_graph_job_generates_run_id_when_absent() -> None:
     redis = _RecordingRedis()
     summary = run_graph_job(
-        "Acme AI", redis_client=redis, open_checkpointer=_no_checkpointer
+        "Acme AI",
+        redis_client=redis,
+        open_checkpointer=_no_checkpointer,
+        open_session=_no_session,
     )
     assert summary["run_id"]  # uuid gerado
     # o canal usa o mesmo run_id gerado.
@@ -112,6 +123,7 @@ def test_resume_graph_job_resumes_paused_run_and_publishes(monkeypatch) -> None:
         {"approved": True},
         redis_client=redis,
         open_checkpointer=lambda: nullcontext(saver),
+        open_session=_no_session,
     )
 
     assert summary["run_id"] == "r-res"

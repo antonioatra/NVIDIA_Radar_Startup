@@ -98,11 +98,12 @@
       `band_for`, sem duplicar), a justificativa (`just_*`) e as **fontes citáveis por pilar** —
       as linhas `evidence` com `entity_type='score'`/`field=<pilar>`, agrupadas por pilar. `404`
       quando a empresa não existe; empresa coletada mas **não pontuada** sai com `pilares=[]` e o
-      diagnóstico nulo (mesma degradação graciosa da lista F5.4). **Nota de honestidade:** a
-      persistência do AIMI ainda não grava evidência de score (não há `persist_score` — a tabela
-      `Score` é escrita só em teste hoje; F6.2/persistência futura); a rota já **superfície** o
-      `field=<pilar>` corretamente, então os links aparecem assim que essa escrita existir — até
-      lá o pilar mostra o sub-score sem link, sem quebrar. **Frontend** (`apps/frontend/`): rota
+      diagnóstico nulo (mesma degradação graciosa da lista F5.4). **Persistência (fechada):** o
+      `persist_score` (F6.13) grava a linha `score` + a evidência de cada pilar
+      (`entity_type='score'`/`field=<pilar>`), e o worker (F2.10) o **liga num run real** via a
+      persistência pós-run (`apps/worker/persistence.py`) — então os deep-links por pilar vêm com
+      valor; empresa coletada mas não pontuada degrada graciosamente (sub-score sem link, sem
+      quebrar). **Frontend** (`apps/frontend/`): rota
       **`/radar/[id]`** — casca **server** (`page.tsx`, metadata; `params` é **Promise** no Next 16,
       resolvido com `await`) sobre a **view client** (`detail.tsx`) que busca `getCompany(id)`
       (`lib/api.ts`, com os tipos `CompanyDetail`/`PillarOut`/`EvidenceOut`; `404` vira mensagem

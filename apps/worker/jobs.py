@@ -23,6 +23,8 @@ from packages.agents.progress import RedisProgressPublisher, resume_pipeline, st
 from packages.config import get_settings
 from packages.schemas import ExecutionMode, HITLMode
 
+from .persistence import persist_run_state
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from contextlib import AbstractContextManager
@@ -30,12 +32,15 @@ if TYPE_CHECKING:
     from langgraph.checkpoint.base import BaseCheckpointSaver
     from redis import Redis
     from rq import Queue
+    from sqlmodel import Session
 
     from packages.agents.progress import ProgressEvent
     from packages.schemas import GraphState
 
     #: Fábrica de checkpointer: abre um context manager que entrega o saver (ou None offline).
     _OpenCheckpointer = Callable[[], AbstractContextManager[BaseCheckpointSaver | None]]
+    #: Fábrica de sessão SQL: abre um context manager que entrega a Session (ou None offline).
+    _OpenSession = Callable[[], AbstractContextManager[Session | None]]
 
 
 def _redis_from_settings() -> Redis:
@@ -50,6 +55,31 @@ def _default_checkpointer() -> AbstractContextManager[BaseCheckpointSaver]:
     return postgres_checkpointer()
 
 
+def _default_session() -> AbstractContextManager[Session]:
+    """Abre a sessão SQL de produção (F0.6) — onde as saídas do run são gravadas (F2.10)."""
+    from sqlmodel import Session
+
+    from packages.db import get_engine
+
+    return Session(get_engine())
+
+
+def _persist_run(state: GraphState, open_session: _OpenSession | None) -> None:
+    """Grava as saídas do run nas tabelas relacionais (F0.6) e **commita** — fecha o run e2e.
+
+    Pós-run (estado final → `run`/`company`/`score`/`recommendation`, `packages.agents` +
+    `apps.worker.persistence`) numa transação própria, separada do checkpointer (F2.2). A
+    sessão é **injetável** (`open_session`) e, quando o factory entrega `None` (offline/sem
+    banco), é um no-op limpo — o grafo roda igual sem tocar o Postgres (M2/DoD).
+    """
+    open_db = open_session or _default_session
+    with open_db() as session:
+        if session is None:
+            return  # offline (sem banco) → só roda o grafo, não persiste
+        persist_run_state(session, state)
+        session.commit()
+
+
 def run_graph_job(
     query: str,
     *,
@@ -58,16 +88,17 @@ def run_graph_job(
     hitl: HITLMode | str = HITLMode.SYNC,
     redis_client: Redis | None = None,
     open_checkpointer: _OpenCheckpointer | None = None,
+    open_session: _OpenSession | None = None,
     runner: Callable[..., GraphState] = stream_pipeline,
 ) -> dict[str, Any]:
-    """Roda um run do grafo (persistido) publicando o progresso; devolve um resumo.
+    """Roda um run do grafo (persistido), publica o progresso e **grava as saídas**; resumo.
 
     É a função que o worker RQ executa. Coage `mode`/`hitl` de string (sobrevivem ao
     pickle da fila como enum, mas a API/CLI podem mandar texto). Abre o checkpointer
-    Postgres e o publisher Redis de produção por default; ambos são **injetáveis** para
-    teste offline. O resumo (`{run_id, status, query, needs_review}`) é o retorno do job
-    que a API lê (a tabela `run` é atualizada pelo caminho de persistência das fases que
-    a tocam — aqui o foco é orquestrar e publicar progresso).
+    Postgres, o publisher Redis e a sessão SQL de produção por default; os três são
+    **injetáveis** para teste offline. Ao fim, persiste o run inteiro (run/company/score/
+    recs, F0.6) a partir do estado final (`_persist_run`) — é o que alimenta `GET /companies`
+    (F5.4). O resumo (`{run_id, status, query, needs_review}`) é o retorno do job que a API lê.
     """
     run_id = run_id or uuid.uuid4().hex
     mode = ExecutionMode(mode)
@@ -89,6 +120,8 @@ def run_graph_job(
             on_event=publisher,
         )
 
+    _persist_run(state, open_session)
+
     return {
         "run_id": run_id,
         "status": state.status.value,
@@ -103,15 +136,18 @@ def resume_graph_job(
     *,
     redis_client: Redis | None = None,
     open_checkpointer: _OpenCheckpointer | None = None,
+    open_session: _OpenSession | None = None,
     runner: Callable[..., GraphState] = resume_pipeline,
 ) -> dict[str, Any]:
     """Retoma um run pausado no HITL (F2.8) com a decisão humana; devolve um resumo (F5.2).
 
     Job RQ irmão do `run_graph_job`: o `POST /runs/{id}/resume` (F5.2) o enfileira quando o
     gerente aprova/edita/rejeita na tela de revisão (F5.10). Abre o **mesmo** checkpointer
-    Postgres (F2.2) — a thread `run_id` está pausada lá — e o publisher Redis de produção por
-    default; ambos **injetáveis** para teste offline. Publica o progresso dos nós restantes no
-    canal do run e devolve `{run_id, status, needs_review}` com o desfecho.
+    Postgres (F2.2) — a thread `run_id` está pausada lá — o publisher Redis e a sessão SQL de
+    produção por default; os três **injetáveis** para teste offline. Publica o progresso dos
+    nós restantes e **re-persiste** o run (idempotente): a linha `run` sai de `awaiting_review`
+    para o desfecho final (`completed`/terminal) e o briefing/score/recs ficam gravados. Devolve
+    `{run_id, status, needs_review}`.
     """
     client = redis_client if redis_client is not None else _redis_from_settings()
     publisher: Callable[[ProgressEvent], None] | None = (
@@ -121,6 +157,8 @@ def resume_graph_job(
 
     with open_cp() as checkpointer:
         state = runner(run_id, decision, checkpointer=checkpointer, on_event=publisher)
+
+    _persist_run(state, open_session)
 
     return {
         "run_id": run_id,

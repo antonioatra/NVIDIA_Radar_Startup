@@ -108,8 +108,9 @@
       `(run_id, company_id)` e evidência de **cada pilar** na tabela `evidence` polimórfica
       (`entity_type='score'`, `field=<pilar>`, ex.: 'data_moat'). Reusa o `_evidence_row`
       (generalizado p/ receber `entity_type`) e o `persist_evidence` (dedup por url/hash/alvo →
-      reprocesso não infla). Mesmo nível do irmão (módulo + testes; o wiring no worker F2.10 segue
-      à parte, como o de `persist_recommendations`). **Gate verde:** `ruff` limpo e `pytest`
+      reprocesso não infla). Mesmo nível do irmão (módulo + testes). **Wiring fechado:** o worker
+      (F2.10) liga `persist_score` **e** `persist_recommendations` num run real via a persistência
+      pós-run (`apps/worker/persistence.py`, ver F2.10). **Gate verde:** `ruff` limpo e `pytest`
       **677 passed, 4 skipped** (6 testes novos: linha gravada, 4 pilares + total derivado,
       evidência por pilar [3 com fonte, P3 ≤6 sem], idempotência no run, upsert enriquece em hit,
       runs distintos = linhas distintas).

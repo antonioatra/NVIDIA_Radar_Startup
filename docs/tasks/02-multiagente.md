@@ -253,6 +253,26 @@
       de `mode`/`hitl` string, run_id gerado; `enqueue_run` enfileira `run_graph_job` com
       `job_id=run_id` só com argumentos planos). Worker/Redis/Postgres reais ficam opt-in (sem
       teste de broker/banco, padrão da fase).
+      → **Persistência pós-run ligada (fecha o run e2e → tabelas F0.6):** o run corria mas não
+      deixava rastro — `persist_score` (F6.13)/`persist_recommendations` (F4.7) existiam e eram
+      testadas em isolamento, mas **nenhum run real as chamava** (a lista `GET /companies`/F5.4
+      ficava vazia). Novo `apps/worker/persistence.py`: lido o `GraphState` **final**, materializa
+      o run inteiro numa transação — `run` (âncora de FK + auditoria) → `company` (`persist_profile`
+      F1.10) → `score`/`recommendation` penduradas nela, cada uma com a evidência polimórfica (§8),
+      **nessa ordem** (FK do schema). **Pós-run, não hook por nó:** ler o estado num só ponto
+      resolve o `company_id` localmente e mantém **uma transação atômica** — sem propagar id entre
+      nós nem casar com a serialização do checkpointer. **Status da linha `run`:** fiel ao estado,
+      com a tradução que a F2.8 delegou ao worker — estado devolvido ainda em `RUNNING` = pausa do
+      HITL sync → `awaiting_review` (briefing/terminais sempre cravam um status final; só a pausa
+      antes do briefing deixa RUNNING). **Degrada sem alucinar:** perfil fora de escopo BR (F2.13,
+      `persist_profile` → `None`) ou run sem perfil (F2.12/offline) grava **só** a linha `run`.
+      **Idempotente** (run por id, company CNPJ>domínio>nome, score por run/empresa, rec por
+      run/empresa/tech): retry/resume reprocessam sem inflar. `run_graph_job`/`resume_graph_job`
+      ganham `open_session` injetável (default sessão real F0.6; nula no teste offline) e chamam
+      `_persist_run` (commit próprio, separado do checkpointer). Teste `tests/test_worker_persistence.py`
+      (run completo → run+company+score+recs+evidência dos 3 tipos; idempotência; fora de escopo /
+      sem perfil → só `run`; `RUNNING`→`awaiting_review`; wiring via `run_graph_job` com sessão
+      injetada). `tests/test_worker.py` injeta sessão nula (segue offline).
 - [x] **F2.11** **Guarda de custo/orçamento de LLM** por run (limite de tokens/chamadas) — os
       créditos grátis do `build.nvidia.com` têm rate limit; evita estouro durante o build.
       → Estende o rollup de custo da F2.9 (`packages/observability/cost.py`): `LLMBudget`
@@ -389,3 +409,4 @@ LangGraph · checkpointer Postgres · Nemotron (Nano/Super) · Redis/RQ · Langf
 - [x] Empresa sem evidência suficiente cai no estado terminal de baixa confiança (não alucina) (F2.12; `test_terminals`).
 - [x] Empresa `non-AI` de alta confiança gera briefing "fora de escopo" sem forçar recomendação (F2.13).
 - [x] Eventos de progresso publicados em canal Redis por `run_id`, consumíveis via SSE (F2.10; `test_progress`/`test_worker`).
+- [x] Saídas do run persistidas (run/company/score/recs + evidência) a partir do estado final, alimentando `GET /companies` (F2.10; `test_worker_persistence`).
