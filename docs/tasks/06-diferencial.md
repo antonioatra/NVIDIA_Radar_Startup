@@ -53,8 +53,26 @@
       — só a ordem/garantia de seleção. **Gate verde:** `ruff` limpo e `pytest` **652 passed, 4
       skipped** (2 testes novos: P3 gap lidera e sobrevive ao corte mesmo não sendo o mais severo —
       no nível de query/F3.7 e de regra/F4.1; os 7 casos §5.5 e a ordenação por severidade seguem).
-- [ ] **F6.4** Eval do índice: correlação do AIMI com os rótulos do **eval set de F1.12**
+- [x] **F6.4** Eval do índice: correlação do AIMI com os rótulos do **eval set de F1.12**
       (consome o conjunto já criado; F7.2 consolida a métrica).
+      → `packages\eval\aimi_correlation.py` (+ `tests\test_aimi_correlation.py`): harness que mede
+      o quanto a **heurística v1** (F6.1) recupera o AIMI **rotulado** a partir do **mesmo sinal
+      que a produção vê do lado público** — a descrição. Para cada entrada do eval set monta um
+      `StartupProfile` **só-de-descrição** (descrição+setor como `Claim`, espelhando o `extractor`
+      F2.5), roda `heuristic_score` e correlaciona o total predito × rotulado por **Spearman**
+      (rank-based: o ground-truth segue a RUBRICA, não a heurística, então a descrição-só
+      **sub-prediz a magnitude** mas preserva a **ordem** — que é o que "o índice ranqueia como o
+      rótulo?" exige). Spearman em **Python puro** (sem numpy/scipy — fora do `requirements-ci.txt`),
+      empates pela média, espinha verde offline como o §5.5 (F4.8). **Resultado:**
+      `Spearman(total)=0.815` ≥ gate **0,70** do §7 (que a F7.2 consolida); por pilar, P3 Technical
+      Optimization (o que dispara a graduação, F6.3) é recuperado bem (ρ=+0.76), e o relatório é
+      **honesto sobre o limite**: Distribution Moat é o pilar mais fraco (ρ=+0.18) porque seus
+      sinais (funding/clientes enterprise) não vivem numa fixture em prosa — o total ainda passa
+      porque P4 é 1 de 4. CLI `python -m packages.eval.aimi_correlation` (exit 1 abaixo do gate).
+      **Gate verde:** `ruff` limpo e `pytest` **663 passed, 4 skipped** (11 testes novos: Spearman
+      puro — identidade/inversa, valor conhecido 0,6, monotônica não-linear, empates/constante,
+      validação — + correlação ≥ gate, P3 recuperado, P4 o mais fraco, per-entry rastreável,
+      heurística v1 determinista, CLI exit 0).
 - [ ] **F6.13** **Inception Priority (fila de outreach):** score 0–100 por empresa = **potencial
       AI-native × upside NVIDIA**, derivado do AIMI (alto potencial em Data Moat/Workflow +
       **Technical Optimization baixo** = maior upside de graduação → maior prioridade). Serve

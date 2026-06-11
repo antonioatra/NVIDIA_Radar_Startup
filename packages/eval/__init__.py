@@ -14,6 +14,15 @@ recommender (consolidada na F7.2):
 `from packages.eval import evaluate_recommendation_cases, SECTION_55_CASES`.
 """
 
+from .aimi_correlation import (
+    SPEARMAN_THRESHOLD,
+    AIMICorrelationReport,
+    EntryScore,
+    evaluate_aimi_correlation,
+    predicted_aimi,
+    profile_for,
+    spearman,
+)
 from .dataset import (
     EVAL_DIR,
     ExpectedPillars,
@@ -97,4 +106,12 @@ __all__ = [
     "RecommendationEvalReport",
     "run_case",
     "evaluate_recommendation_cases",
+    # correlação do índice AIMI com os rótulos (F6.4) — consolidada na F7.2
+    "SPEARMAN_THRESHOLD",
+    "profile_for",
+    "predicted_aimi",
+    "spearman",
+    "EntryScore",
+    "AIMICorrelationReport",
+    "evaluate_aimi_correlation",
 ]
