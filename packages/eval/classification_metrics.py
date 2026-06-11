@@ -18,17 +18,21 @@ a **F7.5** consolida os três num `docs/AVALIACAO.md` único.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from packages.agents.classifier import ClassifyFn, _default_classify, make_aimi
 from packages.schemas.enums import Classification
 
-from .aimi_correlation import predicted_aimi
+from .aimi_correlation import predicted_aimi, profile_for
 from .dataset import LabeledStartup, load_eval_set
 
 #: Gate da classificação (§7): macro-F1 ≥ 0,75 no eval set (F1.12).
 MACRO_F1_THRESHOLD = 0.75
+
+#: Preditor de classe por entrada — heurística offline (default) ou LLM real (`--llm`).
+Predictor = Callable[[LabeledStartup], Classification]
 
 
 def predicted_class(entry: LabeledStartup) -> Classification:
@@ -36,8 +40,24 @@ def predicted_class(entry: LabeledStartup) -> Classification:
 
     Reusa o `predicted_aimi` (F6.4) — mesma fixture só-de-descrição (`profile_for`) e mesma
     `heuristic_score` — e extrai a `classificacao`. Predição e índice saem do **mesmo** passo.
+    É o **piso determinístico offline** (sem rede), o default do CI.
     """
     return predicted_aimi(entry).classificacao
+
+
+def llm_predicted_class(
+    entry: LabeledStartup, *, classify: ClassifyFn | None = None
+) -> Classification:
+    """Classe predita pelo **classificador LLM real** (Nemotron-Super, F2.6) — faz rede.
+
+    Caminho de **produção**: `make_aimi` forçando o adapter LLM (default `_default_classify` — o
+    Super com prompt versionado/F0.12 e reasoning ON), com o **mesmo fallback à heurística** em
+    falha de rede/JSON. Usa o mesmo `profile_for` só-de-descrição do F6.4 (o sinal público que a
+    produção vê). Custa chamadas à API (fora do CI) — exercitado pelo `--llm` do CLI, não pelos
+    testes offline. Mede o que o sistema **de fato** classifica, não o substituto determinístico.
+    """
+    adapter = classify or (lambda p: _default_classify(p))
+    return make_aimi(profile_for(entry), classify=adapter).classificacao
 
 
 def confusion_matrix(
@@ -138,15 +158,19 @@ class ClassificationReport(BaseModel):
 
 def evaluate_classification(
     entries: Sequence[LabeledStartup] | None = None,
+    *,
+    predict: Predictor = predicted_class,
 ) -> ClassificationReport:
-    """Avalia a classificação predita (heurística v1) vs os rótulos do eval set (F1.12).
+    """Avalia a classificação predita vs os rótulos do eval set (F1.12).
 
-    Roda `predicted_class` **uma vez** por entrada (perfil só-de-descrição) e agrega accuracy,
-    F1 por classe (one-vs-rest), macro-F1 e a matriz de confusão. Default = todo o eval set.
+    Roda `predict` **uma vez** por entrada (perfil só-de-descrição) e agrega accuracy, F1 por
+    classe (one-vs-rest), macro-F1 e a matriz de confusão. Default = `predicted_class` (heurística
+    offline, todo o eval set); injete `predict=llm_predicted_class` p/ medir o **Nemotron-Super
+    real** (rede/créditos). A métrica é a mesma; só o preditor muda — comparável lado a lado.
     """
     entries = tuple(entries) if entries is not None else load_eval_set()
     gold = [e.classificacao for e in entries]
-    pred = [predicted_class(e) for e in entries]
+    pred = [predict(e) for e in entries]
 
     support = {c: sum(1 for g in gold if g is c) for c in Classification}
     per_class = tuple(
@@ -178,10 +202,10 @@ def evaluate_classification(
     )
 
 
-def _print_report(report: ClassificationReport) -> None:
+def _print_report(report: ClassificationReport, *, path: str = "heurística offline") -> None:
     mark = "OK " if report.meets_threshold else "XX "
     print(
-        f"{mark}Classificação×rótulos (F7.2): macro-F1={report.macro_f1} "
+        f"{mark}Classificação×rótulos (F7.2 · {path}): macro-F1={report.macro_f1} "
         f"(gate ≥ {MACRO_F1_THRESHOLD}, accuracy={report.accuracy}, n={report.n})"
     )
     for m in report.per_class:
@@ -192,15 +216,31 @@ def _print_report(report: ClassificationReport) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """CLI da classificação (F7.2): avalia offline e falha (exit 1) abaixo do gate §7."""
-    report = evaluate_classification()
-    _print_report(report)
+    """CLI da classificação (F7.2): avalia e falha (exit 1) abaixo do gate §7.
+
+    Default = heurística offline (sem rede, o piso). `--llm` mede o **Nemotron-Super real**
+    (faz chamadas à API, gasta créditos) — o número que o sistema de fato produz.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Métricas de classificação vs eval set (F7.2).")
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        help="usa o classificador LLM real (Nemotron-Super) em vez da heurística offline (rede).",
+    )
+    args = parser.parse_args(argv)
+    predict = llm_predicted_class if args.llm else predicted_class
+    report = evaluate_classification(predict=predict)
+    _print_report(report, path="Nemotron-Super (real)" if args.llm else "heurística offline")
     return 0 if report.meets_threshold else 1
 
 
 __all__ = [
     "MACRO_F1_THRESHOLD",
+    "Predictor",
     "predicted_class",
+    "llm_predicted_class",
     "confusion_matrix",
     "class_prf",
     "accuracy",

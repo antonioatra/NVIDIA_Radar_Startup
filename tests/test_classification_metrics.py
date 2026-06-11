@@ -114,5 +114,6 @@ def test_gate_flag_is_consistent_with_macro_f1() -> None:
 
 
 def test_main_exit_matches_gate() -> None:
+    # `[]` = sem flags → caminho offline (heurística); o `--llm` (rede) fica fora do CI.
     report = evaluate_classification()
-    assert main() == (0 if report.meets_threshold else 1)
+    assert main([]) == (0 if report.meets_threshold else 1)

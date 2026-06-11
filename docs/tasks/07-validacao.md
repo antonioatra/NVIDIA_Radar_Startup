@@ -10,23 +10,28 @@
       Consolida também os **casos dos 7 exemplos do §5.5 (F4.8)** no relatório de aderência ao brief.
       → `packages\eval\classification_metrics.py` (+ `tests\test_classification_metrics.py`):
       harness irmão do `aimi_correlation` (F6.4) — reusa o **mesmo** `profile_for` só-de-descrição
-      + `heuristic_score` (v1) e compara a `classificacao` predita × rotulada. Núcleo puro/offline
-      (sem scikit-learn): `accuracy`, `class_prf` (P/R/F1 one-vs-rest), `macro_f1` (média
-      não-ponderada sobre classes com suporte — não deixa a majoritária mascarar as raras) e
-      `confusion_matrix` (gold→predito, taxonomia inteira). CLI `python -m
-      packages.eval.classification_metrics` (exit 1 abaixo do gate §7 macro-F1 ≥ 0,75).
-      **Resultado honesto (piso determinístico offline):** macro-F1 **0,38** (accuracy 0,375,
-      n=24) — **abaixo** do gate. *Por quê:* AI-native tem recall **0,20** porque `_classify_class`
-      exige Workflow Depth > 8 p/ AI-native, e o perfil só-de-descrição **sub-prediz** essa
-      magnitude (o **mesmo** limite que o F6.4 documenta p/ o índice: a prosa sem campos
-      estruturados rebaixa a maturidade). É o piso do caminho **heurístico/offline**, não do
-      classificador de produção (LLM Super, F2.6, `classifier_use_llm`), que não roda no CI. §7
-      manda reportar abaixo-do-alvo como **limitação honesta** — feito; a calibração do corte de
-      classe é candidata a follow-up (ver nota abaixo). A consolidação dos três (classificação +
-      AIMI/F6.4 + 7 casos/F4.8) num relatório único é da **F7.5** (`AVALIACAO.md`).
-      **Gate verde (testes):** `ruff` limpo e `pytest` **687 passed, 4 skipped** (10 testes novos:
-      accuracy/PRF/macro-F1/confusão com valores conhecidos, validações, e o harness rastreável
-      sobre o eval set com `meets_threshold` coerente).
+      e compara a `classificacao` predita × rotulada. Núcleo puro/offline (sem scikit-learn):
+      `accuracy`, `class_prf` (P/R/F1 one-vs-rest), `macro_f1` (média não-ponderada sobre classes
+      com suporte — não deixa a majoritária mascarar as raras) e `confusion_matrix` (gold→predito,
+      taxonomia inteira). **Preditor injetável** (`evaluate_classification(predict=…)`): default =
+      `predicted_class` (heurística offline, o que roda no CI); `llm_predicted_class` mede o
+      **Nemotron-Super real** (F2.6, mesmo caminho de produção, com fallback à heurística). CLI
+      `python -m packages.eval.classification_metrics [--llm]` (exit 1 abaixo do gate §7 ≥ 0,75).
+      **Os dois números (n=24), medidos:**
+      | Caminho | macro-F1 | accuracy | AI-native R |
+      |---|---|---|---|
+      | Heurística offline (piso/CI) | **0,38** ❌ | 0,375 | **0,20** |
+      | **Nemotron-Super real** (produção) | **0,875** ✅ | 0,917 | **0,933** |
+
+      *Leitura honesta:* o **caminho de produção bate a meta** (0,875 ≥ 0,75) — o 0,38 era só o
+      **substituto determinístico offline**, que rebaixa AI-native porque `_classify_class` exige
+      Workflow Depth > 8 e a prosa-só sub-prediz essa magnitude (o mesmo limite que o F6.4 documenta
+      p/ o índice). O Super, com reasoning, lê o *papel* da IA na descrição e recupera AI-native
+      (recall 0,20 → 0,933). **Limite que permanece:** o eval set é 100% sintético (`synthetic:
+      true`) — é "modelo real sobre dados de fixture"; torná-lo real é a **F7.1**. A consolidação
+      dos três (classificação + AIMI/F6.4 + 7 casos/F4.8) num relatório único é da **F7.5**.
+      **Gate verde (testes offline):** `ruff` limpo e `pytest` **687 passed, 4 skipped** (10 testes
+      novos; o `--llm` faz rede e fica fora do CI). Medição real do Super rodada ao vivo (2026-06-11).
 - [ ] **F7.2b** **Eval da recomendação (held-out, não só os 7 exemplos):** sobre o eval set (F1.12),
       medir se as techs NVIDIA recomendadas batem com as esperadas por empresa — precision/recall
       de techs e taxa de recomendação com evidência dos dois lados (F4.3). Fecha a lacuna do

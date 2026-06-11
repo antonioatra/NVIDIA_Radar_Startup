@@ -28,10 +28,12 @@ from .classification_metrics import (
     ClassificationReport,
     ClassMetrics,
     EntryPrediction,
+    Predictor,
     accuracy,
     class_prf,
     confusion_matrix,
     evaluate_classification,
+    llm_predicted_class,
     macro_f1,
     predicted_class,
 )
@@ -128,7 +130,9 @@ __all__ = [
     "evaluate_aimi_correlation",
     # métricas de classificação: accuracy + macro-F1 vs rótulos (F7.2)
     "MACRO_F1_THRESHOLD",
+    "Predictor",
     "predicted_class",
+    "llm_predicted_class",
     "confusion_matrix",
     "class_prf",
     "accuracy",
