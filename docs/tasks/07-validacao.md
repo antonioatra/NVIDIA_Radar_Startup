@@ -6,8 +6,27 @@
 ## Tasks
 - [ ] **F7.1** **Consolidar/expandir** o eval set rotulado criado em **F1.12** (~20–30 startups,
       classificação + AIMI esperados) — revisar rótulos, fechar lacunas. Não cria do zero.
-- [ ] **F7.2** Métricas de classificação (accuracy/F1) e correlação do AIMI (consolida F6.4).
+- [x] **F7.2** Métricas de classificação (accuracy/F1) e correlação do AIMI (consolida F6.4).
       Consolida também os **casos dos 7 exemplos do §5.5 (F4.8)** no relatório de aderência ao brief.
+      → `packages\eval\classification_metrics.py` (+ `tests\test_classification_metrics.py`):
+      harness irmão do `aimi_correlation` (F6.4) — reusa o **mesmo** `profile_for` só-de-descrição
+      + `heuristic_score` (v1) e compara a `classificacao` predita × rotulada. Núcleo puro/offline
+      (sem scikit-learn): `accuracy`, `class_prf` (P/R/F1 one-vs-rest), `macro_f1` (média
+      não-ponderada sobre classes com suporte — não deixa a majoritária mascarar as raras) e
+      `confusion_matrix` (gold→predito, taxonomia inteira). CLI `python -m
+      packages.eval.classification_metrics` (exit 1 abaixo do gate §7 macro-F1 ≥ 0,75).
+      **Resultado honesto (piso determinístico offline):** macro-F1 **0,38** (accuracy 0,375,
+      n=24) — **abaixo** do gate. *Por quê:* AI-native tem recall **0,20** porque `_classify_class`
+      exige Workflow Depth > 8 p/ AI-native, e o perfil só-de-descrição **sub-prediz** essa
+      magnitude (o **mesmo** limite que o F6.4 documenta p/ o índice: a prosa sem campos
+      estruturados rebaixa a maturidade). É o piso do caminho **heurístico/offline**, não do
+      classificador de produção (LLM Super, F2.6, `classifier_use_llm`), que não roda no CI. §7
+      manda reportar abaixo-do-alvo como **limitação honesta** — feito; a calibração do corte de
+      classe é candidata a follow-up (ver nota abaixo). A consolidação dos três (classificação +
+      AIMI/F6.4 + 7 casos/F4.8) num relatório único é da **F7.5** (`AVALIACAO.md`).
+      **Gate verde (testes):** `ruff` limpo e `pytest` **687 passed, 4 skipped** (10 testes novos:
+      accuracy/PRF/macro-F1/confusão com valores conhecidos, validações, e o harness rastreável
+      sobre o eval set com `meets_threshold` coerente).
 - [ ] **F7.2b** **Eval da recomendação (held-out, não só os 7 exemplos):** sobre o eval set (F1.12),
       medir se as techs NVIDIA recomendadas batem com as esperadas por empresa — precision/recall
       de techs e taxa de recomendação com evidência dos dois lados (F4.3). Fecha a lacuna do

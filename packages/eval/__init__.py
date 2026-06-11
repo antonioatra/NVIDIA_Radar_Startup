@@ -23,6 +23,18 @@ from .aimi_correlation import (
     profile_for,
     spearman,
 )
+from .classification_metrics import (
+    MACRO_F1_THRESHOLD,
+    ClassificationReport,
+    ClassMetrics,
+    EntryPrediction,
+    accuracy,
+    class_prf,
+    confusion_matrix,
+    evaluate_classification,
+    macro_f1,
+    predicted_class,
+)
 from .dataset import (
     EVAL_DIR,
     ExpectedPillars,
@@ -114,4 +126,15 @@ __all__ = [
     "EntryScore",
     "AIMICorrelationReport",
     "evaluate_aimi_correlation",
+    # métricas de classificação: accuracy + macro-F1 vs rótulos (F7.2)
+    "MACRO_F1_THRESHOLD",
+    "predicted_class",
+    "confusion_matrix",
+    "class_prf",
+    "accuracy",
+    "macro_f1",
+    "ClassMetrics",
+    "EntryPrediction",
+    "ClassificationReport",
+    "evaluate_classification",
 ]
