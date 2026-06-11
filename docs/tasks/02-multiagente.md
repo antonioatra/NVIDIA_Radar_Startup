@@ -384,8 +384,8 @@
 LangGraph · checkpointer Postgres · Nemotron (Nano/Super) · Redis/RQ · Langfuse.
 
 ## DoD
-- [ ] Grafo roda end-to-end (sem RAG ainda) e produz um briefing rascunho.
-- [ ] Run interrompido e retomado via checkpoint; retry de evidência funciona.
-- [ ] Empresa sem evidência suficiente cai no estado terminal de baixa confiança (não alucina).
+- [x] Grafo roda end-to-end (sem RAG ainda) e produz um briefing rascunho (F2.1/F2.4–F2.6; `test_graph`/`test_worker`).
+- [x] Run interrompido e retomado via checkpoint; retry de evidência funciona (F2.2/F2.7; `test_checkpoint`/`test_evidence_validator`).
+- [x] Empresa sem evidência suficiente cai no estado terminal de baixa confiança (não alucina) (F2.12; `test_terminals`).
 - [x] Empresa `non-AI` de alta confiança gera briefing "fora de escopo" sem forçar recomendação (F2.13).
-- [ ] Eventos de progresso publicados em canal Redis por `run_id`, consumíveis via SSE (F2.10).
+- [x] Eventos de progresso publicados em canal Redis por `run_id`, consumíveis via SSE (F2.10; `test_progress`/`test_worker`).
