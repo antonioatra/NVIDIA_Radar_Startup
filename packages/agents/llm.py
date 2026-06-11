@@ -34,6 +34,15 @@ _SAMPLING: dict[Profile, dict[str, float]] = {
     "reason": {"temperature": 0.6, "top_p": 0.95},
 }
 
+# Teto de saída por perfil. O default da lib (ChatNVIDIA) é **1024**, que estoura no `reason`:
+# o Super com reasoning ON gasta o orçamento na cadeia de raciocínio e é **truncado antes de
+# emitir o JSON** → o parser do nó devolve None e o run degrada sem diagnóstico. Por isso o
+# `reason` precisa de folga p/ a CoT + o JSON final; o `fast` (Nano, greedy) tem saídas curtas.
+_MAX_TOKENS: dict[Profile, int] = {
+    "fast": 2048,
+    "reason": 8192,
+}
+
 
 def reasoning_system_message(enabled: bool = True) -> SystemMessage:
     """System message que liga/desliga o reasoning do Nemotron-Super.
@@ -70,9 +79,9 @@ def get_chat(
         "model": model,
         "temperature": sampling["temperature"] if temperature is None else temperature,
         "top_p": sampling["top_p"],
+        # Sobrepõe o default 1024 da lib (insuficiente p/ o reasoning do Super, ver _MAX_TOKENS).
+        "max_tokens": _MAX_TOKENS[profile] if max_tokens is None else max_tokens,
     }
-    if max_tokens is not None:
-        kwargs["max_tokens"] = max_tokens
     if self_hosted:
         kwargs["base_url"] = s.nim_base_url
     elif s.nvidia_api_key:

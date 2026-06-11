@@ -3,7 +3,8 @@
 Terceira etapa do pipeline RAG (ARQUITETURA §4): pega os `Chunk` semânticos (F3.2) e os
 transforma em vetores prontos p/ indexar no Qdrant (F3.4) e recuperar na busca híbrida
 (F3.5). O backend **preferido** (dogfood/narrativa) é o **NeMo Retriever
-`nvidia/llama-3.2-nv-embedqa-1b-v2`** (multilíngue, embedding assimétrico query×passage).
+`nvidia/llama-nemotron-embed-1b-v2`** (multilíngue, embedding assimétrico query×passage;
+sucessor do `nv-embedqa-1b-v2`, que atingiu EOL em 2026-05-18).
 
 Decisões (F3.3), honrando o que já está travado no projeto:
 
@@ -43,8 +44,8 @@ from packages.config import get_settings
 
 from .chunk import Chunk, chunk_kb
 
-# Dimensão documentada do nv-embedqa-1b-v2 (NeMo Retriever). O que vale no índice (F3.4) é o
-# comprimento real do vetor / `embedder.dimension`; esta constante serve de referência.
+# Dimensão do NeMo Retriever (llama-nemotron-embed-1b-v2, = a do nv-embedqa-1b-v2 anterior).
+# O que vale no índice (F3.4) é o comprimento real do vetor / `embedder.dimension`; referência.
 NV_EMBEDQA_DIM = 2048
 
 # Dimensão do embedder offline determinístico: grande o bastante p/ colisões raras de hashing,

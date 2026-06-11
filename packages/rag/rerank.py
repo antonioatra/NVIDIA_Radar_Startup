@@ -6,7 +6,8 @@ citações (F3.7). A busca híbrida funde dois sinais *de recuperação* (denso 
 posição (RRF); o reranker é um **cross-encoder** que lê a consulta e o trecho **juntos** e
 estima a relevância de cada par — um sinal mais fino, que costuma corrigir a ordem grosseira
 da fusão antes de gastar contexto do LLM. O backend **preferido** (dogfood/narrativa) é o
-**NeMo Reranking NIM** `nvidia/llama-3.2-nv-rerankqa-1b-v2` (default no build).
+**NeMo Reranking NIM** `nvidia/llama-nemotron-rerank-1b-v2` (default no build; sucessor do
+`nv-rerankqa-1b-v2`, que atingiu EOL em 2026-05-18).
 
 Decisões (F3.6), honrando o que já está travado no projeto:
 

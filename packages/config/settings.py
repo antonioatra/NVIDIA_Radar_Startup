@@ -32,8 +32,11 @@ class Settings(BaseSettings):
     nvidia_api_key: str = Field(default="", description="Chave build.nvidia.com (Nemotron/NIM).")
     nemotron_model_fast: str = "nvidia/llama-3.1-nemotron-nano-8b-v1"
     nemotron_model_reason: str = "nvidia/llama-3.3-nemotron-super-49b-v1"
-    nv_embed_model: str = "nvidia/llama-3.2-nv-embedqa-1b-v2"
-    nv_rerank_model: str = "nvidia/llama-3.2-nv-rerankqa-1b-v2"
+    # NeMo Retriever (catálogo build.nvidia.com). Os llama-3.2-nv-*qa-1b-v2 atingiram EOL em
+    # 2026-05-18 (HTTP 410); os sucessores são a família llama-nemotron-*-1b-v2 (embed mantém
+    # dim=2048, compatível com NV_EMBEDQA_DIM/índice F3.4).
+    nv_embed_model: str = "nvidia/llama-nemotron-embed-1b-v2"
+    nv_rerank_model: str = "nvidia/llama-nemotron-rerank-1b-v2"
 
     # NIM self-hosted (GPU local) — opcional no build, usado no F6.
     nim_base_url: str = "http://localhost:8000/v1"

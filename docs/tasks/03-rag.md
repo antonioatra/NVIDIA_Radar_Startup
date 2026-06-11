@@ -90,8 +90,9 @@
 - [x] **F3.3** Embeddings com **NeMo Retriever `nv-embedqa-1b-v2`** (multilíngue).
       → `packages/rag/embed.py`: interface **plugável** `Embedder` (Pydantic `EmbeddedChunk`) com
       `embed_passages`/`embed_query` **assimétricos** (o nv-embedqa distingue `input_type`
-      passage×query). Backend **preferido** `NVEmbedQA` = NeMo Retriever `nv-embedqa-1b-v2` (2048d)
-      via catálogo build.nvidia.com (`NVIDIA_API_KEY`) ou NIM self-hosted (GPU). **Decisão (fork
+      passage×query). Backend **preferido** `NVEmbedQA` = NeMo Retriever `llama-nemotron-embed-1b-v2`
+      (2048d; sucessor do `nv-embedqa-1b-v2`, EOL 2026-05-18 — ver settings) via catálogo
+      build.nvidia.com (`NVIDIA_API_KEY`) ou NIM self-hosted (GPU). **Decisão (fork
       rede/GPU vs offline):** honra a espinha verde determinística travada desde a F3.1 e o padrão
       dos toggles (`scraper_use_network`/`*_use_llm`): o `NVEmbedQA` é **hook de rede/GPU que
       degrada limpo** (`EmbedderUnavailable` sem credencial/endpoint/dep, igual ao `RivaTranscriber`
@@ -153,7 +154,8 @@
       **juntos** e estima a relevância de cada par — sinal mais fino que corrige a ordem grosseira
       da fusão antes de gastar contexto do LLM. **Decisão (fork rede/GPU vs offline):** honra a
       espinha verde travada desde a F3.1 e o padrão dos toggles (`embeddings_use_nv`/`index_use_qdrant`):
-      o backend **preferido** `NeMoReranker` = NeMo Reranking NIM `nv-rerankqa-1b-v2` via
+      o backend **preferido** `NeMoReranker` = NeMo Reranking NIM `llama-nemotron-rerank-1b-v2`
+      (sucessor do `nv-rerankqa-1b-v2`, EOL 2026-05-18 — ver settings) via
       build.nvidia.com (`NVIDIA_API_KEY`) ou NIM self-hosted (GPU) é **hook de rede/GPU que degrada
       limpo** (`RerankerUnavailable` sem credencial/endpoint/dep, igual ao `NVEmbedQA`/F3.3 e ao
       `QdrantVectorIndex`/F3.4), e o **default é o `LexicalReranker` offline** — substituto de
