@@ -178,7 +178,28 @@
       honestas** (sintético, super-recomendação, juiz RAGAS bloqueado por dep, Cohere pendente, ROI/GPU
       não construído) e os **comandos de reprodução** (defaults offline; flags fazem rede). Doc-only —
       sem mudança de código (suíte intacta: `pytest` 718 passed, 4 skipped).
-- [ ] **F7.6** Hardening: tratamento de erro, timeouts, limites de custo de LLM.
+- [x] **F7.6** Hardening: tratamento de erro, timeouts, limites de custo de LLM.
+      → Os três eixos do hardening — dois já de pé, a F7.6 fecha o terceiro. **Limites de custo**:
+      F2.11 (`LLMBudget`/`BudgetGuard` por run, ligados no `traced_config` — barra a próxima chamada
+      no estouro). **Tratamento de erro**: os nós LLM (F2.5/F2.6/F4.2/F4.4) já degradam p/ o caminho
+      determinista a qualquer exceção, sem alucinar. **Terceiro: timeout por chamada** — o gap real.
+      O `timeout` da lib (`langchain-nvidia-ai-endpoints`) só cobre o **poll após um 202**; o socket
+      de `session.post` **não tem teto**, então uma conexão pendurada na rede travaria o run indefinido.
+      → `packages\agents\llm.py`: novo `run_with_timeout(call, seconds=)` + `LLMTimeout` +
+      `request_timeout_seconds()`. A chamada roda numa **thread daemon** e a espera é limitada ao teto
+      (`settings.llm_request_timeout_seconds`, default **120 s**; `0` = sem teto). Crucial: o helper
+      **propaga o contexto** (`contextvars.copy_context()`) p/ a thread — a captura de uso/orçamento
+      (F2.9/F2.11) vive em `ContextVar` e **não** atravessaria uma thread nova sozinha; sem isso o
+      `UsageRecorder`/`BudgetGuard` parariam de medir/limitar (regressão coberta por teste). No estouro
+      levanta `LLMTimeout` (subclasse de `Exception` → cai nos **mesmos** `except` dos nós → determinista,
+      sem alucinar); a thread órfã é daemon (não trava a saída do processo, resultado tardio descartado).
+      Cravado no **chokepoint** `cached_completion`/`_invoke_chat` (todos os nós LLM, F2.14) e no `smoke`
+      (F0.7). Embeddings/reranker já degradam à parte por `EmbedderUnavailable`/`RerankerUnavailable`
+      (credencial/dep/endpoint), então o teto de parede foca a **geração** — o caminho longo e sem teto.
+      Sempre ativo no caminho real; a espinha offline não chama o LLM, então **não** é afetada (M2/DoD).
+      **Gate verde:** `ruff` limpo e `pytest` **728 passed, 5 skipped** (offline/sem chave; +10 testes
+      do timeout). O smoke real F0.7 fica de fora do CI (sem chave → skip, o 5º); **com** chave, agora
+      é **limitado pelo próprio teto** em vez de pendurar — exatamente o que esta task endereça.
 - [ ] **F7.7** README final + instruções de reprodução + demo script.
 
 ## Tecnologias

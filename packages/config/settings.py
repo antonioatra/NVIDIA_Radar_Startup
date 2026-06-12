@@ -163,6 +163,19 @@ class Settings(BaseSettings):
         default=0.0, ge=0, description="Máx. de custo estimado por run em USD (0 = sem teto)."
     )
 
+    # --- Hardening: timeout por chamada de LLM (F7.6) ---------------------------
+    # Teto de tempo de PAREDE por completamento do Nemotron (geração). O `timeout` da lib
+    # (langchain-nvidia-ai-endpoints) só cobre o poll após um 202; o socket de `session.post`
+    # não tem teto, então uma conexão pendurada travaria o run. Este teto roda a chamada numa
+    # thread e aborta a espera no estouro (`LLMTimeout`); os nós LLM (F2.5/F2.6/F4.2/F4.4) já
+    # degradam p/ o caminho determinista a qualquer falha — sem alucinar. Sempre ativo no
+    # caminho real (a espinha offline não chama o LLM, então não é afetada); 0 = sem teto.
+    llm_request_timeout_seconds: float = Field(
+        default=120.0,
+        ge=0,
+        description="Teto de tempo (s) por chamada de LLM (F7.6); 0 = sem teto.",
+    )
+
     # --- Cache de inferência LLM por prompt+modelo+versão (F2.14) ----------------
     # Cacheia a saída crua dos nós LLM (search_planner/extractor/classifier): poupa o rate
     # limit do free tier (complementa F2.11) e torna runs/eval REPRODUTÍVEIS. Invalida sozinho

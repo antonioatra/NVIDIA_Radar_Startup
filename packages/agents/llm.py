@@ -12,8 +12,11 @@ pelos nós (F2), para que o mesmo cliente cacheado sirva runs com traces distint
 
 from __future__ import annotations
 
+import contextvars
+import threading
+from collections.abc import Callable
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, TypeVar
 
 from langchain_core.messages import SystemMessage
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
@@ -21,6 +24,7 @@ from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from packages.config import get_settings
 
 Profile = Literal["fast", "reason"]
+_T = TypeVar("_T")
 
 # Toggle de raciocínio do Nemotron: controlado por system message dedicado,
 # não por parâmetro do cliente. Nano roda sempre OFF; Super liga conforme a tarefa.
@@ -90,12 +94,70 @@ def get_chat(
     return ChatNVIDIA(**kwargs)
 
 
+# ----------------------------------------------------------------- timeout (F7.6)
+
+
+class LLMTimeout(TimeoutError):
+    """Uma chamada de LLM excedeu o teto de tempo de parede (F7.6).
+
+    Tratada como qualquer falha de LLM: os nós (F2.5/F2.6/F4.2/F4.4) já caem no caminho
+    determinista a qualquer exceção, então o run segue offline, sem alucinar, e carimba a
+    nota rastreável. Subclasse de `TimeoutError` (logo `Exception`) p/ casar nesses `except`.
+    """
+
+    def __init__(self, seconds: float) -> None:
+        super().__init__(f"chamada de LLM excedeu {seconds:g}s (F7.6)")
+        self.seconds = seconds
+
+
+def request_timeout_seconds() -> float:
+    """Teto de tempo (s) por chamada de LLM, do settings (F7.6); 0 = sem teto."""
+    return max(0.0, float(get_settings().llm_request_timeout_seconds))
+
+
+def run_with_timeout(call: Callable[[], _T], *, seconds: float | None = None) -> _T:
+    """Executa `call` com teto de tempo de PAREDE (F7.6); levanta `LLMTimeout` no estouro.
+
+    Por quê uma thread: o `timeout` da lib (langchain-nvidia-ai-endpoints) só cobre o poll
+    após um 202 — o socket de `session.post` não tem teto, então uma conexão pendurada travaria
+    o run. Aqui a chamada roda numa thread daemon e a espera é limitada a `seconds`; estourou →
+    `LLMTimeout` (o caller LLM degrada p/ o determinista). A thread órfã é daemon: **não** trava
+    a saída do processo e seu resultado tardio é descartado.
+
+    Propaga o **contexto** (`contextvars.copy_context()`) p/ a thread: a captura de uso/orçamento
+    (F2.9/F2.11) vive em `ContextVar` e NÃO atravessaria uma thread nova sozinha — sem isso o
+    `UsageRecorder`/`BudgetGuard` parariam de medir/limitar. Como o escopo guarda o uso numa
+    lista (o `copy_context` compartilha a referência), o que o callback registra na worker é
+    visível ao rollup do run. `seconds=None` lê o settings; `0` = sem teto (roda inline).
+    """
+    secs = request_timeout_seconds() if seconds is None else max(0.0, float(seconds))
+    if not secs:
+        return call()
+    ctx = contextvars.copy_context()
+    box: dict[str, object] = {}
+
+    def _worker() -> None:
+        try:
+            box["value"] = ctx.run(call)
+        except BaseException as exc:  # noqa: BLE001 - repassa a falha real à thread principal
+            box["error"] = exc
+
+    thread = threading.Thread(target=_worker, name="tapi-llm-timeout", daemon=True)
+    thread.start()
+    thread.join(secs)
+    if thread.is_alive():
+        raise LLMTimeout(secs)
+    if "error" in box:
+        raise box["error"]  # type: ignore[misc]
+    return box["value"]  # type: ignore[return-value]
+
+
 def smoke(profile: Profile = "fast") -> str:
     """Smoke test (F0.7): chamada real mínima ao Nemotron; retorna o texto.
 
     Requer `NVIDIA_API_KEY`. Usado pelo `__main__` e pelo teste de integração (pulado
     sem chave). Com o Langfuse ligado (F0.8), a chamada vai com o callback de tracing
-    e aparece como trace — critério de DoD da F0.8.
+    e aparece como trace — critério de DoD da F0.8. A chamada passa pelo teto de tempo (F7.6).
     """
     from langchain_core.messages import HumanMessage
 
@@ -105,7 +167,8 @@ def smoke(profile: Profile = "fast") -> str:
     if profile == "reason":
         messages.append(reasoning_system_message(True))
     messages.append(HumanMessage(content="Responda apenas com a palavra: OK"))
-    out = get_chat(profile).invoke(messages, config=traced_config(node=f"smoke:{profile}")).content
+    config = traced_config(node=f"smoke:{profile}")
+    out = run_with_timeout(lambda: get_chat(profile).invoke(messages, config=config)).content
     flush_tracing()
     return out
 

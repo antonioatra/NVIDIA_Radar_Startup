@@ -207,10 +207,16 @@ def cache_from_settings() -> LLMCache:
 
 
 def _invoke_chat(prompt: Prompt, messages: Sequence[Any], config: Any) -> str:
-    """Chamada real ao Nemotron (F0.7) + coerção p/ str. Import preguiçoso (offline sem lib)."""
-    from .llm import get_chat
+    """Chamada real ao Nemotron (F0.7) + coerção p/ str. Import preguiçoso (offline sem lib).
 
-    raw = get_chat(prompt.model).invoke(list(messages), config=config).content
+    A invocação passa pelo teto de tempo de parede (F7.6, `run_with_timeout`): uma chamada
+    pendurada na rede levanta `LLMTimeout` em vez de travar o run — o caller (`cached_completion`)
+    propaga a falha e o nó degrada p/ o determinista.
+    """
+    from .llm import get_chat, run_with_timeout
+
+    chat = get_chat(prompt.model)
+    raw = run_with_timeout(lambda: chat.invoke(list(messages), config=config)).content
     return raw if isinstance(raw, str) else str(raw)
 
 
