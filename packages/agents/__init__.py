@@ -34,6 +34,14 @@ from .classifier import (
     make_aimi,
     parse_score,
 )
+from .cohort import (
+    CohortCandidate,
+    CohortOutcome,
+    CohortReport,
+    build_cohort,
+    candidate_domains,
+    discover_candidates,
+)
 from .evidence_validator import (
     MIN_SOURCES,
     evidence_sources,
@@ -105,6 +113,13 @@ __all__ = [
     "build_graph",
     "compile_graph",
     "run_pipeline",
+    # cohort builder — sourcing em lote (F1.14)
+    "CohortCandidate",
+    "CohortOutcome",
+    "CohortReport",
+    "build_cohort",
+    "candidate_domains",
+    "discover_candidates",
     "PIPELINE",
     "CONDITIONAL_OUT",
     "NODES",

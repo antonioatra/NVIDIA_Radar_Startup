@@ -48,13 +48,31 @@ com proveniência rastreável. **Dependências:** F0. **Marco:** M1.
       coleta). Enum `LegalBasis` + coluna `evidence.legal_basis` (migração `c3a2f1b4d5e6`):
       evidência de founder carimba `legitimo_interesse` (Art. 7 IX/§4). Compliance de fetch
       (robots/ToS) segue em F1.8/F1.15; aqui é a camada de **minimização de dado**.
-- [ ] **F1.14** **Cohort builder (batch sourcing):** transforma o crawl dos diretórios §9 (F1.6)
+- [x] **F1.14** **Cohort builder (batch sourcing):** transforma o crawl dos diretórios §9 (F1.6)
       numa **fila de empresas candidatas** e roda o grafo em lote, acumulando na tabela `company`.
       É essa tabela acumulada que alimenta o clustering de coorte (F6.5–F6.7) e o eval set (F1.12)
       — não a saída de um run único. Esclarece o salto "run por-empresa → visão de coorte".
       **Política de HITL em lote:** runs batch rodam com `hitl=auto` — o interrupt humano (F2.8)
       **não** bloqueia a fila; empresas de baixa confiança caem no estado terminal (F2.12) e são
       marcadas para revisão posterior. HITL síncrono fica só no *single-company lookup*.
+      → `packages\agents\cohort.py` (+ `tests\test_cohort.py`): orquestrador em lote que **reusa** o
+      que já existe — não reimplementa coleta, grafo nem persistência. **Descoberta**
+      (`discover_candidates`): crawl (F1.6) das seeds `allow` (programas/portfólios + notícias §9.2,
+      via `collectable_seeds`/gate de ToS F1.15) e `candidate_domains` extrai os **links de saída**
+      das páginas → fila de domínios de startup (dedup, exclui o host da seed/subdomínios e a denylist
+      de rede-social/infra). **Perfilagem:** `run_pipeline` (F2, injetável) por empresa. **Persistência
+      idempotente:** reusa `persist_profile` (F1.10 — escopo BR/F2.13) + `persist_score` /
+      `persist_recommendations` (F4.7/F6.13). **Política auto-HITL travada:** `hitl=AUTO`, **sessão
+      fresca por empresa** (a falha de uma não envenena as outras — continue-on-error), baixa confiança
+      (F2.12 `INSUFFICIENT_DATA`) / fora de escopo (F2.13 `OUT_OF_SCOPE`) → `needs_review` sem bloquear
+      a fila; devolve `CohortReport` auditável. **Testável offline:** extração pura + laço com
+      `runner`/`crawl_fn`/`session_factory` injetados + SQLite in-memory (sem rede nem reactor Twisted);
+      o crawl Scrapy e o pipeline real entram por injeção/flag. CLI
+      `python -m packages.agents.cohort [--db sqlite:///… | --limit N | --dry-run]` — `--db` aceita
+      SQLite e roda **sem Postgres** (F0.2 adiado); o caminho real exige `SCRAPER_USE_NETWORK=true`
+      (+ flags de LLM p/ classe/AIMI reais). Destrava a **expansão real do eval (F7.1)** e a coorte do
+      diferencial (F6.5–F6.7). **Gate verde:** `ruff` limpo e `pytest` **737 passed, 4 skipped**
+      (+8 testes do cohort).
 - [x] **F1.15** **Política de ToS por fonte (robots ≠ ToS):** o DoD promete "nenhuma fonte
       fechada/violação de ToS", mas o §9.1 lista plataformas de dados (Distrito, Cubo, StartSe,
       100 Open Startups) cujos **Termos de Uso** podem proibir scraping mesmo quando o `robots.txt`
