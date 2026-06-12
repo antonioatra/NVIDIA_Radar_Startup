@@ -83,6 +83,12 @@ CTX_RELEVANCE_THRESHOLD = 0.1
 #: Casas decimais do arredondamento — torna o baseline estável byte-a-byte entre processos.
 ROUND_DP = 6
 
+# --- limiares de qualidade do §7 (F7.3) — o run consolidado checa as duas métricas-alvo do RAG ---
+#: Fidelidade da resposta às fontes recuperadas (afirmações ancoradas no contexto). Meta §7.
+FAITHFULNESS_GATE = 0.80
+#: Cobertura da referência pela recuperação (o RAG trouxe o necessário p/ a resposta). Meta §7.
+CONTEXT_RECALL_GATE = 0.70
+
 _TOKEN = re.compile(r"\w+", re.UNICODE)
 _SENT = re.compile(r"[.!?\n;:]+")
 
@@ -309,6 +315,26 @@ class RagasReport(BaseModel):
     n_samples: int
     aggregate: RagasMetrics = Field(description="Médias das quatro métricas sobre o conjunto.")
     per_sample: tuple[RagSampleResult, ...]
+
+
+class RagasGate(BaseModel):
+    """Veredito consolidado do RAGAS (F7.3) contra os limiares-alvo do §7 — faithfulness + recall.
+
+    Derivado do `RagasReport` no momento da checagem (não é serializado no baseline, p/ não mudar o
+    schema do `baseline.json`/F3.9). Reporta cada métrica-alvo contra sua meta e o veredito
+    duro (ambas ≥ o alvo). As outras duas métricas (answer relevancy / context precision) seguem no
+    relatório, mas o §7 declara meta só p/ estas duas — as que sustentam "o RAG não alucina e traz o
+    necessário".
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    backend: str = Field(description="Backend que pontuou (lexical-offline ou ragas-llm).")
+    faithfulness: float = Field(ge=0.0, le=1.0)
+    faithfulness_ok: bool = Field(description=f"faithfulness ≥ {FAITHFULNESS_GATE} (§7).")
+    context_recall: float = Field(ge=0.0, le=1.0)
+    context_recall_ok: bool = Field(description=f"context recall ≥ {CONTEXT_RECALL_GATE} (§7).")
+    meets_gates: bool = Field(description="As duas metas-alvo do §7 batidas.")
 
 
 # --- backends de avaliação (peça plugável) ------------------------------------
@@ -582,6 +608,25 @@ def evaluate_rag(
     )
 
 
+def consolidate(report: RagasReport) -> RagasGate:
+    """Consolida o relatório RAGAS (F7.3) contra os limiares-alvo do §7 (faithfulness + recall).
+
+    Veredito duro: as **duas** metas batidas. Vale p/ qualquer backend — offline (proxy lexical, o
+    piso) ou o juiz LLM real (`--llm`, o número que vale para o gate de qualidade do §7).
+    """
+    agg = report.aggregate
+    f_ok = agg.faithfulness >= FAITHFULNESS_GATE
+    r_ok = agg.context_recall >= CONTEXT_RECALL_GATE
+    return RagasGate(
+        backend=report.backend,
+        faithfulness=agg.faithfulness,
+        faithfulness_ok=f_ok,
+        context_recall=agg.context_recall,
+        context_recall_ok=r_ok,
+        meets_gates=f_ok and r_ok,
+    )
+
+
 # --- baseline versionado ------------------------------------------------------
 
 
@@ -614,25 +659,68 @@ def _print_report(report: RagasReport) -> None:
         )
 
 
+def _print_gate(gate: RagasGate) -> None:
+    mark = "OK " if gate.meets_gates else "XX "
+    fm = "OK" if gate.faithfulness_ok else "XX"
+    rm = "OK" if gate.context_recall_ok else "XX"
+    print(
+        f"{mark}RAGAS consolidado (F7.3 · {gate.backend}) vs §7: "
+        f"[{fm}] faithfulness={gate.faithfulness} (≥ {FAITHFULNESS_GATE})  "
+        f"[{rm}] context_recall={gate.context_recall} (≥ {CONTEXT_RECALL_GATE})"
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    """CLI do smoke RAGAS (F0.10/F3.9): avalia offline e grava ou confere o baseline versionado."""
+    """CLI do RAGAS (F0.10/F3.9 + F7.3): avalia e grava/confere o baseline, ou checa o gate §7.
+
+    Sem flag = espinha offline + grava o baseline (smoke F0.10). `--check` confere drift vs o
+    baseline versionado. `--llm` pontua com o **juiz Nemotron real** (lib `ragas`, rede/créditos) —
+    o run **consolidado** da F7.3; degrada limpo p/ o proxy lexical se a dep/credencial faltar.
+    `--gate` checa os limiares-alvo do §7 (faithfulness ≥ 0,80; context recall ≥ 0,70) e falha
+    (exit 1) abaixo. `--llm` e `--gate` **não** sobrescrevem o baseline offline do CI.
+    """
     import argparse
 
-    parser = argparse.ArgumentParser(description="Avaliação RAGAS offline do RAG NVIDIA (F3.9).")
+    parser = argparse.ArgumentParser(description="Avaliação RAGAS do RAG NVIDIA (F3.9 / F7.3).")
     parser.add_argument(
         "--check",
         action="store_true",
         help="Compara com o baseline versionado e falha (exit 1) em caso de drift.",
     )
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        help="pontua com o juiz Nemotron real (lib ragas) — rede/créditos; run consolidado (F7.3).",
+    )
+    parser.add_argument(
+        "--gate",
+        action="store_true",
+        help="checa os limiares §7 (faithfulness ≥ 0,80; context recall ≥ 0,70) e falha abaixo.",
+    )
     args = parser.parse_args(argv)
-    report = evaluate_rag()  # offline por default (espinha verde)
+
+    if args.llm:
+        try:
+            report = evaluate_rag(evaluator=get_evaluator(prefer_llm=True))
+        except RagasUnavailable as exc:
+            print(f"RAGAS juiz LLM indisponível ({exc}); caindo p/ o proxy lexical offline.")
+            report = evaluate_rag()
+    else:
+        report = evaluate_rag()  # offline por default (espinha verde)
     _print_report(report)
+
+    if args.gate:
+        gate = consolidate(report)
+        _print_gate(gate)
+        return 0 if gate.meets_gates else 1
     if args.check:
         if report != load_baseline():
             print("DRIFT: avaliação RAGAS difere do baseline versionado — rode sem --check.")
             return 1
         print("OK: avaliação RAGAS bate com o baseline versionado.")
         return 0
+    if args.llm:
+        return 0  # run consolidado ao vivo não sobrescreve o baseline offline do CI
     write_baseline(report)
     print(f"baseline RAGAS escrito em {BASELINE_FILE}")
     return 0
@@ -656,6 +744,9 @@ __all__ = [
     "RagasMetrics",
     "RagSampleResult",
     "RagasReport",
+    "RagasGate",
+    "FAITHFULNESS_GATE",
+    "CONTEXT_RECALL_GATE",
     "RagEvaluator",
     "LexicalRagasMetrics",
     "RagasJudge",
@@ -664,6 +755,7 @@ __all__ = [
     "build_sample",
     "load_rag_questions",
     "evaluate_rag",
+    "consolidate",
     "write_baseline",
     "load_baseline",
     "main",

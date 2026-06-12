@@ -59,9 +59,12 @@ from .dataset import (
 )
 from .ragas import (
     BASELINE_FILE,
+    CONTEXT_RECALL_GATE,
+    FAITHFULNESS_GATE,
     QUESTIONS_FILE,
     ContextCitation,
     LexicalRagasMetrics,
+    RagasGate,
     RagasJudge,
     RagasMetrics,
     RagasReport,
@@ -73,6 +76,7 @@ from .ragas import (
     answer_relevancy,
     build_sample,
     compose_extractive_answer,
+    consolidate,
     context_precision,
     context_recall,
     evaluate_rag,
@@ -124,6 +128,9 @@ __all__ = [
     "RagasMetrics",
     "RagSampleResult",
     "RagasReport",
+    "RagasGate",
+    "FAITHFULNESS_GATE",
+    "CONTEXT_RECALL_GATE",
     "RagEvaluator",
     "LexicalRagasMetrics",
     "RagasJudge",
@@ -132,6 +139,7 @@ __all__ = [
     "build_sample",
     "load_rag_questions",
     "evaluate_rag",
+    "consolidate",
     "write_baseline",
     "load_baseline",
     # aderência ao §5.5 da recomendação (F4.8) — consolidada na F7.2

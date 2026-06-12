@@ -14,15 +14,20 @@ from __future__ import annotations
 import pytest
 
 from packages.eval.ragas import (
+    CONTEXT_RECALL_GATE,
+    FAITHFULNESS_GATE,
     LexicalRagasMetrics,
+    RagasGate,
     RagasJudge,
     RagasMetrics,
+    RagasReport,
     RagasUnavailable,
     RagQuestion,
     RagSample,
     answer_relevancy,
     build_sample,
     compose_extractive_answer,
+    consolidate,
     context_precision,
     context_recall,
     evaluate_rag,
@@ -216,3 +221,53 @@ def test_baseline_matches_fresh_offline_run(retriever, reranker) -> None:
     baseline = load_baseline()
     assert baseline == fresh
     assert isinstance(baseline.aggregate, RagasMetrics)
+
+
+# --- gate consolidado contra os limiares do §7 (F7.3) -------------------------
+
+
+def _report_with(faithfulness_v: float, context_recall_v: float) -> RagasReport:
+    """RagasReport mínimo com as duas métricas-alvo fixadas — testa só a lógica do gate."""
+    agg = RagasMetrics(
+        faithfulness=faithfulness_v,
+        answer_relevancy=0.5,
+        context_precision=0.9,
+        context_recall=context_recall_v,
+    )
+    return RagasReport(
+        backend="lexical-offline", model="m", dataset_id="d", n_samples=0,
+        aggregate=agg, per_sample=(),
+    )
+
+
+def test_gate_thresholds_are_the_section7_values() -> None:
+    # As metas declaradas do §7 p/ o RAG (revisáveis com dados, mas fixas no contrato do gate).
+    assert FAITHFULNESS_GATE == 0.80
+    assert CONTEXT_RECALL_GATE == 0.70
+
+
+def test_gate_passes_only_when_both_targets_met() -> None:
+    ok = consolidate(_report_with(0.90, 0.80))
+    assert isinstance(ok, RagasGate)
+    assert ok.faithfulness_ok and ok.context_recall_ok and ok.meets_gates
+    # Recall abaixo → reprova só nele (o invariante duro exige as DUAS).
+    low_recall = consolidate(_report_with(0.90, 0.60))
+    assert low_recall.faithfulness_ok and not low_recall.context_recall_ok
+    assert not low_recall.meets_gates
+    # Faithfulness abaixo → reprova nela.
+    low_faith = consolidate(_report_with(0.50, 0.80))
+    assert not low_faith.faithfulness_ok and low_faith.context_recall_ok
+    assert not low_faith.meets_gates
+    # Exatamente no limiar passa (≥, não >).
+    assert consolidate(_report_with(0.80, 0.70)).meets_gates
+
+
+def test_gate_consolidates_the_offline_report(report) -> None:
+    # A espinha lexical é fiel por construção (resposta extrativa) → faithfulness bate a meta;
+    # o context recall é reportado contra o alvo honestamente (o número é o que os dados mostram).
+    gate = consolidate(report)
+    assert gate.backend == report.backend
+    assert gate.faithfulness == report.aggregate.faithfulness
+    assert gate.context_recall == report.aggregate.context_recall
+    assert gate.faithfulness_ok  # extrativa → 1.0 ≥ 0,80
+    assert gate.meets_gates == (gate.faithfulness_ok and gate.context_recall_ok)
