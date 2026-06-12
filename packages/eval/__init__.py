@@ -106,6 +106,14 @@ from .recommendation_metrics import (
     is_in_scope,
     recommended_for,
 )
+from .reranker_comparison import (
+    COST_PER_1K_QUERIES_USD,
+    RerankerComparisonReport,
+    RerankerRow,
+    candidate_rerankers,
+    compare_rerankers,
+    measure_reranker,
+)
 
 __all__ = [
     "EVAL_DIR",
@@ -191,4 +199,11 @@ __all__ = [
     "EntryFaithfulness",
     "BriefingFaithfulnessReport",
     "evaluate_briefing_faithfulness",
+    # comparativo de reranker: NeMo Retriever x Cohere Rerank (F7.4)
+    "COST_PER_1K_QUERIES_USD",
+    "RerankerRow",
+    "RerankerComparisonReport",
+    "candidate_rerankers",
+    "measure_reranker",
+    "compare_rerankers",
 ]

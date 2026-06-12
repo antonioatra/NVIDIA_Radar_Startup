@@ -109,9 +109,13 @@ class Settings(BaseSettings):
     reranker_use_nv: bool = Field(
         default=False, description="Reranking da busca (F3.6) usa o NeMo Reranking NIM nv-rerankqa."
     )
-    # Provider do reranker real: nemo (default no build) | cohere (comparativo F7, ainda não liga).
+    # Provider do reranker real: nemo (default no build) | cohere (comparativo F7.4, ligado).
     reranker_provider: RerankerProvider = "nemo"
-    cohere_api_key: str = Field(default="", description="Só na F7 (trial).")
+    cohere_api_key: str = Field(default="", description="Cohere Rerank — comparativo F7.4 (trial).")
+    cohere_rerank_model: str = Field(
+        default="rerank-multilingual-v3.0",
+        description="Modelo Cohere Rerank (multilíngue p/ PT-BR; comparativo F7.4).",
+    )
 
     # Avaliação RAGAS do RAG (F3.9): por padrão usa o LexicalRagasMetrics offline/determinista
     # (espinha verde — as 4 métricas rodam no CI/smoke RAGAS sem rede/GPU e geram o baseline

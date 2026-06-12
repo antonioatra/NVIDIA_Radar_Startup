@@ -60,6 +60,7 @@ from .ingest import (
     load_kb_sources,
 )
 from .rerank import (
+    CohereReranker,
     LexicalReranker,
     NeMoReranker,
     RerankedChunk,
@@ -143,6 +144,7 @@ __all__ = [
     "RerankedChunk",
     "LexicalReranker",
     "NeMoReranker",
+    "CohereReranker",
     "get_reranker",
     "rerank",
     "DEFAULT_PREFERENCE",

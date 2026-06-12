@@ -277,24 +277,78 @@ class NeMoReranker:
         )
 
 
+class CohereReranker:
+    """Backend **alternativo** (comparativo F7.4): Cohere Rerank — cross-encoder gerenciado.
+
+    O brief nomeia a Cohere no §5.3, então o comparativo NeMo×Cohere (qualidade × custo × latência)
+    é item de destaque no relatório (F7.5): justifica a escolha do NeMo no build **com dados**, não
+    por omissão. Hook de rede idêntico ao `NeMoReranker`: usa a `cohere_api_key` (trial) e o modelo
+    **multilíngue** (`rerank-multilingual-v3.0`) p/ casar o conteúdo PT-BR/EN da KB. Levanta
+    `RerankerUnavailable` quando a dep `cohere`/a credencial falta — o pipeline cai no
+    `LexicalReranker` offline (mesma disciplina da espinha verde). Usa o SDK `cohere` (ClientV2).
+    """
+
+    name = "cohere-rerank"
+
+    def __init__(self, *, model: str | None = None, api_key: str | None = None) -> None:
+        s = get_settings()
+        self.model = model or s.cohere_rerank_model
+        self.api_key = api_key if api_key is not None else s.cohere_api_key
+        self._client = None  # construído lazy no 1º uso (degrada limpo offline)
+
+    def _ensure_client(self):  # noqa: ANN202 - tipo da lib opcional
+        if self._client is not None:
+            return self._client
+        try:
+            import cohere
+        except ImportError as exc:  # dep opcional ausente -> degrada p/ offline
+            raise RerankerUnavailable(
+                "cohere-rerank: SDK `cohere` não instalado (comparativo F7.4); offline o RAG usa "
+                "o LexicalReranker."
+            ) from exc
+        if not self.api_key:
+            raise RerankerUnavailable(
+                "cohere-rerank: COHERE_API_KEY ausente (trial, comparativo F7.4); offline o RAG "
+                "usa o LexicalReranker."
+            )
+        self._client = cohere.ClientV2(api_key=self.api_key)
+        return self._client
+
+    def rerank(
+        self, query: str, chunks: Sequence[RetrievedChunk], *, top_n: int | None = None
+    ) -> tuple[RerankedChunk, ...]:
+        chunks = tuple(chunks)
+        if not chunks:
+            return ()
+        client = self._ensure_client()
+        documents = [_rerank_surface(c) for c in chunks]
+        result = client.rerank(
+            model=self.model,
+            query=query,
+            documents=documents,
+            top_n=len(chunks) if top_n is None else top_n,
+        )
+        # `index` mapeia o resultado de volta ao RetrievedChunk; `relevance_score` ∈ [0,1] ordena.
+        return _order(
+            [(chunks[r.index], float(r.relevance_score)) for r in result.results], top_n
+        )
+
+
 def get_reranker(*, prefer_nv: bool | None = None) -> Reranker:
     """Escolhe o reranker: NeMo NIM (rede/GPU) se ligado, senão o offline determinístico.
 
     Default vem de `reranker_use_nv` (config, off por default = espinha verde). `prefer_nv`
     sobrepõe (p/ a demo/GPU). Quando ligado, o `reranker_provider` seleciona o backend real:
-    `nemo` (default no build); `cohere` é o comparativo da F7 e ainda não está ligado aqui
-    (levanta `RerankerUnavailable`). Offline nunca levanta — o `NeMoReranker` só falha ao ser usado.
+    `nemo` (default no build) ou `cohere` (comparativo F7.4). Offline nunca levanta — os backends
+    de rede só falham ao serem usados (degradam p/ o `LexicalReranker`).
     """
     use_nv = get_settings().reranker_use_nv if prefer_nv is None else prefer_nv
     if not use_nv:
         return LexicalReranker()
     provider = get_settings().reranker_provider
-    if provider == "nemo":
-        return NeMoReranker()
-    raise RerankerUnavailable(
-        f"reranker_provider={provider!r} não ligado na F3.6 — Cohere Rerank é o comparativo "
-        "da F7 (NeMo×Cohere). Use 'nemo' (default no build) ou desligue reranker_use_nv."
-    )
+    if provider == "cohere":
+        return CohereReranker()
+    return NeMoReranker()
 
 
 def rerank(
@@ -319,6 +373,7 @@ __all__ = [
     "RerankedChunk",
     "LexicalReranker",
     "NeMoReranker",
+    "CohereReranker",
     "get_reranker",
     "rerank",
 ]

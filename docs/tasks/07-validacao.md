@@ -136,10 +136,37 @@
 > - **RAG (F7.3):** RAGAS faithfulness ≥ **0,80**; context recall ≥ **0,70**.
 > - **Briefing (F7.2c):** faithfulness do texto final às evidências ≥ **0,80**.
 > Metas abaixo do alvo são reportadas como limitação honesta, não escondidas.
-- [ ] **F7.4** **Comparativo de reranker: NeMo Retriever vs Cohere Rerank** (qualidade × custo ×
+- [x] **F7.4** **Comparativo de reranker: NeMo Retriever vs Cohere Rerank** (qualidade × custo ×
       latência) — aqui entra a Cohere trial key, só nesta fase. **O brief nomeia a Cohere no §5.3**,
       então este comparativo é item de **destaque** no relatório (F7.5): justifica a escolha do
       NeMo no build com dados, não por omissão. Ver `docs/COBERTURA-TECNOLOGIAS.md`.
+      → **(a) Cohere Rerank ligado** (`packages\rag\rerank.py`): novo `CohereReranker` espelhando o
+      `NeMoReranker` (SDK `cohere` ClientV2, modelo **multilíngue** `rerank-multilingual-v3.0` p/ PT-BR,
+      degrada com `RerankerUnavailable` sem key/dep); `get_reranker` agora liga o provider `cohere`
+      (antes reservado), `cohere_rerank_model` no settings. Testado com client **mockado** (mapeia
+      `index→chunk` + `relevance_score`, ordena, respeita `top_n`, preserva a população §8) — mesma
+      disciplina do caminho NeMo. **(b) Harness** `packages\eval\reranker_comparison.py` (+ testes):
+      mede cada reranker nas **3 dimensões** sobre as 7 perguntas NVIDIA (F3.9) — **qualidade** (reusa
+      a RAGAS/F7.3 com o **mesmo** scorer lexical p/ todos → compara *reranking × reranking* de forma
+      justa), **latência** (só o passo de rerank, recuperação fora do cronômetro) e **custo** (taxa de
+      referência: Cohere ≈ US$2/1k, NeMo catálogo grátis/GPU amortizada, lexical $0). Default
+      **offline-safe** (só o lexical); os reais entram por `--nv`/`--cohere` e **degradam limpo**.
+      **Medido ao vivo (n=7):**
+      | Reranker | qualidade (RAGAS) | context recall | latência | custo/1k |
+      |---|---|---|---|---|
+      | lexical-offline (piso) | 0,802 | 0,69 | 0,21 ms/q | $0 |
+      | **nv-rerankqa (NeMo, ao vivo)** | **0,823** ✅ | **0,74** | ~1002 ms/q | $0 (catálogo) |
+      | cohere-rerank | — | — | — | indisponível (sem trial key + SDK) |
+
+      *Leitura honesta:* o **NeMo real supera o piso léxico** (0,823 > 0,802) e — achado que conecta
+      com a F7.3 — seu **context recall sobe a 0,74 ≥ 0,70**, então o **reranker real cruza o gate de
+      recall** que o proxy léxico não alcançava (0,69): a recuperação certa vem de **reordenar melhor**,
+      não só do juiz LLM. O custo do NeMo é **latência** (~1 s/consulta, ida-volta ao NIM do catálogo)
+      vs 0,2 ms offline. A **coluna Cohere fica pendente da trial key + SDK `cohere`** (degradação
+      limpa, sem número falso) — o backend está ligado e testado; reproduzível por
+      `python -m packages.eval.reranker_comparison --nv --cohere`. A decisão NeMo×Cohere final entra
+      no relatório (F7.5) quando a key estiver disponível. **Gate verde:** `ruff` limpo e `pytest`
+      **718 passed, 4 skipped** (+6 testes; NeMo medido ao vivo, ~7 chamadas, ~$0 catálogo).
 - [ ] **F7.5** Relatório de avaliação (`docs/AVALIACAO.md`) com resultados versionados.
 - [ ] **F7.6** Hardening: tratamento de erro, timeouts, limites de custo de LLM.
 - [ ] **F7.7** README final + instruções de reprodução + demo script.

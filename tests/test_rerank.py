@@ -16,6 +16,7 @@ from __future__ import annotations
 import pytest
 
 from packages.rag import (
+    CohereReranker,
     LexicalReranker,
     NeMoReranker,
     RerankedChunk,
@@ -42,13 +43,14 @@ def test_prefer_nv_selects_the_nemo_backend() -> None:
     assert reranker.name == "nv-rerankqa"
 
 
-def test_cohere_provider_is_reserved_for_f7(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Cohere Rerank é o comparativo da F7, não está ligado aqui (provider reservado).
+def test_cohere_provider_selects_the_cohere_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    # F7.4: Cohere Rerank ligado — o provider 'cohere' seleciona o CohereReranker (comparativo).
     from packages.config import get_settings
 
     monkeypatch.setattr(get_settings(), "reranker_provider", "cohere")
-    with pytest.raises(RerankerUnavailable):
-        get_reranker(prefer_nv=True)
+    reranker = get_reranker(prefer_nv=True)
+    assert isinstance(reranker, CohereReranker)
+    assert reranker.name == "cohere-rerank" and reranker.model
 
 
 # --- Reordenação lexical sobre a KB real ----------------------------------------------------
@@ -127,3 +129,46 @@ def test_nemo_reranker_degrades_cleanly_without_credentials() -> None:
     retrieved = build_retriever().search("inferência GPU", limit=3)
     with pytest.raises(RerankerUnavailable):
         reranker.rerank("inferência GPU", retrieved)
+
+
+def test_cohere_reranker_degrades_cleanly_without_credentials() -> None:
+    # Comparativo F7.4: sem COHERE_API_KEY (ou sem o SDK) o rerank levanta RerankerUnavailable.
+    reranker = CohereReranker(api_key="")
+    retrieved = build_retriever().search("inferência GPU", limit=3)
+    with pytest.raises(RerankerUnavailable):
+        reranker.rerank("inferência GPU", retrieved)
+
+
+class _FakeCohereResult:
+    def __init__(self, index: int, score: float) -> None:
+        self.index = index
+        self.relevance_score = score
+
+
+class _FakeCohereClient:
+    """Client `cohere` fake (sem rede): a API devolve (índice→score) fora de ordem; testamos o
+    mapeamento de volta ao RetrievedChunk + a ordenação, como o SDK real (ClientV2.rerank)."""
+
+    def __init__(self, order: list[tuple[int, float]]) -> None:
+        self._order = order
+
+    def rerank(self, *, model: str, query: str, documents: list[str], top_n: int):  # noqa: ANN201
+        ranked = [_FakeCohereResult(i, s) for i, s in self._order][:top_n]
+        return type("Resp", (), {"results": ranked})()
+
+
+def test_cohere_reranker_maps_results_and_orders() -> None:
+    # Wiring do CohereReranker: índice→chunk + relevance_score ordenam, preservando a população.
+    retrieved = build_retriever().search("Triton TensorRT NIM", limit=4)
+    n = len(retrieved)
+    reranker = CohereReranker(api_key="x")
+    # API "devolve" os índices fora de ordem; o maior score deve subir ao topo após o _order.
+    reranker._client = _FakeCohereClient([(i, (i + 1) / n) for i in range(n)])
+    reranked = reranker.rerank("Triton TensorRT NIM", retrieved)
+    assert len(reranked) == n
+    assert {r.chunk_id for r in reranked} == {r.chunk_id for r in retrieved}  # nada inventado
+    scores = [r.rerank_score for r in reranked]
+    assert scores == sorted(scores, reverse=True)  # ordenado desc (contrato F3.6)
+    assert reranked[0].retrieved is retrieved[n - 1]  # idx n-1 tinha o maior score
+    # respeita top_n (corte no servidor + no _order).
+    assert len(reranker.rerank("Triton TensorRT NIM", retrieved, top_n=2)) == 2
