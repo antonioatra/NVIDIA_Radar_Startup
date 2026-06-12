@@ -66,10 +66,39 @@
       corretamente — prescreve Clara/MONAI no domínio de imagem; FN que é, na verdade, rótulo a revisar).
       **Gate verde (offline):** `ruff` limpo e `pytest` **700 passed, 4 skipped** (+7 testes novos; o
       smoke real F0.7 falha à parte por um 500 do NIM hospedado — infra externa, não exercita F7.2b).
-- [ ] **F7.2c** **Faithfulness do briefing (texto final):** o briefing é o artefato que o gerente
+- [x] **F7.2c** **Faithfulness do briefing (texto final):** o briefing é o artefato que o gerente
       lê, mas hoje só passa pelo gate binário do Guardrails (F4.5). Medir **fidelidade do texto
       gerado às evidências citadas** (RAGAS faithfulness sobre o briefing, não só sobre o RAG) —
       garante que afirmações/ROI no relatório não extrapolam as fontes. Amostra do eval set (F1.12).
+      → `packages\eval\briefing_faithfulness.py` (+ `tests\test_briefing_faithfulness.py`): harness
+      irmão de F7.2/F7.2b/F6.4 — reusa a `ragas.faithfulness` (frações de frases ancoradas nos
+      contextos) sobre o **briefing** (F4.4). A distinção que dá sentido à métrica: **afirmações =
+      os 4 campos que o briefing GERA** (`resumo_executivo` + os 3 eixos do §2 = os `_REFINABLE`, o
+      que o Super reescreve); **fontes = o aterramento** (bloco AIMI com justificativas+snippets +
+      recomendações com snippets dos 2 lados/F4.3 + os fatos **fixos** do programa Inception e do
+      **framework de decisão** `classe × AIMI`/ALINHAMENTO §5/§8 — domínio documentado que a prosa
+      *aplica*, não inventa). Os 4 campos **não** entram no próprio contexto (sem circularidade): a
+      métrica pega o **net-new** (ROI/cliente/funding alegado fora das fontes). **Tem `--llm`** (≠
+      F7.2b): aqui o LLM **muda o texto** (reescreve os 4 campos) → a fidelidade **pode** degradar; o
+      scorer é o mesmo proxy nos dois modos, só o texto troca (espinha × Super refinado). `non-AI`
+      fora de escopo (F2.13): 20 in-scope, 4 excluídas. **Medido (n=20 in-scope, espinha offline):**
+      | Recorte | faithfulness |
+      |---|---|
+      | **média (gate)** | **0,870** ✅ (≥ 0,80; min 0,786) |
+      | `resumo_executivo` (síntese factual) | 0,967 |
+      | `acao_comercial` (aplica o framework) | 1,000 |
+      | `acao_tecnica` (ancorada na `proxima_acao`) | 0,817 |
+      | `acao_comunitaria` (programa Inception) | 0,800 |
+
+      *Leitura honesta:* a **espinha determinista bate a meta** (0,870 ≥ 0,80) porque só **reafirma**
+      diagnóstico/recomendações/programa/framework — é fiel **por construção** (anti-alucinação, o
+      invariante do projeto); o número offline é o **piso/guard de regressão** do CI (se a espinha
+      passar a afirmar algo sem fonte, cai). O valor que **importa medir ao vivo** é o do `--llm` (o
+      Super reescreve e pode derivar) — provado nos testes por um adapter `refine` fake: injetar uma
+      afirmação sem fonte **derruba** a faithfulness, um refino fiel a **preserva**. A faithfulness
+      com **juiz LLM** (lib `ragas` + Nemotron) sobre o briefing é a consolidação da **F7.3** (backend
+      `RagasJudge` reservado). **Gate verde:** `ruff` limpo e `pytest` **709 passed, 4 skipped** (+9
+      testes; o smoke real F0.7 falha à parte por um 500 do NIM hospedado — infra externa).
 - [ ] **F7.3** RAGAS consolidado sobre o conjunto de perguntas NVIDIA.
 
 > **Metas de qualidade (baseline, revisáveis com dados).** Para evitar "qualidade aferida sem
@@ -96,5 +125,5 @@ RAGAS · Cohere Rerank (validação) · NeMo Retriever · Langfuse.
 ## DoD
 - [ ] Relatório mostra baseline de qualidade + decisão final de reranker com dados (NeMo vs Cohere).
 - [ ] Eval da recomendação (F7.2b) reportado, não só os 7 exemplos do §5.5.
-- [ ] Faithfulness do briefing final medida e reportada (F7.2c), não só o gate do Guardrails.
+- [x] Faithfulness do briefing final medida e reportada (F7.2c), não só o gate do Guardrails.
 - [ ] Projeto reproduzível por um terceiro a partir do README.

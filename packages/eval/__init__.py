@@ -23,6 +23,17 @@ from .aimi_correlation import (
     profile_for,
     spearman,
 )
+from .briefing_faithfulness import (
+    FAITHFULNESS_THRESHOLD,
+    NARRATIVE_FIELDS,
+    BriefingFaithfulnessReport,
+    EntryFaithfulness,
+    briefing_contexts,
+    briefing_faithfulness,
+    briefing_for,
+    briefing_narrative,
+    evaluate_briefing_faithfulness,
+)
 from .classification_metrics import (
     MACRO_F1_THRESHOLD,
     ClassificationReport,
@@ -162,4 +173,14 @@ __all__ = [
     "RegionMetrics",
     "RecommendationMetricsReport",
     "evaluate_recommendation_metrics",
+    # faithfulness do briefing: fidelidade do texto final às fontes citadas (F7.2c)
+    "FAITHFULNESS_THRESHOLD",
+    "NARRATIVE_FIELDS",
+    "briefing_narrative",
+    "briefing_contexts",
+    "briefing_faithfulness",
+    "briefing_for",
+    "EntryFaithfulness",
+    "BriefingFaithfulnessReport",
+    "evaluate_briefing_faithfulness",
 ]
