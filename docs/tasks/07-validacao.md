@@ -167,7 +167,17 @@
       `python -m packages.eval.reranker_comparison --nv --cohere`. A decisão NeMo×Cohere final entra
       no relatório (F7.5) quando a key estiver disponível. **Gate verde:** `ruff` limpo e `pytest`
       **718 passed, 4 skipped** (+6 testes; NeMo medido ao vivo, ~7 chamadas, ~$0 catálogo).
-- [ ] **F7.5** Relatório de avaliação (`docs/AVALIACAO.md`) com resultados versionados.
+- [x] **F7.5** Relatório de avaliação (`docs/AVALIACAO.md`) com resultados versionados.
+      → `docs\AVALIACAO.md` criado: consolida num lugar só, **contra as metas declaradas do §7**, a
+      qualidade de cada peça — classificação (F7.2, macro-F1 0,875 ✅), AIMI (F6.4, Spearman 0,815 ✅),
+      recomendação (F7.2b, dois lados 1,0 ✅ / recall 0,78 nos alvos, precision 0,23 ⚠️), RAG (F7.3,
+      faithfulness 1,0 ✅ / recall 0,69→0,74 com o NeMo real ✅), briefing (F7.2c, 0,870 ✅) e o
+      comparativo de reranker (F7.4, NeMo 0,823 > léxico; Cohere pendente). Abre com a **metodologia**
+      (eval set 100% sintético → F7.1; espinha verde offline + real atrás de flag; onde medir ao vivo),
+      traz **resumo executivo** (métrica × meta × veredito), detalhe por entregável, **limitações
+      honestas** (sintético, super-recomendação, juiz RAGAS bloqueado por dep, Cohere pendente, ROI/GPU
+      não construído) e os **comandos de reprodução** (defaults offline; flags fazem rede). Doc-only —
+      sem mudança de código (suíte intacta: `pytest` 718 passed, 4 skipped).
 - [ ] **F7.6** Hardening: tratamento de erro, timeouts, limites de custo de LLM.
 - [ ] **F7.7** README final + instruções de reprodução + demo script.
 
@@ -175,7 +185,8 @@
 RAGAS · Cohere Rerank (validação) · NeMo Retriever · Langfuse.
 
 ## DoD
-- [ ] Relatório mostra baseline de qualidade + decisão final de reranker com dados (NeMo vs Cohere).
-- [ ] Eval da recomendação (F7.2b) reportado, não só os 7 exemplos do §5.5.
+- [x] Relatório mostra baseline de qualidade + decisão de reranker com dados (NeMo medido 0,823 >
+      léxico; coluna Cohere pendente da trial key — `docs/AVALIACAO.md`).
+- [x] Eval da recomendação (F7.2b) reportado, não só os 7 exemplos do §5.5.
 - [x] Faithfulness do briefing final medida e reportada (F7.2c), não só o gate do Guardrails.
 - [ ] Projeto reproduzível por um terceiro a partir do README.
