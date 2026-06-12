@@ -76,6 +76,20 @@ F0 ─┬─> F1 ──> F2 ──┐
 - **M6** — Diferencial: AIMI + clustering de coorte + ROI real na GPU (fim F6).
 - **M7** — Eval consolidado + comparativo NeMo vs Cohere (fim F7).
 
+> **Validação e2e real ("make it real", 2026-06-11):** o pipeline rodou **ponta a ponta com todos
+> os backends reais** numa startup BR (Hand Talk): scraping (Tavily+Firecrawl) → extractor/classifier/
+> recommender/briefing no **Nemotron-Super** → RAG real (**NeMo Retriever** embed+rerank no **Qdrant**)
+> → **persistência no Postgres** → leitura no `GET /companies`. Resultado coerente: AI-native, AIMI 42,
+> gap em Technical Optimization → recomenda graduação API→NIM/TensorRT/Triton, com evidência dos dois
+> lados (~4 chamadas LLM, ~US$0,02, ~5 min). O run revelou **3 bugs que os testes offline não
+> exercitavam** (rodam só nos substitutos): (1) modelos NeMo Retriever `nv-*qa-1b-v2` em **EOL
+> 2026-05-18** → sucessores `llama-nemotron-{embed,rerank}-1b-v2` (F3.3/F3.6); (2) `max_tokens` default
+> **1024** truncava o reasoning do Super antes do JSON → `_MAX_TOKENS` por perfil (F0.7); (3) prompts
+> `extractor`/`classifier` **sem schema fixo** → o Super chutava chaves em inglês → reescritos p/ **v2**
+> fixando as chaves (F2.5/F2.6). Infra do run: Postgres em `:5433` + Qdrant `:6333` (via `docker run`,
+> portas default ocupadas por outro projeto), run **in-process** (dispensa Redis/RQ). Pendente p/ um
+> e2e completo: **discovery/coorte** (mapear N startups, não 1) e **eval real** (F7.1).
+
 ## Definition of Done (global, por task)
 - [ ] Código + teste mínimo + entrada/saída tipada (Pydantic onde aplicável).
 - [ ] Toda afirmação/score tem evidência rastreável (URL + `fetched_at`).

@@ -40,6 +40,12 @@
       `score`, `recommendation`, `run`. Modelos em `packages/db`; founders normalizados,
       produtos/clientes/tecnologias/funding em JSON; `evidence` polimórfica (entity_type/id/field).
 - [x] **F0.7** Cliente Nemotron via `langchain-nvidia-ai-endpoints` (factory Nano/Super) + smoke test.
+      → **Corrigido no 1º run real (track 2, 2026-06-11):** o `get_chat` não passava `max_tokens`,
+      então a lib usava o default **1024** — fatal no perfil `reason` (Super): com reasoning ON o
+      modelo gastava o orçamento de saída na cadeia de raciocínio e era **truncado antes do JSON**,
+      o parser do nó devolvia `None` e o run degradava sem diagnóstico. Novo `_MAX_TOKENS` por
+      perfil (`reason=8192`, `fast=2048`), sempre aplicado. Os testes offline não pegavam (não
+      chamam o LLM real).
 - [x] **F0.8** Bootstrap Langfuse (tracing) + wrapper de callback nos LLMs.
       Langfuse **v3** (SDK 4.x / `langfuse.langchain.CallbackHandler`) — o callback do v2
       importa caminhos legados removidos no langchain 1.0, incompatível com o stack da F0.7.

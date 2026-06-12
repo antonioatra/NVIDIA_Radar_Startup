@@ -98,6 +98,15 @@
       `extract_profile` (sucesso + degradação None em JSON ruim/adapter que levanta), e o nó (no-op
       offline, update com `extract` injetado, acúmulo de erro na não-extração, hook de persist
       chamado, falha de persist não-fatal). Caminho LLM real é opt-in (sem teste de rede, padrão da fase).
+      → **Validado no 1º run real (track 2, 2026-06-11):** o `extractor@v1` **não fixava o schema
+      de saída** — só pedia "JSON aderente ao `StartupProfile`". Contra o Super real, o modelo
+      respondia com chaves em inglês (`company_name`/`sector`/`product`/`clients`) que o
+      `parse_profile` não casava → perfil quase vazio (só `nome`, por fallback da query). Reescrito
+      p/ **`extractor@v2`** com o **schema exato** (chaves pt-BR `nome`/`setor`/`descricao`/
+      `produtos`/`clientes`/`tecnologias`/`founders`/`funding`, escalares como `{value, evidence}`,
+      evidência `{url, snippet}`) → passou a extrair perfil rico com proveniência (Hand Talk: setor,
+      descrição, produtos, clientes enterprise, 8 evidências). O adapter fake dos testes não pegava
+      isto — a saída do modelo real só foi exercitada agora.
 - [x] **F2.6** Nó **classifier** (Super, reasoning ON): AI-native | AI-enabled | non-AI + sub-scores.
       Emite os 4 sub-scores no schema `AIMIScore` (F0.5) usando uma **rubrica AIMI provisória v0**
       (heurística simples por evidência), sobre a **definição de pilares/escala de `docs/RUBRICA-AIMI.md`
@@ -131,6 +140,13 @@
       `classify_with_llm` (degradação None em JSON ruim/adapter que levanta); `make_aimi` (heurística
       default, LLM injetado, fallback, flag ligada); e o nó (no-op sem perfil, `aimi` com perfil,
       `classify=` injetado). Caminho LLM real é opt-in (sem teste de rede, padrão da fase).
+      → **Validado no 1º run real (track 2, 2026-06-11):** mesmo problema do extractor — o
+      `classifier@v1` não fixava as chaves dos pilares, então o Super real acertava a `classe` mas
+      devolvia os sub-scores sob chaves que o `parse_score` não casava → **AIMI 0 em todos os
+      pilares** (a medição F7.2/macro-F1 0,875 só checava a *classe*, não os sub-scores). Reescrito
+      p/ **`classifier@v2`** com o schema exato (`data_moat`/`workflow_depth`/`technical_optimization`/
+      `distribution_moat` como `{score, justificativa, evidence}`) → AIMI real e sensato (Hand Talk:
+      AI-native, total 42, gap em `technical_optimization` = gatilho de graduação).
 - [x] **F2.7** Nó **evidence_validator**: regra de N fontes; aresta condicional de retry → scraper.
       → `packages/agents/evidence_validator.py`: quinto nó (entre classifier/F2.6 e nvidia_rag/F3).
       A **regra de N fontes** é um gate de **largura** — `is_sufficient` exige ≥ `MIN_SOURCES`
