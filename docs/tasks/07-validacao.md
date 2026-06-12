@@ -32,10 +32,40 @@
       dos três (classificação + AIMI/F6.4 + 7 casos/F4.8) num relatório único é da **F7.5**.
       **Gate verde (testes offline):** `ruff` limpo e `pytest` **687 passed, 4 skipped** (10 testes
       novos; o `--llm` faz rede e fica fora do CI). Medição real do Super rodada ao vivo (2026-06-11).
-- [ ] **F7.2b** **Eval da recomendação (held-out, não só os 7 exemplos):** sobre o eval set (F1.12),
+- [x] **F7.2b** **Eval da recomendação (held-out, não só os 7 exemplos):** sobre o eval set (F1.12),
       medir se as techs NVIDIA recomendadas batem com as esperadas por empresa — precision/recall
       de techs e taxa de recomendação com evidência dos dois lados (F4.3). Fecha a lacuna do
       Entregável 4 ter qualidade aferida só por casos canônicos.
+      → `packages\eval\recommendation_metrics.py` (+ `tests\test_recommendation_metrics.py`): harness
+      irmão da classificação (F7.2) e da correlação (F6.4) — alimenta o recommender com o **AIMI
+      rotulado** (ground-truth, **não** o predito: isola a prescrição do erro do índice, que o F6.4
+      mede à parte), o perfil só-de-descrição (`profile_for`) e uma **recuperação de recall máximo**
+      (`full_recall_retrieval`/F4.8 — isola a prescrição do recall do RAG, medido na RAGAS/F7.3), e
+      cruza techs **produzidas × `expected_nvidia_techs`** (substring, tolerante a parentético). `non-AI`
+      é **fora de escopo** (F2.13 pula a recomendação): 4 excluídas, **20 in-scope**. Reporta
+      **precision** (pega super-recomendação), **recall**, **F1** (micro), **taxa dos dois lados** (F4.5)
+      e **recorte por região** (RUBRICA §6). Núcleo puro/offline (`_matches`, `_prf`); **sem `--llm`** —
+      a *seleção* de techs é determinística (regras F4.1), o Super (F4.2) só refina a redação, então a
+      métrica é **idêntica online/offline** e roda 100% no CI (≠ classificador/F7.2, onde o LLM muda a
+      predição). **Medido (n=20 in-scope, 97 recomendações):**
+      | Recorte | precision | recall | F1 |
+      |---|---|---|---|
+      | **alvo_graduacao** (a coorte que importa, F6.13) | 0,53 | **0,78** ✅ | 0,63 |
+      | periférico / wrapper (AIMI baixo) | ~0,06 | 1,00 | ~0,11 |
+      | maduro | 0,08 | **0,17** ❌ | 0,11 |
+      | **geral** | **0,23** | **0,69** | 0,34 |
+
+      *Leitura honesta:* **dois lados = 1,0** — o invariante duro (F4.5) vale nas 97 recomendações ✅. O
+      **recall onde importa bate a meta** (alvos de graduação 0,78 ≥ 0,70): a graduação
+      NIM/TensorRT/Triton **sempre** sai. O recall **geral** (0,69) é puxado pelo **maduro 0,17** — o
+      rótulo espera `NVIDIA AI Enterprise` para empresa madura, mas a regra (F4.1) só dispara AI
+      Enterprise num **gap de P4**, e madura tem P4 forte → não dispara. A **precision baixa (0,23) é
+      super-recomendação**: a regra dispara em todo gap (~5 techs/empresa), os rótulos esperam 0–4 —
+      concentra-se nas regiões de AIMI baixo (wrapper/periférico, que esperam ~0). Ambos são **mismatch
+      regra↔rótulo a reconciliar na F7.1** (ex.: o rótulo pede `RAPIDS` p/ radiologia, mas a regra —
+      corretamente — prescreve Clara/MONAI no domínio de imagem; FN que é, na verdade, rótulo a revisar).
+      **Gate verde (offline):** `ruff` limpo e `pytest` **700 passed, 4 skipped** (+7 testes novos; o
+      smoke real F0.7 falha à parte por um 500 do NIM hospedado — infra externa, não exercita F7.2b).
 - [ ] **F7.2c** **Faithfulness do briefing (texto final):** o briefing é o artefato que o gerente
       lê, mas hoje só passa pelo gate binário do Guardrails (F4.5). Medir **fidelidade do texto
       gerado às evidências citadas** (RAGAS faithfulness sobre o briefing, não só sobre o RAG) —

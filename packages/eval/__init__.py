@@ -80,6 +80,17 @@ from .recommend_cases import (
     full_recall_retrieval,
     run_case,
 )
+from .recommendation_metrics import (
+    PRF_THRESHOLD,
+    EntryRecResult,
+    RecommendationMetricsReport,
+    RegionMetrics,
+    aimi_from_labels,
+    evaluate_entry,
+    evaluate_recommendation_metrics,
+    is_in_scope,
+    recommended_for,
+)
 
 __all__ = [
     "EVAL_DIR",
@@ -141,4 +152,14 @@ __all__ = [
     "EntryPrediction",
     "ClassificationReport",
     "evaluate_classification",
+    # métricas de recomendação: precision/recall de techs NVIDIA vs rótulos (F7.2b)
+    "PRF_THRESHOLD",
+    "aimi_from_labels",
+    "recommended_for",
+    "is_in_scope",
+    "evaluate_entry",
+    "EntryRecResult",
+    "RegionMetrics",
+    "RecommendationMetricsReport",
+    "evaluate_recommendation_metrics",
 ]
