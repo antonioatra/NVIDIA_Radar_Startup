@@ -1,6 +1,7 @@
 # Relatório de Avaliação — TAPI (NVIDIA Startup AI Radar)
 
-**Tarefa:** F7.5 (consolida F7.2 · F6.4 · F7.2b · F7.2c · F7.3 · F7.4). **Atualizado:** 2026-06-12.
+**Tarefa:** F7.5 (consolida F7.2 · F6.4 · F7.2b · F7.2c · F7.3 · F7.4; metodologia/limitações
+revisadas após a **F7.1**). **Atualizado:** 2026-06-13.
 
 Este relatório reúne, num lugar só e **contra metas declaradas** (§7 do brief), a qualidade aferida
 de cada peça do pipeline. O número final é o que os dados mostram; o alvo torna o resultado
@@ -11,8 +12,14 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 - **Conjunto de avaliação (F1.12):** 24 fixtures rotuladas (`data/eval/labeled_startups.yaml`) —
   classe (§5.1) + AIMI esperado (4 pilares 0–25) + techs NVIDIA esperadas, cobrindo todas as regiões
   do plano `classe × AIMI`. **São 100% sintéticas** (`synthetic: true`): é "modelo real sobre dados de
-  fixture". Torná-las reais é a **F7.1** — a principal limitação deste relatório (ver §Limitações).
-  O RAG usa um conjunto à parte de **7 perguntas NVIDIA** (`data/eval/rag/questions.yaml`).
+  fixture". A **F7.1** acrescenta ao lado a **metade real automática** — coorte BR raspada ao vivo e
+  auto-rotulada pelo pipeline (`packages/eval/cohort_to_eval.py` → `data/eval/cohort_real.yaml`,
+  `synthetic: false`, `evidence_urls` reais). Mas como o rótulo é a **saída do próprio modelo**
+  (**baseline circular**), essas entradas saem com `label_source: model` e ficam **fora do headline**
+  (`load_eval_set(include_model=True)` para incluí-las; promover a ground-truth é revisão humana). Logo,
+  **todos os números abaixo são human-reviewed** (as 24 fixtures); o auto-rotulado real é reportado à
+  parte (ver §Limitações). O RAG usa um conjunto à parte de **7 perguntas NVIDIA**
+  (`data/eval/rag/questions.yaml`).
 - **Espinha verde / real atrás de flag:** cada peça que precisa de rede/LLM/GPU tem um **substituto
   offline determinístico como _default_** (roda no CI, reprodutível), com o **backend real plugável**.
   Onde o LLM **muda o resultado** (classificação, briefing), medimos o **real ao vivo**; onde **não
@@ -131,11 +138,14 @@ key estiver disponível (`--cohere`).
 
 ## Limitações honestas (o que ainda não é real / não bate a meta)
 
-1. **Eval set 100% sintético (24 fixtures)** — toda métrica acima é "modelo real sobre dados de
-   fixture". Torná-lo real (startups BR rotuladas) é a **F7.1**, o gap nº 1.
+1. **Headline ainda sobre as 24 fixtures sintéticas** — toda métrica acima é "modelo real sobre dados
+   de fixture". A **F7.1** já entrega a **metade real automática** (coorte BR raspada ao vivo e
+   auto-rotulada, `cohort_real.yaml`), mas o rótulo é do próprio modelo (**baseline circular**) → fica
+   fora do headline por padrão. O gap nº 1 que **resta** é a **revisão humana** que promove essas
+   entradas reais a ground-truth (`label_source: model → human`).
 2. **Recomendação: precision 0,23 (super-recomendação) e maduro recall 0,17** — mismatch regra↔rótulo
-   a reconciliar na **F7.1** (parte é rótulo a revisar, ex.: RAPIDS pedido p/ radiologia onde a regra
-   prescreve Clara/MONAI).
+   a reconciliar na **revisão de rótulos da F7.1** (parte é rótulo a revisar, ex.: RAPIDS pedido p/
+   radiologia onde a regra prescreve Clara/MONAI).
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
 4. **Coluna Cohere do comparativo pendente** da trial key + SDK.

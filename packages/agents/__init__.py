@@ -40,6 +40,7 @@ from .cohort import (
     CohortReport,
     build_cohort,
     candidate_domains,
+    candidates_from_seed,
     discover_candidates,
 )
 from .evidence_validator import (
@@ -119,6 +120,7 @@ __all__ = [
     "CohortReport",
     "build_cohort",
     "candidate_domains",
+    "candidates_from_seed",
     "discover_candidates",
     "PIPELINE",
     "CONDITIONAL_OUT",

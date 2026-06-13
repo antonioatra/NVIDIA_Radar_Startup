@@ -29,6 +29,8 @@ o crawl real (F1.6) e o pipeline real (F2) entram por injeção/flag.
 from __future__ import annotations
 
 import argparse
+import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -131,6 +133,14 @@ class CohortReport(BaseModel):
 # --- descoberta de candidatas (puro, offline) --------------------------------
 
 
+# Seed de candidatas curadas (F7.1): fallback robusto quando o crawl-discovery rende 0 ao vivo.
+_CANDIDATES_SEED = Path(__file__).resolve().parents[2] / "data" / "seeds" / "cohort_candidates.yaml"
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "empresa"
+
+
 def _strip_www(host: str) -> str:
     host = host.lower()
     return host[4:] if host.startswith("www.") else host
@@ -213,6 +223,32 @@ def discover_candidates(
     pages = crawl_fn(srcs, max_pages=max_pages, max_depth=max_depth)
     seed_hosts = [urlparse(s.url).netloc.lower() for s in srcs]
     return candidate_domains(pages, seed_hosts=seed_hosts)
+
+
+def candidates_from_seed(path: Path | None = None) -> tuple[CohortCandidate, ...]:
+    """Lê candidatas curadas de `data/seeds/cohort_candidates.yaml` (F7.1).
+
+    Fallback **robusto** à descoberta por crawl (que rende 0 ao vivo: robots/JS/bloqueio):
+    nomes de empresas BR de IA **reais**, que o pipeline resolve e **verifica ao vivo** (Tavily
+    pelo `query` → Firecrawl). `query` é o termo de busca; `domain` é um slug do nome (o domínio
+    real vem do perfil resolvido na persistência). Empresa que não rende perfil é pulada (honesto).
+    """
+    import yaml
+
+    src = path or _CANDIDATES_SEED
+    data = yaml.safe_load(src.read_text(encoding="utf-8")) or {}
+    out: list[CohortCandidate] = []
+    for raw in data.get("candidates", []):
+        name = raw["name"]
+        out.append(
+            CohortCandidate(
+                domain=raw.get("domain", _slug(name)),
+                query=raw.get("query", name),
+                name=name,
+                source_id="cohort-seed",
+            )
+        )
+    return tuple(out)
 
 
 # --- laço em lote ------------------------------------------------------------
@@ -317,11 +353,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=None, help="Máx. de empresas a perfilar.")
     parser.add_argument("--max-pages", type=int, default=50, help="Páginas por crawl (F1.6).")
     parser.add_argument("--max-depth", type=int, default=2, help="Profundidade do crawl.")
+    parser.add_argument(
+        "--seed", action="store_true", help="Usa as candidatas curadas da seed (F7.1)."
+    )
+    parser.add_argument(
+        "--candidates", default=None, help="YAML de candidatas curadas (implica --seed)."
+    )
     parser.add_argument("--dry-run", action="store_true", help="Só lista candidatas, não perfila.")
     args = parser.parse_args(argv)
 
-    candidates = discover_candidates(max_pages=args.max_pages, max_depth=args.max_depth)
-    print(f"candidatas descobertas: {len(candidates)}")
+    if args.candidates is not None:
+        candidates = candidates_from_seed(Path(args.candidates))
+    elif args.seed:
+        candidates = candidates_from_seed()
+    else:
+        candidates = discover_candidates(max_pages=args.max_pages, max_depth=args.max_depth)
+    print(f"candidatas: {len(candidates)}")
     if args.dry_run:
         for c in candidates[: args.limit or len(candidates)]:
             print(f"  {c.domain}  ({c.source_id})  {c.name!r}")

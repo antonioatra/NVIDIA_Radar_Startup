@@ -23,16 +23,36 @@ As 24 entradas de `labeled_startups.yaml` são **fixtures-semente sintéticas**
 regiões do mapa de decisão e **destravam F6.4/F7 desde já**. Não são empresas reais e
 **não** trazem `evidence_urls`.
 
-Entradas **reais** (`synthetic: false`) — adicionadas por revisão humana sobre a
-evidência coletada pelo pipeline (F1.9) e pelo cohort builder (F1.14) — **exigem**
-`evidence_urls` rastreáveis; o loader recusa entrada real sem fonte. A expansão para
-empresas reais é o trabalho de F7.1.
+Entradas **reais** (`synthetic: false`) — **exigem** `evidence_urls` rastreáveis; o loader
+recusa entrada real sem fonte.
+
+## `cohort_real.yaml` — expansão real automática (F7.1)
+A metade real da F7.1 é **automática**: o cohort builder (F1.14) parte das candidatas curadas
+(`data/seeds/cohort_candidates.yaml` — empresas BR de IA reais), o pipeline **resolve e raspa
+ao vivo** (Tavily+Firecrawl) e diagnostica (Nemotron-Super), e `packages/eval/cohort_to_eval.py`
+materializa as entradas em `data/eval/cohort_real.yaml` (`synthetic: false`, `evidence_urls`
+reais). Reproduzível por:
+
+```
+python -m packages.agents.cohort --seed --db sqlite:///data/cohort.db   # + flags de rede/LLM
+python -m packages.eval.cohort_to_eval --db sqlite:///data/cohort.db
+```
+
+**Honestidade — `label_source`.** O rótulo (classe/AIMI/techs) dessas entradas é a **saída do
+próprio modelo**, então medir o modelo contra ele é um **baseline circular**. Por isso elas
+carregam `label_source: model` e `load_eval_set()` as mantém **fora do headline** por padrão
+(`include_model=True` para incluí-las); o `AVALIACAO.md` reporta o baseline auto-rotulado em
+**linha separada**, nunca fundido nos números human-reviewed. Promover uma entrada a ground-truth
+exige **revisão humana** (virar `label_source: human`). O sourcing/evidência é real; o rótulo é
+proposto. (Por que curada e não por crawl: o crawl-discovery Scrapy rende **0 ao vivo** —
+robots/JS/bloqueio; a coleta por-empresa via Tavily/Firecrawl é robusta. Ver
+`data/seeds/cohort_candidates.yaml`.)
 
 ## Esquema (validado em `packages/eval/dataset.py`)
 `id` · `nome` · `setor` · `descricao` · `classificacao` (`AI-native|AI-enabled|non-AI`) ·
 `region` · `aimi {data_moat, workflow_depth, technical_optimization, distribution_moat}`
 (0–25 cada) · `expected_nvidia_techs[]` (F7.2b) · `rationale` · `evidence_urls[]` ·
-`synthetic` · `notes`.
+`synthetic` · `label_source` (`human|model`) · `notes`.
 
 O loader valida **coerência direcional** da anotação (ex.: `non-AI` não tem Workflow
 Depth alto por IA; `alvo_graduacao` tem P3 ≤ 8 com P1 ou P2 ≥ 13) — sanidade da

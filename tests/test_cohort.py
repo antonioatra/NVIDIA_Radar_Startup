@@ -20,6 +20,7 @@ from packages.agents.cohort import (
     CohortCandidate,
     build_cohort,
     candidate_domains,
+    candidates_from_seed,
     discover_candidates,
 )
 from packages.db.models import Company
@@ -99,6 +100,35 @@ def test_discover_candidates_uses_injected_crawl_and_sources() -> None:
     cands = discover_candidates(sources=[src], crawl_fn=lambda srcs, **kw: pages)
 
     assert [c.domain for c in cands] == ["acme.ai"]
+
+
+def test_candidates_from_seed_reads_curated_yaml(tmp_path) -> None:
+    import yaml
+
+    seed = tmp_path / "cohort_candidates.yaml"
+    seed.write_text(
+        yaml.safe_dump(
+            {"candidates": [
+                {"name": "Hand Talk", "query": "Hand Talk Libras IA"}, {"name": "Kunumi"},
+            ]},
+            allow_unicode=True,
+        ),
+        encoding="utf-8",
+    )
+    cands = candidates_from_seed(seed)
+
+    assert [c.name for c in cands] == ["Hand Talk", "Kunumi"]
+    assert cands[0].query == "Hand Talk Libras IA"
+    assert cands[0].domain == "hand-talk"  # slug do nome (domínio real vem do perfil)
+    assert cands[1].query == "Kunumi"  # query default = nome
+    assert all(c.source_id == "cohort-seed" for c in cands)
+
+
+def test_real_candidate_seed_loads() -> None:
+    # A seed versionada do projeto carrega e tem candidatas reais.
+    cands = candidates_from_seed()
+    assert len(cands) >= 5
+    assert all(c.name and c.query for c in cands)
 
 
 # --- build_cohort (lote, SQLite isolado) -------------------------------------

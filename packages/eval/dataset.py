@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -99,6 +100,11 @@ class LabeledStartup(BaseModel):
         description="True = fixture-semente ancorada na rubrica (sem fonte ao vivo); "
         "False = empresa real e exige evidence_urls.",
     )
+    label_source: Literal["human", "model"] = Field(
+        default="human",
+        description="human = ground-truth revisado (headline); model = rótulo proposto pelo "
+        "pipeline sobre empresa real (F7.1) — baseline **circular**, reportado à parte.",
+    )
     notes: str = ""
 
     @model_validator(mode="after")
@@ -138,8 +144,14 @@ class LabeledStartup(BaseModel):
 
 
 @lru_cache
-def load_eval_set() -> tuple[LabeledStartup, ...]:
-    """Carrega (cacheado) todas as entradas de `data/eval/*.yaml`. IDs são únicos."""
+def load_eval_set(include_model: bool = False) -> tuple[LabeledStartup, ...]:
+    """Carrega (cacheado) as entradas de `data/eval/*.yaml`. IDs são únicos.
+
+    Por padrão devolve **só o ground-truth human-reviewed** (`label_source='human'`) — é o que
+    sustenta os números headline e os gates do §7. `include_model=True` inclui as entradas
+    reais **auto-rotuladas** pelo pipeline (F7.1), mantidas à parte porque medir o modelo contra
+    o próprio rótulo é um **baseline circular** (reportado como tal, não fundido no headline).
+    """
     entries: list[LabeledStartup] = []
     seen: set[str] = set()
     for path in sorted(EVAL_DIR.glob("*.yaml")):
@@ -152,6 +164,8 @@ def load_eval_set() -> tuple[LabeledStartup, ...]:
             entries.append(entry)
     if not entries:
         raise ValueError(f"nenhuma entrada de eval carregada de {EVAL_DIR}")
+    if not include_model:
+        entries = [e for e in entries if e.label_source == "human"]
     return tuple(entries)
 
 
@@ -163,6 +177,11 @@ def by_classification(classificacao: Classification) -> tuple[LabeledStartup, ..
 def by_region(region: PlaneRegion) -> tuple[LabeledStartup, ...]:
     """Entradas de uma região do plano `classe × AIMI` (RUBRICA §6)."""
     return tuple(e for e in load_eval_set() if e.region is region)
+
+
+def by_label_source(source: Literal["human", "model"]) -> tuple[LabeledStartup, ...]:
+    """Entradas por origem do rótulo: `human` (headline) ou `model` (real auto, F7.1)."""
+    return tuple(e for e in load_eval_set(include_model=True) if e.label_source == source)
 
 
 def class_distribution() -> dict[Classification, int]:
@@ -180,5 +199,6 @@ __all__ = [
     "load_eval_set",
     "by_classification",
     "by_region",
+    "by_label_source",
     "class_distribution",
 ]

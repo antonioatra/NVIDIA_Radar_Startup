@@ -4,8 +4,35 @@
 **Dependências:** F3, F4, F6. **Marco:** M7.
 
 ## Tasks
-- [ ] **F7.1** **Consolidar/expandir** o eval set rotulado criado em **F1.12** (~20–30 startups,
+- [x] **F7.1** **Consolidar/expandir** o eval set rotulado criado em **F1.12** (~20–30 startups,
       classificação + AIMI esperados) — revisar rótulos, fechar lacunas. Não cria do zero.
+      → **Metade real do eval set, automática e honesta.** Três peças, todas na espinha-verde do
+      projeto (testável offline, real atrás de rede/flag): **(a) Origem das candidatas**
+      (`data/seeds/cohort_candidates.yaml` + `cohort.candidates_from_seed`/`--seed`): o
+      crawl-discovery Scrapy (F1.6) das seeds `allow` rende **0 páginas ao vivo**
+      (robots/JS-pesado/bloqueio de bot), então a coorte real parte de uma lista **curada** de 8
+      empresas BR de IA reais e públicas (Hand Talk, Kunumi, Tractian, …); o **nome** é a única parte
+      curada (sourcing de analista) e o pipeline **resolve+raspa ao vivo** por empresa (Tavily→Firecrawl,
+      F1.1–F1.7) — bem mais robusto que crawlear os portfólios. **(b) Ponte coorte→eval**
+      (`packages/eval/cohort_to_eval.py` + `tests/test_cohort_to_eval.py`): lê a coorte que o cohort
+      builder (F1.14) acumulou na tabela `company` — perfil + `score` (AIMI) + `recommendation` +
+      `evidence` — e materializa entradas `LabeledStartup` com **empresa real**, **`evidence_urls`
+      rastreáveis** (filtra a KB NVIDIA, que é o lado da recomendação) e rótulos propostos pelo
+      pipeline. `derive_region` mapeia classe+pilares → região do plano `classe × AIMI` (coerente com
+      os validadores direcionais do loader); o que não fecha (sem score, região não-canônica, real sem
+      fonte) é **pulado p/ revisão** — yield honesto, não forçado no set. **(c) `label_source` no
+      schema** (`packages/eval/dataset.py`): campo `human|model` + `load_eval_set(include_model=False)`
+      + `by_label_source`. **Honestidade (regra do projeto):** o rótulo dessas entradas é a **saída do
+      próprio modelo** → medir o modelo contra ele é um **baseline circular**; por isso saem com
+      `label_source='model'`, `load_eval_set()` as mantém **fora do headline** por padrão (só com
+      `include_model=True`) e o `AVALIACAO.md` as reporta **à parte**, nunca fundidas nos números
+      human-reviewed. As **24 fixtures sintéticas (F1.12) seguem o ground-truth do headline** — F7.1
+      **não as substitui**, acrescenta a metade real ao lado; promover uma entrada a ground-truth
+      (`model → human`) é revisão humana à parte. Materializar `data/eval/cohort_real.yaml` é um **run
+      ao vivo** (rede/LLM/créditos): `python -m packages.agents.cohort --seed --db
+      sqlite:///data/cohort.db` (+ flags) → `python -m packages.eval.cohort_to_eval --db
+      sqlite:///data/cohort.db`. **Gate verde:** `ruff` limpo e `pytest` **747 passed, 4 skipped**
+      (+19 testes; a geração do YAML real faz rede e fica fora do CI). Ver `data/eval/README.md`.
 - [x] **F7.2** Métricas de classificação (accuracy/F1) e correlação do AIMI (consolida F6.4).
       Consolida também os **casos dos 7 exemplos do §5.5 (F4.8)** no relatório de aderência ao brief.
       → `packages\eval\classification_metrics.py` (+ `tests\test_classification_metrics.py`):
