@@ -12,6 +12,10 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# NEXT_PUBLIC_* e inlinado no build (Next.js). A base da API vem daqui (default 8080, a porta
+# da nossa API); o compose passa o valor por build arg. Sem isso, o bundle apontaria pro default.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
 # Runtime em produção (serve o .next gerado acima).

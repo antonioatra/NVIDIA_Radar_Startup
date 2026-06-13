@@ -208,6 +208,15 @@ class Settings(BaseSettings):
     # --- Idioma de saída (F0.13) ------------------------------------------------
     output_lang: str = Field(default="pt-BR", description="Idioma de briefing/recs/UI.")
 
+    # --- CORS da API (F5.2 ↔ F5.3) ----------------------------------------------
+    # O front roda noutra porta (3000) que a API (8080) = cross-origin; sem os cabeçalhos CORS
+    # o browser BLOQUEIA a resposta mesmo com a API devolvendo 200. Lista separada por vírgula;
+    # default = o front no dev local.
+    cors_allow_origins: str = Field(
+        default="http://localhost:3000",
+        description="Origens CORS permitidas (separadas por vírgula) p/ a API (F5.2).",
+    )
+
     # --- Derivados --------------------------------------------------------------
     @computed_field  # type: ignore[prop-decorator]
     @property

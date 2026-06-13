@@ -19,6 +19,7 @@ from collections.abc import Callable, Iterable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 from rq import Queue
 from sqlmodel import Session
@@ -27,6 +28,7 @@ from apps.worker import enqueue_resume, enqueue_run
 from packages.agents.briefing import render_markdown, render_pdf
 from packages.agents.human_review import review_payload
 from packages.agents.progress import ProgressEvent
+from packages.config import get_settings
 from packages.schemas import Briefing, GraphState
 
 from .companies import get_company_detail, list_companies, list_tech_facets
@@ -53,6 +55,17 @@ from .schemas import (
 from .trace import build_run_trace
 
 app = FastAPI(title="TAPI API", version="0.1.0")
+
+# CORS (F5.2 ↔ F5.3): o front (origem :3000) chama a API (:8080) cross-origin; sem estes
+# cabeçalhos o browser bloqueia a resposta mesmo com a API devolvendo 200. Origens vêm do
+# settings (default = front no dev local). Auth via header Bearer, sem cookies → sem credenciais.
+_cors_origins = [o.strip() for o in get_settings().cors_allow_origins.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Endpoints de negócio: todos atrás do gate interno (F5.9). `/health` fica no `app` (sem gate).
 router = APIRouter(dependencies=[Depends(require_auth)])

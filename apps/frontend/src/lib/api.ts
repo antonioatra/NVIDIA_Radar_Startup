@@ -3,12 +3,12 @@
 // SSE em `GET /runs/{id}` (canal Redis pub/sub do worker, F2.10) — ver `runStreamUrl`.
 //
 // A base da API vem de `NEXT_PUBLIC_API_URL` (inlinada no bundle no build); o default
-// `http://localhost:8000` cobre o dev local. Auth (gate interno, F5.9): as chamadas fetch
+// `http://localhost:8080` cobre o dev local (a API roda na 8080, ver apps/Dockerfile). Auth (gate interno, F5.9): as chamadas fetch
 // levam o `Authorization: Bearer` (authHeaders); o SSE e o PDF, que navegam sem header, levam
 // o token na query (appendToken). Um 401 limpa a sessao e devolve a UI pro login (`reqJson`).
 import { appendToken, authHeaders, signalUnauthorized } from "./auth";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 // fetch + tratamento uniforme do gate (F5.9): no 401 limpa o token e sinaliza o AuthGate, depois
 // estoura um erro legivel; nos demais erros HTTP usa a mensagem do chamador. Devolve a Response
