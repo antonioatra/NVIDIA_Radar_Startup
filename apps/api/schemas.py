@@ -83,6 +83,20 @@ class TechFacetsOut(BaseModel):
     nvidia_tech: list[str] = Field(default_factory=list)
 
 
+class DiscoverOut(BaseModel):
+    """Resposta do chat de descoberta da coorte (F3.10/F5.12).
+
+    `entendido` ecoa como a pergunta em PT-BR foi interpretada (filtros captados); `resumo` é a
+    frase de resposta; `empresas` são os matches já ordenados por Inception Priority. O front
+    desenha como conversa: pergunta → resumo + cartões de empresa (reusa `CompanyOut`).
+    """
+
+    pergunta: str
+    entendido: str
+    resumo: str
+    empresas: list[CompanyOut] = Field(default_factory=list)
+
+
 class EvidenceOut(BaseModel):
     """Fonte citável de um sub-score (tabela `evidence`, §8): o link que sustenta o pilar."""
 

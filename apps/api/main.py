@@ -26,6 +26,7 @@ from sqlmodel import Session
 
 from apps.worker import enqueue_resume, enqueue_run
 from packages.agents.briefing import render_markdown, render_pdf
+from packages.agents.discovery import parse_query, summarize
 from packages.agents.human_review import review_payload
 from packages.agents.progress import ProgressEvent
 from packages.config import get_settings
@@ -46,6 +47,7 @@ from .deps import (
 from .schemas import (
     CompanyDetailOut,
     CompanyOut,
+    DiscoverOut,
     RunAccepted,
     RunRequest,
     RunReviewOut,
@@ -182,6 +184,35 @@ def get_companies(
         tech=tech,
         nvidia_tech=nvidia_tech,
         limit=limit,
+    )
+
+
+@router.get("/discover")
+def discover_cohort(
+    session: SessionDep,
+    q: Annotated[str, Query(description="Pergunta em PT-BR sobre a coorte (F3.10/F5.12).")] = "",
+) -> DiscoverOut:
+    """Chat de descoberta da coorte (F3.10/F5.12): pergunta NL → filtros → empresas + resumo.
+
+    Traduz a pergunta nos filtros estruturados que `list_companies` já entende (`parse_query`,
+    determinístico/offline) e devolve os matches ordenados por Inception Priority + o `entendido`
+    (como interpretou) e um `resumo`. "Suscetível à tech X" = o recommender prescreveu X (o gap
+    que X preenche), então o filtro de tech NVIDIA recomendada captura a susceptibilidade.
+    """
+    query = parse_query(q)
+    empresas = list_companies(
+        session,
+        setor=query.setor,
+        classificacao=query.classificacao,
+        min_aimi=query.min_aimi,
+        tech=query.tech,
+        nvidia_tech=query.nvidia_tech,
+    )
+    return DiscoverOut(
+        pergunta=q,
+        entendido=query.entendido,
+        resumo=summarize(query, len(empresas)),
+        empresas=empresas,
     )
 
 
