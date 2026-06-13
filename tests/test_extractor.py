@@ -80,6 +80,23 @@ def test_parse_profile_maps_all_dimensions() -> None:
     assert profile.run_id == "r1"
 
 
+def test_parse_profile_tolerates_trailing_data_after_object() -> None:
+    # Caso Birdie (diag 2026-06-13): o Super emite o objeto + lixo/2º objeto depois → antes
+    # quebrava com JSONDecodeError("Extra data"); raw_decode para no 1º objeto e ignora o resto.
+    raw = '```json\n{"nome": "Birdie", "setor": "Analytics"}\n```\n{"sobra": "ignorar"}\ntexto'
+    profile = parse_profile(raw, query="Birdie", docs=[_doc()])
+    assert profile.nome == "Birdie"
+    assert profile.setor.value == "Analytics"
+
+
+def test_user_payload_caps_docs_and_chars() -> None:
+    # Fix do timeout (F7.6): payload capado em nº de docs e chars/doc p/ o Super não estourar 120s.
+    docs = [_doc(url=f"https://e{i}.com", text="x" * 9000) for i in range(ex.DEFAULT_MAX_DOCS + 3)]
+    payload = json.loads(ex._user_payload("Q", docs, doc_chars=ex.DEFAULT_DOC_CHARS))
+    assert len(payload["documents"]) == ex.DEFAULT_MAX_DOCS
+    assert all(len(d["content"]) <= ex.DEFAULT_DOC_CHARS for d in payload["documents"])
+
+
 def test_parse_profile_grounds_evidence_in_docs() -> None:
     # proveniência (F1.9): a url citada casa o doc coletado → fetched_at/hash reais.
     profile = parse_profile(_full_json(), query="Acme AI", docs=[_doc()])

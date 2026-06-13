@@ -60,8 +60,13 @@ from packages.scraping.source_policy import annotate as source_policy_for
 # Adapter de extração injetável: (query, docs) -> JSON cru do modelo. Default = Nemotron-Super.
 ExtractFn = Callable[[str, "Sequence[RawDocument]"], str]
 
-# Orçamento de conteúdo por doc enviado ao modelo (free tier build.nvidia.com / F2.11).
-DEFAULT_DOC_CHARS = 6000
+# Orçamento de conteúdo enviado ao modelo (free tier build.nvidia.com / F2.11). Caps **deliberados**
+# p/ manter a chamada do Super sob o teto de 120s (F7.6): payload grande × reasoning ON estourava o
+# timeout (diag 2026-06-13: Tractian/BotCity com ~20–28k chars). Os docs vêm em ordem de prioridade
+# (site oficial primeiro), então capar nº de docs + chars/doc preserva o sinal e poda a cauda de
+# agregadores. 6 docs × 4000 ≈ 24k no pior caso.
+DEFAULT_DOC_CHARS = 4000
+DEFAULT_MAX_DOCS = 6
 
 # Validador de URL reutilizável (não constrói modelo por chamada).
 _URL_ADAPTER: TypeAdapter[_HttpUrl] = TypeAdapter(_HttpUrl)
@@ -81,12 +86,24 @@ def _maybe_url(value: Any) -> str | None:
     return value.strip()
 
 
-def _json_slice(text: str) -> str:
-    """Recorta do primeiro `{` ao último `}` — tolera cercas ```json``` e texto ao redor."""
-    start, end = text.find("{"), text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+def _loads_json_object(text: str) -> dict:
+    """Primeiro objeto JSON do texto, tipado como `dict`.
+
+    Tolera cercas ```json```/prosa **antes** (pula até o 1º `{`) e — diferença vs. o recorte
+    ingênuo `{`…`}` — **lixo depois**: o Super às vezes emite o objeto seguido de explicação ou
+    um 2º objeto (diag 2026-06-13: Birdie quebrava com `JSONDecodeError: Extra data`). `raw_decode`
+    para no fim do 1º objeto e ignora o resto, em vez de `json.loads` engasgar no excedente.
+    """
+    start = text.find("{")
+    if start == -1:
         raise ValueError("sem objeto JSON na resposta do extractor")
-    return text[start : end + 1]
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(text, start)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"JSON do extractor inválido: {exc}") from exc
+    if not isinstance(obj, dict):
+        raise ValueError("JSON do extractor não é um objeto")
+    return obj
 
 
 def _doc_index(docs: Sequence[RawDocument]) -> dict[str, RawDocument]:
@@ -292,9 +309,7 @@ def parse_profile(
     derrubar. `nome` cai na `query` se o modelo não devolver. `source_urls` é a proveniência
     **agregada** das fontes realmente coletadas (não o que o modelo alegar).
     """
-    data = json.loads(_json_slice(text))
-    if not isinstance(data, dict):
-        raise ValueError("JSON do extractor não é um objeto")
+    data = _loads_json_object(text)
     index = _doc_index(docs)
 
     nome = _str(data, "nome") or query.strip() or "(desconhecida)"
@@ -341,11 +356,17 @@ def extract_profile(
         return None
 
 
-def _user_payload(query: str, docs: Sequence[RawDocument], *, doc_chars: int) -> str:
-    """Turno do usuário p/ o extractor@v1: nome-alvo + documentos (url + conteúdo aparado)."""
+def _user_payload(
+    query: str, docs: Sequence[RawDocument], *, doc_chars: int, max_docs: int = DEFAULT_MAX_DOCS
+) -> str:
+    """Turno do usuário p/ o extractor@v1: nome-alvo + documentos (url + conteúdo aparado).
+
+    Capa **nº de docs** (`max_docs`, ordem de prioridade preservada) e **chars/doc** (`doc_chars`)
+    p/ o payload não estourar o teto de 120s do Super (F7.6) — ver caps no topo do módulo.
+    """
     documents = [
         {"url": str(d.url), "content": d.content[:doc_chars]} for d in docs if d.content.strip()
-    ]
+    ][:max_docs]
     return json.dumps({"company_name": query, "documents": documents}, ensure_ascii=False)
 
 

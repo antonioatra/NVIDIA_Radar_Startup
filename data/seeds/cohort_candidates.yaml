@@ -25,5 +25,20 @@ candidates:
     query: "BotCity automação RPA Python IA"
   - name: "Pareto"
     query: "Pareto marketing inteligência artificial growth"
-  - name: "Mendel"
-    query: "Mendel saúde dados clínicos inteligência artificial"
+  # Mendel removida (diag 2026-06-13): a "Mendel" notória é americana (mendel.ai) → o filtro de
+  # escopo BR a rejeitava corretamente. Trocada por startups BR reais, com query ancorada no Brasil
+  # (a lição da Mendel: sem o contexto BR, o Tavily resolve a homônima estrangeira).
+  - name: "Unico"
+    query: "Unico idtech biometria facial inteligência artificial Brasil"
+  - name: "Gupy"
+    query: "Gupy recrutamento e seleção inteligência artificial Brasil"
+  - name: "Take Blip"
+    query: "Take Blip plataforma de conversação inteligência artificial Brasil"
+  - name: "Neurotech"
+    query: "Neurotech inteligência artificial crédito e risco Recife Brasil"
+  - name: "Semantix"
+    query: "Semantix plataforma de dados e inteligência artificial Brasil"
+  - name: "Idwall"
+    query: "Idwall verificação de identidade inteligência artificial Brasil"
+  - name: "Aquarela Analytics"
+    query: "Aquarela Analytics inteligência artificial analytics Florianópolis Brasil"
