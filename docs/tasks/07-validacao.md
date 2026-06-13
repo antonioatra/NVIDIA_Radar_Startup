@@ -227,7 +227,24 @@
       **Gate verde:** `ruff` limpo e `pytest` **728 passed, 5 skipped** (offline/sem chave; +10 testes
       do timeout). O smoke real F0.7 fica de fora do CI (sem chave → skip, o 5º); **com** chave, agora
       é **limitado pelo próprio teto** em vez de pendurar — exatamente o que esta task endereça.
-- [ ] **F7.7** README final + instruções de reprodução + demo script.
+- [x] **F7.7** README final + instruções de reprodução + demo script.
+      → **(a) `scripts/demo.py`** (+ `tests/test_demo.py`): demo executável cross-platform, **offline
+      por default** (espinha verde, sem rede/credencial — é o que roda no CI). Faz duas coisas
+      honestas: **(1)** roda o grafo LangGraph ponta a ponta (mostra o backbone de 10 nós + o plano
+      de coleta determinista + o **terminal honesto**: sem rede o scraper rende 0 docs → run termina
+      **sem perfil**, o TAPI não fabrica empresa — anti-alucinação); **(2)** monta um **briefing
+      executivo completo** (diagnóstico AIMI → recomendações com **evidência dos dois lados** →
+      relatório) a partir de um caso **rotulado** do eval set (F1.12), pela mesma espinha que F7.2b/
+      F7.2c medem — output real do produto, sem LLM/rede. `--list`/`--case <id>` escolhem o caso;
+      **`--real`** liga as flags de rede/LLM (`SCRAPER_USE_NETWORK`, `*_USE_LLM`, embeddings/Qdrant/
+      rerank), exige as chaves no `.env` e roda o e2e de verdade (Tavily+Firecrawl+Nemotron+RAG),
+      degradando honesto se faltar chave. **(b) `README.md` final**: reescrito de stub p/ porta de
+      entrada completa — tese, entregáveis × fases, **demo em 30 s offline**, resumo da avaliação
+      (métrica × meta × resultado, link p/ `AVALIACAO.md`), arquitetura resumida e **reprodução em 4
+      blocos** (testes/espinha verde · harnesses de eval · caminho real e2e · stack Docker completa),
+      estrutura do repo, princípios de engenharia e índice de docs. Reprodução real do `--real`
+      validada ao vivo (passou pelo gate de chaves e completou o e2e). **Gate verde:** `ruff` limpo e
+      `pytest` **750 passed, 4 skipped** (+3 testes do demo; o `--real` faz rede e fica fora do CI).
 
 ## Tecnologias
 RAGAS · Cohere Rerank (validação) · NeMo Retriever · Langfuse.
@@ -237,4 +254,5 @@ RAGAS · Cohere Rerank (validação) · NeMo Retriever · Langfuse.
       léxico; coluna Cohere pendente da trial key — `docs/AVALIACAO.md`).
 - [x] Eval da recomendação (F7.2b) reportado, não só os 7 exemplos do §5.5.
 - [x] Faithfulness do briefing final medida e reportada (F7.2c), não só o gate do Guardrails.
-- [ ] Projeto reproduzível por um terceiro a partir do README.
+- [x] Projeto reproduzível por um terceiro a partir do README (demo offline em 30 s + reprodução
+      em 4 blocos; `scripts/demo.py` + `README.md`).
