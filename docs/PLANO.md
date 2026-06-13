@@ -90,6 +90,18 @@ F0 ─┬─> F1 ──> F2 ──┐
 > portas default ocupadas por outro projeto), run **in-process** (dispensa Redis/RQ). Pendente p/ um
 > e2e completo: **discovery/coorte** (mapear N startups, não 1) e **eval real** (F7.1).
 
+> **Stack completa + coorte real ao vivo (2026-06-13):** o produto subiu **ponta a ponta** —
+> `scripts\run.ps1` (um comando: Docker → migrations → seed) com **frontend + API + worker + Postgres
+> + Qdrant + Redis + Langfuse**, e a UI mostra a coorte (radar AIMI → detalhe → recomendações →
+> briefing). O **cohort builder rodou ao vivo** sobre 14 startups BR curadas → **10 na coorte → 9
+> entradas reais** (`data/eval/cohort_real.yaml`, `label_source=model`, fora do headline). Diagnóstico
+> por-empresa revelou e fechou 2 bugs reais no **extractor** (timeout F7.6 por payload grande → cap
+> de docs/chars; parse JSON frágil → `raw_decode`) e bugs de **fiação Docker** (portas do host
+> parametrizadas; **CORS** na API; URL do front 8000→8080; seed sintetiza a linha `run` que o cohort
+> builder não grava — FK que o SQLite ignora e o Postgres força). **Restam:** ROI na GPU (3ª perna do
+> diferencial) e curar/promover os 9 rótulos `model→human`. **Ideias de evolução do diferencial** em
+> [`EVOLUCOES-DIFERENCIAL.md`](EVOLUCOES-DIFERENCIAL.md).
+
 ## Definition of Done (global, por task)
 - [ ] Código + teste mínimo + entrada/saída tipada (Pydantic onde aplicável).
 - [ ] Toda afirmação/score tem evidência rastreável (URL + `fetched_at`).

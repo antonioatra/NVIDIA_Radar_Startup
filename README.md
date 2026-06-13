@@ -105,23 +105,35 @@ O smoke do LLM real é `python -m packages.agents.llm`. As flags por nó vivem e
 `packages/config/settings.py` (`SCRAPER_USE_NETWORK`, `*_USE_LLM`, `EMBEDDINGS_USE_NV`,
 `INDEX_USE_QDRANT`, `RERANKER_USE_NV`).
 
-### 4. Stack completa (API + worker + frontend + infra)
-```bash
-cp .env.example .env          # + chaves de projeto Langfuse (ver comentários no arquivo)
-docker compose up -d          # postgres · qdrant · redis · langfuse · api · worker · frontend
-#   API     → http://localhost:8080   (FastAPI + SSE)
-#   Front   → http://localhost:3000   (Next.js)
-#   Langfuse→ http://localhost:3001   (traces dos agentes)
-docker compose --profile gpu up -d nim   # NIM self-hosted (requer NVIDIA Container Toolkit)
+### 4. Stack completa (UI + API + worker + infra) — **um comando**
+**Windows (PowerShell), com o Docker Desktop aberto:**
+```powershell
+.\scripts\run.ps1     # checa Docker → up --build → migra (alembic) → popula a coorte → abre a UI
 ```
+Sobe postgres · qdrant · redis · langfuse · api · worker · frontend, cria o schema, popula as
+empresas reais da coorte (`scripts/seed_postgres.py`) e abre o navegador. `-Down` derruba;
+`-Gpu` inclui o NIM (requer entitlement NGC + NVIDIA Container Toolkit — opcional, ver
+[EVOLUCOES-DIFERENCIAL §A](docs/EVOLUCOES-DIFERENCIAL.md)).
+
+**Manual / outros SO:**
+```bash
+cp .env.example .env             # chaves; em caso de conflito de porta, PG_HOST_PORT/REDIS_HOST_PORT
+docker compose up -d --build     # sobe a stack
+python -m alembic upgrade head   # cria o schema (do host, contra o Postgres do compose)
+```
+| Serviço | URL |
+|---|---|
+| **Frontend** (radar AIMI, detalhe, briefing) | http://localhost:3000 |
+| **API + docs** (FastAPI + SSE) | http://localhost:8080/docs |
+| **Langfuse** (traces dos agentes) | http://localhost:3001 |
 
 ## Estrutura
 ```
 apps/        api (FastAPI+SSE) · worker (LangGraph runtime, RQ) · frontend (Next.js)
 packages/    schemas · agents · scraping · rag · scoring · benchmark · eval · config · observability · db
 data/        knowledge_base (fontes NVIDIA §10) · seeds (fontes de startups §9) · eval (set rotulado)
-docs/        PLANO + tasks por fase + ALINHAMENTO + RUBRICA-AIMI + AVALIACAO + COBERTURA
-scripts/     demo.py (esta demo) · loop-tasks.ps1 (runner headless por-task)
+docs/        PLANO + tasks por fase + ALINHAMENTO + RUBRICA-AIMI + AVALIACAO + COBERTURA + EVOLUCOES
+scripts/     run.ps1 (sobe a stack) · seed_postgres.py (coorte→Postgres) · demo.py · loop-tasks.ps1
 notebooks/   geração da matriz de benchmark (GPU)
 ```
 
@@ -139,4 +151,5 @@ notebooks/   geração da matriz de benchmark (GPU)
 - **Plano + tasks por fase:** [docs/PLANO.md](docs/PLANO.md) · [docs/tasks/](docs/tasks/)
 - **Caracterização & decisão:** [docs/ALINHAMENTO-CRITERIOS-E-DECISAO.md](docs/ALINHAMENTO-CRITERIOS-E-DECISAO.md) · [docs/RUBRICA-AIMI.md](docs/RUBRICA-AIMI.md)
 - **Avaliação:** [docs/AVALIACAO.md](docs/AVALIACAO.md)
+- **Diferencial & evoluções (visão de produto):** [docs/EVOLUCOES-DIFERENCIAL.md](docs/EVOLUCOES-DIFERENCIAL.md)
 - **Cobertura de tecnologias:** [docs/COBERTURA-TECNOLOGIAS.md](docs/COBERTURA-TECNOLOGIAS.md)
