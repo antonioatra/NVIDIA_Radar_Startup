@@ -19,6 +19,12 @@ const TELAS = [
       "Lista filtravel por setor, AIMI, classe e tecnologia, ordenada por Inception Priority.",
   },
   {
+    id: "F5.12",
+    titulo: "Descoberta por chat",
+    descricao:
+      "Pergunte em portugues sobre a coorte (classe, AIMI, tech NVIDIA) e receba as startups.",
+  },
+  {
     id: "F5.5",
     titulo: "Diagnostico AIMI",
     descricao: "Detalhe da startup com o radar dos 4 pilares e evidencias com link a fonte.",
@@ -62,9 +68,16 @@ export default function Home() {
             >
               Ver radar de startups
             </Link>
+            <Link
+              href="/descoberta"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+            >
+              Descobrir por chat
+            </Link>
           </div>
           <p className="text-sm text-muted-foreground">
-            A consulta (F5.3) e o radar de startups (F5.4) ja rodam; o detalhe AIMI habilita na F5.5.
+            A consulta (F5.3), o radar (F5.4) e a descoberta por chat (F5.12) ja rodam; cada startup
+            abre o detalhe AIMI com os 4 pilares e evidencias (F5.5).
           </p>
         </header>
 

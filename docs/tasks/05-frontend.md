@@ -301,6 +301,16 @@
       (reusa o canal do F5.3). Consome o **cohort-RAG (F3.10)** no backend; **não inventa empresa**
       (NeMo Guardrails, princípio nº1 da ARQUITETURA §8 — nada sem fonte). É a camada premium de
       descoberta **por cima** do filtro estruturado (F5.11), não o substitui.
+      → **UI entregue (MVP determinístico, 2026-06-14):** a tela `/descoberta`
+      (`apps/frontend/src/app/descoberta/page.tsx` + `chat.tsx`) consome o `GET /discover`
+      (parse_query → filtros, `packages/agents/discovery.py`) e desenha como conversa: balão da
+      pergunta → `resumo` + chip "Entendi:" (eco do `entendido`) → cartões de empresa (reusa
+      `CompanyOut`, abre o detalhe AIMI em `/radar/[id]`), com as techs NVIDIA recomendadas em
+      destaque + exemplos que casam com o parser. `discoverCohort`/`DiscoverResult` em `lib/api.ts`;
+      link na home. `tsc --noEmit` e `eslint` verdes. **Box mantido aberto de propósito:** a versão
+      premium dos docs (cohort-RAG semântico F3.10 + **citação de evidência por empresa** + streaming
+      SSE) **não** está feita — o MVP é parsing determinístico sem índice próprio. Plano de fechamento
+      em [docs/PROXIMOS-PASSOS.md](../PROXIMOS-PASSOS.md) §B.
 
 ## Tecnologias
 Next.js · React · TypeScript · Tailwind/shadcn · FastAPI · SSE · auth (API key/bearer).

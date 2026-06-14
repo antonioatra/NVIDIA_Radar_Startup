@@ -195,6 +195,29 @@ export async function listTechFacets(): Promise<TechFacets> {
   return res.json() as Promise<TechFacets>;
 }
 
+// Resposta do chat de descoberta da coorte (DiscoverOut, apps/api/schemas.py — F3.10/F5.12).
+// `entendido` ecoa como a pergunta NL foi interpretada (os filtros que o parser deterministico
+// captou, packages/agents/discovery.py); `resumo` e a frase de resposta; `empresas` sao os
+// matches ja ordenados por Inception Priority (reusa CompanyOut da lista, F5.4).
+export interface DiscoverResult {
+  pergunta: string;
+  entendido: string;
+  resumo: string;
+  empresas: CompanyOut[];
+}
+
+// Pergunta a coorte em linguagem natural (`GET /discover?q=`, F3.10/F5.12): o backend traduz a
+// pergunta PT-BR nos filtros estruturados que `listCompanies` ja entende e devolve as empresas +
+// como interpretou. Pergunta vazia volta a coorte inteira por prioridade de outreach (o backend
+// trata "" como sem filtro). "Suscetivel a tech X" = o recommender prescreveu X (filtro nvidia_tech).
+export async function discoverCohort(q: string): Promise<DiscoverResult> {
+  const res = await req(`${API_URL}/discover?q=${encodeURIComponent(q)}`);
+  if (!res.ok) {
+    throw new Error(`Falha na descoberta da coorte (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<DiscoverResult>;
+}
+
 // Fonte citavel de um sub-score (EvidenceOut, apps/api/schemas.py — F5.5): o link que sustenta
 // o pilar. Pode vir vazia ate a persistencia do AIMI gravar essas linhas (a UI degrada).
 export interface EvidenceOut {
