@@ -61,7 +61,9 @@ def _percentile(values: list[float], pct: float) -> float:
 def _one_call(chat, prompt: str) -> tuple[float, int]:
     """Uma chamada `.invoke`: devolve (latencia_s, output_tokens). Teto de tempo p/ nao pendurar."""
     start = time.perf_counter()
-    msg = run_with_timeout(lambda: chat.invoke([HumanMessage(content=prompt)]), seconds=PER_CALL_TIMEOUT)
+    msg = run_with_timeout(
+        lambda: chat.invoke([HumanMessage(content=prompt)]), seconds=PER_CALL_TIMEOUT
+    )
     elapsed = time.perf_counter() - start
     usage = getattr(msg, "usage_metadata", None) or {}
     return elapsed, int(usage.get("output_tokens", 0) or 0)
@@ -70,7 +72,9 @@ def _one_call(chat, prompt: str) -> tuple[float, int]:
 def _parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="Mede o NIM hospedado e grava a matriz (F6).")
     ap.add_argument("--tier", default="medium", help="Tier a atualizar (small/medium/large).")
-    ap.add_argument("--profile", default="fast", choices=["fast", "reason"], help="Nano (fast) ou Super (reason).")
+    ap.add_argument(
+        "--profile", default="fast", choices=["fast", "reason"], help="Nano ou Super."
+    )
     ap.add_argument("--model", default=None, help="Modelo NIM explicito (sobrepoe o perfil).")
     ap.add_argument("--n", type=int, default=6, help="Requisicoes medidas (alem de 1 warmup).")
     ap.add_argument("--max-tokens", type=int, default=256, help="Tokens de saida por requisicao.")
@@ -90,7 +94,11 @@ def _build_chat(args: argparse.Namespace, settings) -> tuple[object, str]:
         if settings.nvidia_api_key:
             kwargs["api_key"] = settings.nvidia_api_key
         return ChatNVIDIA(**kwargs), args.model
-    model = settings.nemotron_model_fast if args.profile == "fast" else settings.nemotron_model_reason
+    model = (
+        settings.nemotron_model_fast
+        if args.profile == "fast"
+        else settings.nemotron_model_reason
+    )
     return get_chat(args.profile, max_tokens=args.max_tokens, temperature=0.2), model
 
 
