@@ -41,6 +41,17 @@ class Settings(BaseSettings):
     # NIM self-hosted (GPU local) — opcional no build, usado no F6.
     nim_base_url: str = "http://localhost:8000/v1"
 
+    # GPU Graduation Engine (F6.9–F6.11): por padrão off (espinha verde — gpu_benchmark é no-op,
+    # recs sem ROI). Ligue p/ o nó anexar o ROIEstimate da matriz às recs de graduação (NIM/
+    # TensorRT-LLM/Triton); a matriz vem de data/benchmark/matrix.json (medir o NIM hospedado
+    # ao vivo: scripts/bench_nim.py). `benchmark_tier` escolhe a célula usada no mapeamento (F6.11).
+    gpu_benchmark_use_matrix: bool = Field(
+        default=False, description="gpu_benchmark (F6) anexa ROI da matriz às recs de graduação."
+    )
+    benchmark_tier: str = Field(
+        default="medium", description="Célula (tier) da matriz de benchmark usada no ROI (F6.11)."
+    )
+
     # search_planner (F2.3): por padrão é determinista/offline (reproduzível, sem rede).
     # Ligue p/ deixar o Nemotron-Nano refinar o plano de coleta (requer nvidia_api_key).
     planner_use_llm: bool = Field(

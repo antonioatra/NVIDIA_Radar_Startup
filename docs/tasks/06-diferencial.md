@@ -130,6 +130,20 @@
 - [ ] **F6.10** Estimador de custo: $/1M tokens self-hosted (NIM) vs API externa.
 - [ ] **F6.11** Mapear perfil da startup → célula da matriz → **ROI** no briefing.
 - [ ] **F6.12** Botão "run ao vivo" (1 modelo, ex. Nemotron-Nano) p/ demo.
+      → **Engine de ROI construído (2026-06-14, gated por flag):** `packages/benchmark/matrix.py`
+      (modelo `BenchMatrix`/`BenchCell`/`BenchSide` + `roi_from_cell` que deriva o `ROIEstimate`
+      F0.5: speedup de throughput, delta de p95 e de custo — F6.9/F6.10) + `roi_for` mapeia a rec de
+      graduação (NIM/TensorRT-LLM/Triton) à célula do tier (F6.11). O nó `gpu_benchmark` (antes stub
+      `{}`) anexa o ROI às recs **só com `GPU_BENCHMARK_USE_MATRIX=true` + matriz presente** —
+      no-op por padrão (espinha verde; 8 testes em `test_benchmark_matrix.py`). O downstream já
+      consumia ROI (persist `persistence.py:101` → API `companies.py:218` → UI `RoiStrip` em
+      `detail.tsx`); faltava só o produtor. **Decisão de "host grátis e on-narrative":** o lado
+      otimizado é o **NIM hospedado** (build.nvidia.com, créditos grátis = TensorRT-LLM+Triton de
+      verdade), medido por `scripts/bench_nim.py` — em vez de self-host em 4 GB (inviável). A matriz
+      versionada (`data/benchmark/matrix.json`) é **ilustrativa** (`is_live_run=false`, rótulo na
+      origem) até o bench rodar e gravar `is_live_run=true`. **Pendente p/ fechar:** rodar o bench
+      (números reais) + linha de ROI no texto do briefing (a UI já mostra). Ver
+      [PROXIMOS-PASSOS.md §D](../PROXIMOS-PASSOS.md).
 
 ## Prioridade (MVP vs. stretch) — esta é a fase de maior risco de entrega
 F6 acumula GPU self-host (NIM/Triton/TensorRT-LLM), RAPIDS/cuML e ROI. Para garantir uma

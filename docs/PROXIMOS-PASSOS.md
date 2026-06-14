@@ -117,11 +117,22 @@ build.nvidia.com (Nemotron) já roda em créditos grátis. Resumo:
 
 Ou seja: o bloqueio real é **montar e medir na sua GPU** (esforço/risco), não dinheiro.
 
-### Estado no código
+### Estado no código  *(atualizado 2026-06-14 — engine construído, gated por flag)*
 
-O nó `gpu_benchmark` é um **stub** (`packages/agents/nodes.py:41` retorna `{}`). O contrato de
-saída **já existe e degrada gracioso**: `ROIEstimate` (`packages/schemas/recommendation.py:18`) e
-`ROIOut` na API/UI — hoje a linha de ROI do briefing simplesmente sai vazia. Falta só **preencher**.
+O engine de ROI **já foi construído** (commit do F6.9–F6.11): `packages/benchmark/matrix.py`
+(matriz + cost model + `roi_for` → `ROIEstimate`), o nó `gpu_benchmark` (antes stub) anexa o ROI às
+recs de graduação **atrás de `GPU_BENCHMARK_USE_MATRIX=true`** (no-op por padrão = espinha verde), e
+o downstream (persist → API → UI `RoiStrip`) já consumia. **Decisão tomada (host grátis + on-
+narrative):** o lado otimizado é o **NIM hospedado no build.nvidia.com** (créditos grátis = TensorRT-
+LLM+Triton de verdade), não self-host em 4 GB. **Só falta a medição real:** rodar
+`python scripts/bench_nim.py --tier medium` (sua `NVIDIA_API_KEY`) — ele mede o NIM e grava a célula
+com `is_live_run=true`. A matriz versionada (`data/benchmark/matrix.json`) é **ilustrativa** até lá.
+
+**O que você precisa fazer (passos):**
+1. `python scripts/bench_nim.py --tier medium` (mede o Nemotron-Nano-8B hospedado; opcional `--tier large --model ...super-49b...`).
+2. Ajustar o lado **baseline** da célula no `matrix.json` para o preço/latência da API externa que a startup-alvo usa hoje (o número de comparação).
+3. Rodar um run com `GPU_BENCHMARK_USE_MATRIX=true` → o ROI aparece no cartão da UI (`/radar/[id]`).
+4. *(Opcional)* Adicionar a linha de ROI numérica no **texto** do briefing (a UI já mostra; o briefing hoje só narra o ROI qualitativamente).
 
 ### O que falta
 

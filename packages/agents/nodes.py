@@ -25,6 +25,8 @@ Reducers de acumulação (ex.: `raw_docs` no map do scraper) entram com o nó do
 
 from __future__ import annotations
 
+from packages.benchmark.matrix import load_matrix, roi_for
+from packages.config import get_settings
 from packages.schemas import GraphState
 
 from .briefing import briefing  # F4.4 — implementação real do nó (normal + terminais)
@@ -39,8 +41,35 @@ from .search_planner import search_planner  # F2.3 — implementação real do n
 
 
 def gpu_benchmark(state: GraphState) -> dict:
-    """F6 — GPU Graduation Engine: ROI real (NIM local / matriz). Condicional ★."""
-    return {}
+    """F6 — GPU Graduation Engine: anexa o ROI da matriz às recs de graduação (F6.9–F6.11).
+
+    **No-op (espinha verde) por padrão** — devolve `{}` sem recs, com a flag
+    `gpu_benchmark_use_matrix` off, ou sem matriz no disco (recs degradam graciosas, sem ROI). Com a
+    flag ligada e a matriz presente (`data/benchmark/matrix.json`), deriva o `ROIEstimate` (F0.5) do
+    tier configurado e o anexa às recs da família de inferência (NIM/TensorRT-LLM/Triton) que ainda
+    não têm ROI — o downstream (persist → API → UI `RoiStrip` / briefing) já consome. `model_copy`
+    preserva a evidência dos dois lados intacta (não re-valida); só preenche `roi`.
+    """
+    recs = state.recommendations
+    if not recs or not get_settings().gpu_benchmark_use_matrix:
+        return {}
+    matrix = load_matrix()
+    if matrix is None:
+        return {}
+    tier = get_settings().benchmark_tier
+    updated = list(recs)
+    attached = 0
+    for i, rec in enumerate(recs):
+        if rec.roi is not None:
+            continue
+        roi = roi_for(rec.tech, tier=tier, matrix=matrix)
+        if roi is not None:
+            updated[i] = rec.model_copy(update={"roi": roi})
+            attached += 1
+    if attached == 0:
+        return {}
+    trace = {**state.trace, "gpu_benchmark": {"roi_attached": attached, "tier": tier}}
+    return {"recommendations": updated, "trace": trace}
 
 
 # Registro nome → função, consumido pela montagem do grafo (graph.py). O `human_review`
