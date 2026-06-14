@@ -1,21 +1,23 @@
 """Mede o NIM hospedado (build.nvidia.com) e grava o lado otimizado da matriz (F6.8/F6.9).
 
-O lado "otimizado" da matriz de benchmark e o **NIM** — que e TensorRT-LLM + Triton empacotados
-pela NVIDIA. Em vez de exigir um self-host pesado (inviavel numa GPU de 4 GB), este script mede o
-**NIM hospedado** no catalogo build.nvidia.com (creditos gratis, GPU de datacenter, OpenAI-
-compatible) — que e exatamente o alvo de graduacao que o TAPI recomenda. Mede throughput (tokens/s)
-e latencia p50/p95 sobre N requisicoes e grava a celula `optimized` do tier escolhido em
-`data/benchmark/matrix.json` com `is_live_run=true` (= medido, nao ilustrativo).
+O lado "otimizado" da matriz de benchmark e o **NIM** — TensorRT-LLM + Triton empacotados pela
+NVIDIA. Em vez de exigir um self-host pesado (inviavel numa GPU de 4 GB), este script mede o **NIM
+hospedado** no catalogo build.nvidia.com (creditos gratis, GPU de datacenter) — exatamente o alvo de
+graduacao que o TAPI recomenda. Mede throughput (tokens/s) e latencia p50/p95 sobre N requisicoes e
+grava a celula `optimized` do tier escolhido em `data/benchmark/matrix.json` com `is_live_run=true`.
+
+Usa o **mesmo cliente do pipeline** (`packages.agents.llm.get_chat` → `ChatNVIDIA`): o NIM hospedado
+responde via fluxo 202+poll que so o cliente langchain-nvidia trata (um POST cru trava). Reusar o
+cliente e mais fiel e dispensa formato HTTP a mao.
 
 Uso:
-    python scripts/bench_nim.py --tier medium
-    python scripts/bench_nim.py --tier large --model nvidia/llama-3.3-nemotron-super-49b-v1
+    python scripts/bench_nim.py --tier medium                 # Nano-8B (perfil fast = classe 8B)
+    python scripts/bench_nim.py --tier large --profile reason # Super-49B
     python scripts/bench_nim.py --tier medium --cost-per-1m 0.18
 
-Precisa de `NVIDIA_API_KEY` no ambiente/.env (a mesma do Nemotron). O **custo** nao e medivel num
-endpoint hospedado gratis: passe `--cost-per-1m` com a sua estimativa de $/1M self-hosted, ou deixe
-o valor atual da matriz. Nada vira "medido" sem medicao: so o que este script roda recebe
-`is_live_run=true`.
+Precisa de `NVIDIA_API_KEY` no ambiente/.env. O **custo** nao e medivel num endpoint hospedado
+gratis: passe `--cost-per-1m` (estimativa de $/1M self-hosted) ou deixe o valor atual. So o que este
+script roda recebe `is_live_run=true`.
 """
 
 from __future__ import annotations
@@ -25,21 +27,22 @@ import json
 import statistics
 import sys
 import time
-import urllib.error
-import urllib.request
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from langchain_core.messages import HumanMessage  # noqa: E402
+
+from packages.agents.llm import get_chat, run_with_timeout  # noqa: E402
 from packages.benchmark.matrix import DEFAULT_MATRIX_PATH, BenchMatrix  # noqa: E402
 from packages.config import get_settings  # noqa: E402
 
-DEFAULT_BASE_URL = "https://integrate.api.nvidia.com/v1"
 DEFAULT_PROMPT = (
     "Explique, em um paragrafo tecnico, por que servir um LLM com TensorRT-LLM e Triton "
     "tende a aumentar o throughput e reduzir a latencia p95 frente a uma API generica."
 )
+PER_CALL_TIMEOUT = 180.0
 
 
 def _percentile(values: list[float], pct: float) -> float:
@@ -55,40 +58,22 @@ def _percentile(values: list[float], pct: float) -> float:
     return ordered[lo] + (ordered[hi] - ordered[lo]) * (k - lo)
 
 
-def _one_call(
-    base_url: str, api_key: str, model: str, prompt: str, max_tokens: int
-) -> tuple[float, int]:
-    """Uma chamada chat/completions: devolve (latencia_s, completion_tokens). Levanta em erro."""
-    body = json.dumps(
-        {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": 0.2,
-            "stream": False,
-        }
-    ).encode("utf-8")
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/chat/completions",
-        data=body,
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        method="POST",
-    )
+def _one_call(chat, prompt: str) -> tuple[float, int]:
+    """Uma chamada `.invoke`: devolve (latencia_s, output_tokens). Teto de tempo p/ nao pendurar."""
     start = time.perf_counter()
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
+    msg = run_with_timeout(lambda: chat.invoke([HumanMessage(content=prompt)]), seconds=PER_CALL_TIMEOUT)
     elapsed = time.perf_counter() - start
-    completion_tokens = int(payload.get("usage", {}).get("completion_tokens", 0))
-    return elapsed, completion_tokens
+    usage = getattr(msg, "usage_metadata", None) or {}
+    return elapsed, int(usage.get("output_tokens", 0) or 0)
 
 
 def _parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="Mede o NIM hospedado e grava a matriz (F6).")
     ap.add_argument("--tier", default="medium", help="Tier a atualizar (small/medium/large).")
-    ap.add_argument("--model", default=None, help="Modelo NIM (default: nemotron_model_fast).")
-    ap.add_argument("--n", type=int, default=8, help="Requisicoes medidas (alem de 1 warmup).")
+    ap.add_argument("--profile", default="fast", choices=["fast", "reason"], help="Nano (fast) ou Super (reason).")
+    ap.add_argument("--model", default=None, help="Modelo NIM explicito (sobrepoe o perfil).")
+    ap.add_argument("--n", type=int, default=6, help="Requisicoes medidas (alem de 1 warmup).")
     ap.add_argument("--max-tokens", type=int, default=256, help="Tokens de saida por requisicao.")
-    ap.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Endpoint OpenAI-compatible.")
     ap.add_argument("--cost-per-1m", type=float, default=None, help="$/1M tokens self-hosted.")
     ap.add_argument(
         "--matrix-path", default=str(DEFAULT_MATRIX_PATH), help="Caminho do matrix.json."
@@ -96,15 +81,25 @@ def _parse_args() -> argparse.Namespace:
     return ap.parse_args()
 
 
+def _build_chat(args: argparse.Namespace, settings) -> tuple[object, str]:
+    """Cliente de medicao + label do modelo. `--model` constroi direto; senao usa o perfil."""
+    if args.model:
+        from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
+        kwargs: dict = {"model": args.model, "temperature": 0.2, "max_tokens": args.max_tokens}
+        if settings.nvidia_api_key:
+            kwargs["api_key"] = settings.nvidia_api_key
+        return ChatNVIDIA(**kwargs), args.model
+    model = settings.nemotron_model_fast if args.profile == "fast" else settings.nemotron_model_reason
+    return get_chat(args.profile, max_tokens=args.max_tokens, temperature=0.2), model
+
+
 def main() -> int:
     args = _parse_args()
-
     settings = get_settings()
-    api_key = settings.nvidia_api_key
-    if not api_key:
+    if not settings.nvidia_api_key:
         print("ERRO: defina NVIDIA_API_KEY no ambiente/.env.", file=sys.stderr)
         return 2
-    model = args.model or settings.nemotron_model_fast
 
     path = Path(args.matrix_path)
     if not path.exists():
@@ -117,25 +112,20 @@ def main() -> int:
         print(f"ERRO: tier '{args.tier}' nao existe. Tiers: {tiers}.", file=sys.stderr)
         return 2
 
+    chat, model = _build_chat(args, settings)
     print(f"Medindo NIM hospedado: model={model} tier={args.tier} n={args.n} (+1 warmup)...")
     try:
-        _one_call(args.base_url, api_key, model, DEFAULT_PROMPT, args.max_tokens)  # warmup
+        _one_call(chat, DEFAULT_PROMPT)  # warmup (cold start fora da medicao)
         latencies: list[float] = []
         tok_per_s: list[float] = []
         for i in range(args.n):
-            elapsed, ctoks = _one_call(
-                args.base_url, api_key, model, DEFAULT_PROMPT, args.max_tokens
-            )
+            elapsed, otoks = _one_call(chat, DEFAULT_PROMPT)
             latencies.append(elapsed)
-            if elapsed > 0 and ctoks > 0:
-                tok_per_s.append(ctoks / elapsed)
-            print(f"  [{i + 1}/{args.n}] {elapsed * 1000:.0f} ms, {ctoks} tokens")
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "replace")[:300]
-        print(f"ERRO HTTP {e.code}: {detail}", file=sys.stderr)
-        return 1
-    except Exception as e:  # noqa: BLE001 — falha de rede/parse vira erro legivel
-        print(f"ERRO na medicao: {e}", file=sys.stderr)
+            if elapsed > 0 and otoks > 0:
+                tok_per_s.append(otoks / elapsed)
+            print(f"  [{i + 1}/{args.n}] {elapsed * 1000:.0f} ms, {otoks} tokens")
+    except Exception as e:  # noqa: BLE001 — falha de rede/timeout vira erro legivel
+        print(f"ERRO na medicao: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr)
         return 1
 
     if not tok_per_s:
