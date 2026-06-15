@@ -178,7 +178,11 @@ key estiver disponível (`--cohere`).
 4. **Coluna Cohere do comparativo pendente** da trial key + SDK.
 5. **ROI/GPU (F6.8–F6.12) não construído como medição ao vivo** — depende de serving GPU; o briefing sai
    sem linha de ROI por padrão (engine atrás de flag — ver PROXIMOS-PASSOS §D). A **camada de coorte
-   (F6.5–F6.7) já foi entregue em CPU** (clustering + radar).
+   (F6.5–F6.7) está entregue em CPU** (clustering + radar), mas a **qualidade do radar é limitada para
+   demo** (feedback 2026-06-15): embeddings hashing-offline + texto de clustering sem a descrição +
+   AIMI subavaliado por evidência rasa (mesma causa do drop 0,815→0,685) → clusters incoerentes e 0%
+   "prontas ★". Fixes de qualidade rastreados em PROXIMOS-PASSOS §C (embeddings reais + descrição +
+   re-score por evidência).
 
 ## Reprodução
 

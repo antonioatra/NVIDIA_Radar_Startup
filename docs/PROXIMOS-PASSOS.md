@@ -13,12 +13,14 @@
 |---|---|---|---|---|---|
 | A | **Validar a stack + chat ao vivo** | UI pronta, dados via seed | Nenhum (só rodar) | ~1–2 h | **Alta** |
 | B | **Chat "premium" (F3.10/F5.12)** | MVP determinístico entregue | Volume de coorte | ~2–3 dias | Média |
+| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | MVP entregue, clusters incoerentes | Embeddings reais + AIMI por evidência | ~1–2 dias | **Alta (demo)** |
 | D | **GPU Graduation Engine (F6.8–F6.12)** | Stub + contrato prontos | GPU local (**não pago**, ver §D) | ~3–6 dias | Média/Baixa |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
 
-> **Já entregues (fora do escopo de próximos passos):** **C** — Clustering de coorte (F6.5–F6.7),
-> em CPU (commits `cbf7576`/`efe515e`; GPU é stretch opcional, dobrado em §D) · **E** — Eval real →
-> ground-truth (F7.1), 8/9 reais curadas a `human` no headline (commit `13cdc48`; impacto em AVALIACAO.md).
+> **Já entregue (fora do escopo de próximos passos):** **E** — Eval real → ground-truth (F7.1),
+> 8/9 reais curadas a `human` no headline (commit `13cdc48`; impacto em AVALIACAO.md). *(A frente **C**
+> — radar de coorte — saiu de "entregue" e **voltou** como item de qualidade abaixo, após feedback
+> técnico de 2026-06-15: clusters incoerentes + 0% "prontas ★".)*
 
 **Caminho mínimo para "fechar e demonstrar":** A → (B *ou* D, escolher um para mostrar profundidade).
 **Caminho completo:** A → B → D → F.
@@ -79,6 +81,33 @@ da KB NVIDIA mas reusando a mesma stack de RAG:
 brilha com dezenas+). Sem volume, o MVP determinístico é honestamente melhor. **Esforço.** ~2–3 dias.
 **Decisão sugerida:** manter o MVP como entrega e documentar o premium como evolução — **ou** fazer
 o premium se houver tempo e a coorte crescer. Não marcar o DoD de citações enquanto não houver fonte por empresa.
+
+---
+
+## C. Radar de coorte — qualidade para demo *(reaberto após feedback técnico, 2026-06-15)*
+
+**Estado.** MVP entregue em CPU (`packages/scoring/cohort_cluster.py`: hashing + numpy KMeans + PCA;
+`GET /cohort/clusters`; UI `/coorte`). **Mas a saída não convence para demo:** clusters incoerentes
+(ex.: Hand Talk + BotCity + Gupy + Semantix + Aquarela no mesmo cluster), nomes de cluster enganosos e
+**0% de "prontas ★"** em toda a coorte. Diagnóstico (feedback + código):
+
+- **(a) O texto do clustering ignora a descrição.** `CohortPoint.text()` usa só `setor + tecnologias`
+  (e `load_cohort_points` nem carrega `company.descricao`). Clusteriza-se a *string do setor*, não o
+  que a empresa faz → maior dreno de coerência. **Fix (grátis, offline):** carregar `company.descricao`
+  no `CohortPoint` e incluí-la em `text()`.
+- **(b) Embeddings hashing-offline** (default da espinha verde) não têm semântica. **Fix:** ligar
+  `nv-embedqa` (`embeddings_use_nv`) no caminho do radar — modelo já na arquitetura (§5.2).
+- **(c) "Prontas ★ = 0%" + AIMI baixo (31–43)** — mesma causa raiz do eval (Spearman 0,815 → 0,685):
+  o AIMI de produção é **gated por evidência** (RUBRICA §0: sub-score > 6 exige citação) e o scrape
+  por-empresa é raso → o Nemotron (corretamente) não sobe P1/P4 sem fonte. **Fix honesto:** coletar
+  **mais evidência por empresa** (mais fontes Tavily/Firecrawl) e re-pontuar — **não** afrouxar a
+  rubrica (isso alucina). Conferir Gupy/Idwall/Unico caindo em `alvo_graduacao ★` depois.
+- **(d) Nome do cluster por setor dominante** (`label = setor_dom`) engana em cluster heterogêneo.
+  **Fix:** nomear por centroide/LLM sobre os membros.
+
+**Sequência:** (a)+(d) [código grátis, validável offline] → (b) [flag + rede no clustering] → (c)
+[re-run da coorte com mais fontes, **créditos**]. **Bloqueio:** (c) precisa de coorte re-raspada.
+**Esforço.** ~1–2 dias.
 
 ---
 
@@ -160,15 +189,17 @@ rastreável, com a limitação anotada.
 ## Sequência recomendada
 
 1. **A** (validar ao vivo) — destrava a demo, baratíssimo, gera screenshots.
-2. Escolher **uma** frente de profundidade para mostrar no case:
+2. **C** (qualidade do radar de coorte) — **se o radar entra na demo**, corrigir embeddings/descrição/AIMI antes; o item (a) é grátis e offline.
+3. Escolher **uma** frente de profundidade para mostrar no case:
    - **D** (GPU/ROI) se quiser o diferencial "stack viva + ROI medido" — **não é pago**, é montar na GPU.
    - **B** (chat premium) se quiser a narrativa "descoberta conversacional com citações".
-3. **F** por último, se sobrar tempo.
+4. **F** por último, se sobrar tempo.
 
 ## Checklist de fechamento (DoD consolidado)
 
 - [x] Eval com 8/9 entradas reais curadas (`label_source=human`) no headline ✅ 2026-06-15 (ver Já entregues)
 - [x] `AVALIACAO.md` atualizado com os números finais (incl. classificação live n=32 = 0,720) ✅ 2026-06-15
 - [ ] Stack sobe com `run.ps1`, coorte seedada, `/radar` + `/descoberta` + detalhe AIMI navegáveis (A)
+- [ ] Radar de coorte com clusters coerentes (descrição no embedding + `nv-embedqa`) e ★ calibrado (C)
 - [ ] **Uma** das duas frentes de profundidade entregue: ROI no briefing (D) **ou** chat com citações (B)
 - [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (F)
