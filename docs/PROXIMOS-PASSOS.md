@@ -79,14 +79,17 @@ o premium se houver tempo e a coorte crescer. Não marcar o DoD de citações en
 
 ---
 
-## C. Clustering de coorte (F6.5–F6.7)
+## C. Clustering de coorte (F6.5–F6.7)  *(entregue em CPU — 2026-06-14)*
 
-**Estado.** Não iniciado. O `packages/benchmark/` está vazio; não há módulo de coorte/cuML.
+**Estado.** **Feito em CPU/offline** (commits `cbf7576`/`efe515e`): `packages/scoring/cohort_cluster.py`
+(load → normalize/dedup → embed via `get_embedder` → KMeans + PCA 2D em numpy → clusters ranqueados
+por prontidão ★), endpoint `GET /cohort/clusters`, UI `/coorte` (scatter SVG + lista ranqueada), 10
+testes. **Só falta a aceleração GPU** (cuDF/cuML/UMAP), que é o stretch explícito do DoD.
 
-**O que falta.**
-- **F6.5** cuDF: normalização/dedup da tabela `company` na GPU.
-- **F6.6** Embeddings de setor/perfil (reusa `nv-embedqa`) → cuML (KMeans + UMAP) → clusters.
-- **F6.7** Radar/ranking do ecossistema BR: clusters "graduation-ready" para o Inception.
+**O que falta (a fatia GPU, opcional):**
+- **F6.5** cuDF: normalização/dedup na GPU (hoje é numpy/python — idêntico em ~dezenas de empresas).
+- **F6.6** cuML (KMeans) + UMAP no lugar do numpy (KMeans+PCA) — wire atrás de flag quando houver RAPIDS.
+- **F6.7** ✅ radar/ranking entregue (CPU).
 
 **Passos.**
 1. `packages/scoring/cohort_cluster.py`: carregar a coorte, embeddar perfis, KMeans + UMAP.
