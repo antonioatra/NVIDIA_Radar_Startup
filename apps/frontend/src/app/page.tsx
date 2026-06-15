@@ -3,48 +3,33 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Telas do dashboard (Entregavel 5). O scaffold (F5.1) entrega a casca + tema PT-BR;
-// cada tela chega na sua task (F5.3..F5.8), consumindo a API (F5.2).
+// Hub do dashboard: a home e a porta de entrada das telas que ja rodam. Cada card leva direto
+// a sua tela; o detalhe AIMI (4 pilares, recomendacoes, briefing) abre a partir de cada startup
+// no radar. UI em PT-BR (F0.13).
 const TELAS = [
   {
-    id: "F5.3",
+    href: "/consulta",
     titulo: "Consulta",
     descricao:
-      "Lookup de uma empresa ou descoberta por setor/regiao, com o pipeline ao vivo (SSE).",
+      "Diagnostique uma empresa ou descubra startups por setor/regiao, com o pipeline multi-agente ao vivo.",
   },
   {
-    id: "F5.4",
+    href: "/radar",
     titulo: "Radar de startups",
     descricao:
-      "Lista filtravel por setor, AIMI, classe e tecnologia, ordenada por Inception Priority.",
+      "A coorte mapeada, filtravel por setor, maturidade (AIMI) e classe — ordenada por Inception Priority.",
   },
   {
-    id: "F5.12",
-    titulo: "Descoberta por chat",
+    href: "/descoberta",
+    titulo: "Descoberta da coorte",
     descricao:
-      "Pergunte em portugues sobre a coorte (classe, AIMI, tech NVIDIA) e receba as startups.",
+      "Pergunte em portugues sobre as startups (classe, AIMI, tecnologia NVIDIA) e receba as empresas como conversa.",
   },
   {
-    id: "F6.7",
+    href: "/coorte",
     titulo: "Radar de coorte",
     descricao:
       "Visao de portfolio: o ecossistema agrupado por perfil e ranqueado por prontidao de graduacao.",
-  },
-  {
-    id: "F5.5",
-    titulo: "Diagnostico AIMI",
-    descricao: "Detalhe da startup com o radar dos 4 pilares e evidencias com link a fonte.",
-  },
-  {
-    id: "F5.6",
-    titulo: "Recomendacoes",
-    descricao:
-      "Cartoes no formato do brief (tech NVIDIA, justificativas, evidencia dos dois lados) + ROI.",
-  },
-  {
-    id: "F5.8",
-    titulo: "Briefing",
-    descricao: "Relatorio executivo PT-BR com export em PDF para o time do Inception.",
   },
 ] as const;
 
@@ -74,43 +59,37 @@ export default function Home() {
             >
               Ver radar de startups
             </Link>
-            <Link
-              href="/descoberta"
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-            >
-              Descobrir por chat
-            </Link>
-            <Link
-              href="/coorte"
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-            >
-              Radar de coorte
-            </Link>
           </div>
-          <p className="text-sm text-muted-foreground">
-            A consulta (F5.3), o radar (F5.4) e a descoberta por chat (F5.12) ja rodam; cada startup
-            abre o detalhe AIMI com os 4 pilares e evidencias (F5.5).
-          </p>
         </header>
 
-        <section className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mt-12 grid gap-4 sm:grid-cols-2">
           {TELAS.map((tela) => (
-            <article
-              key={tela.id}
-              className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-card-foreground"
+            <Link
+              key={tela.href}
+              href={tela.href}
+              className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-card-foreground transition-colors hover:border-foreground/30 hover:bg-accent"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <h2 className="text-base font-semibold">{tela.titulo}</h2>
-                <span className="text-xs font-mono text-muted-foreground">{tela.id}</span>
+                <span
+                  aria-hidden
+                  className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                >
+                  →
+                </span>
               </div>
               <p className="text-sm text-muted-foreground">{tela.descricao}</p>
-            </article>
+            </Link>
           ))}
         </section>
 
+        <p className="mt-8 max-w-2xl text-sm text-muted-foreground">
+          Cada startup no radar abre o diagnostico AIMI completo: os 4 pilares com evidencia dos dois
+          lados, as recomendacoes de tecnologia NVIDIA e o briefing executivo com export em PDF.
+        </p>
+
         <footer className="mt-12 border-t border-border pt-6 text-sm text-muted-foreground">
-          Scaffold do Entregavel 5 (F5.1): Next.js (App Router) · TypeScript · Tailwind · shadcn/ui ·
-          UI em PT-BR.
+          Next.js (App Router) · TypeScript · Tailwind · shadcn/ui · UI em PT-BR.
         </footer>
       </div>
     </main>
