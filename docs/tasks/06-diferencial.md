@@ -120,7 +120,18 @@
       pelo cohort builder F1.14), na GPU.
 - [ ] **F6.6** Embeddings de setor/perfil (**reusa `nv-embedqa`**, o mesmo do RAG — sem 2º
       embedder) → **cuML** (KMeans + UMAP) → clusters.
-- [ ] **F6.7** Radar/ranking do ecossistema BR: clusters "graduation-ready" p/ Inception.
+- [x] **F6.7** Radar/ranking do ecossistema BR: clusters "graduation-ready" p/ Inception.
+      → **Camada de coorte entregue (2026-06-14, CPU por default).** `packages/scoring/cohort_cluster.py`:
+      `load_cohort_points` (Company + Score mais recente) → `normalize_cohort` (F6.5 dedup por nome +
+      setor normalizado) → `cluster_cohort` que **reusa o embedder do RAG** (`get_embedder`, F6.6 — sem
+      2º modelo) e roda **KMeans + projeção 2D em numpy puro** (Lloyd + PCA via SVD, determinístico;
+      sklearn/umap **não** estão no CI) → clusters com métricas agregadas e **ranqueados por prontidão
+      de graduação** (share de alvos ★ = AI-native + P1/P2 alto + P3 baixo, a região §6; depois
+      Inception médio). API `GET /cohort/clusters` (`apps/api/main.py`) + UI `apps/frontend/.../coorte`
+      (scatter SVG colorido por cluster, anel nos ★, lista ranqueada). 8 testes (`test_cohort_cluster.py`)
+      + 2 de API; `tsc`/`eslint` verdes. **GPU acceleration (cuDF/cuML + UMAP) NÃO wired** — é o stretch
+      explícito do DoD; o default CPU/numpy é o fallback travado nos docs. F6.5/F6.6 ficam abertas
+      representando essa fatia GPU.
 
 ## 6.3 GPU Graduation Engine
 - [ ] **F6.8** Servir modelos de benchmark via **Triton + TensorRT-LLM** na GPU local.
@@ -172,4 +183,5 @@ scikit-learn (fallback de clustering).
       partir da matriz pré-computada.
 - [ ] Briefing inclui linha de ROI quantificado (ex.: "~Nx throughput, p95 −M%, custo −K%").
 - [ ] Lista de empresas ordenável por Inception Priority (fila de outreach do gerente).
-- [ ] Radar de coorte exibe clusters e ranking de prontidão (stretch: aceleração GPU).
+- [x] Radar de coorte exibe clusters e ranking de prontidão (stretch: aceleração GPU).
+      → Entregue em CPU (numpy + hashing), ver F6.7; a aceleração GPU (cuDF/cuML/UMAP) segue stretch.

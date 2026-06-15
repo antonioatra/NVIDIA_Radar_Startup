@@ -31,6 +31,7 @@ from packages.agents.human_review import review_payload
 from packages.agents.progress import ProgressEvent
 from packages.config import get_settings
 from packages.schemas import Briefing, GraphState
+from packages.scoring.cohort_cluster import CohortClustering, cluster_cohort, load_cohort_points
 
 from .companies import get_company_detail, list_companies, list_tech_facets
 from .deps import (
@@ -227,6 +228,23 @@ def get_company_facets(session: SessionDep) -> TechFacetsOut:
     """
     tech, nvidia_tech = list_tech_facets(session)
     return TechFacetsOut(tech=tech, nvidia_tech=nvidia_tech)
+
+
+@router.get("/cohort/clusters")
+def get_cohort_clusters(
+    session: SessionDep,
+    k: Annotated[
+        int | None, Query(ge=1, le=12, description="Nº de clusters (default auto).")
+    ] = None,
+) -> CohortClustering:
+    """Radar de portfólio da coorte (F6.5–F6.7): clusters por perfil ordenados por prontidão ★.
+
+    Agrupa a coorte (`company` + `Score` mais recente) por embedding de perfil (setor/stack) e
+    ranqueia os clusters por prontidão de graduação (share de alvos ★ + Inception médio) — a leitura
+    de portfólio do gerente (DSS nível 3). Determinístico/offline por default (hashing + numpy);
+    cuML/nv-embedqa atrás de flag.
+    """
+    return cluster_cohort(load_cohort_points(session), k=k)
 
 
 @router.get("/companies/{company_id}")

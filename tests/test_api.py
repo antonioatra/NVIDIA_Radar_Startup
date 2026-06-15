@@ -309,6 +309,26 @@ def test_companies_limit(client: TestClient) -> None:
     assert len(client.get("/companies?limit=1").json()) == 1
 
 
+def test_cohort_clusters_radar(client: TestClient) -> None:
+    # Radar de portfolio (F6.5-F6.7): agrupa a coorte seedada e devolve clusters ranqueados.
+    data = client.get("/cohort/clusters").json()
+    assert data["n_companies"] == 3  # Acme, Bolt, Cold Start
+    assert data["method"] == "numpy"  # default offline
+    assert data["clusters"]  # ao menos um cluster
+    membros = [m["nome"] for c in data["clusters"] for m in c["members"]]
+    assert set(membros) == {"Acme Health", "Bolt Pay", "Cold Start"}
+    # Acme (AI-native, pilares altos, tech-opt alto=20) nao e alvo de graduacao (P3 nao e baixo).
+    acme = next(m for c in data["clusters"] for m in c["members"] if m["nome"] == "Acme Health")
+    assert acme["graduation_ready"] is False
+    assert acme["x"] is not None and acme["y"] is not None
+
+
+def test_cohort_clusters_k_param(client: TestClient) -> None:
+    data = client.get("/cohort/clusters?k=2").json()
+    assert len(data["clusters"]) == 2  # k respeitado (n=3 >= 2)
+    assert sum(c["size"] for c in data["clusters"]) == 3  # ninguem perdido
+
+
 # --- company detail (F5.5) ----------------------------------------------------
 
 
