@@ -1,6 +1,6 @@
 # Próximos passos para fechar o TAPI
 
-> **Estado em 2026-06-14.** O núcleo testável dos 7 entregáveis está feito (suíte ~747 passed,
+> **Estado em 2026-06-15.** O núcleo testável dos 7 entregáveis está feito (suíte ~747 passed,
 > 4 skipped; métricas batendo as metas do §7 — ver [AVALIACAO.md](AVALIACAO.md)). Tudo que resta
 > abaixo é **stretch gated por recurso** (volume de coorte, GPU, dependência ou chave externa),
 > **não** código de base faltando. Este documento detalha cada frente: estado real no código, o
@@ -14,7 +14,7 @@
 | B | **Chat "premium" (F3.10/F5.12)** | MVP determinístico entregue | Volume de coorte | ~2–3 dias | Média |
 | C | **Clustering de coorte (F6.5–F6.7)** | Não iniciado | Coorte em volume | ~2–3 dias | Média |
 | D | **GPU Graduation Engine (F6.8–F6.12)** | Stub + contrato prontos | GPU local (**não pago**, ver §D) | ~3–6 dias | Média/Baixa |
-| E | **Eval set real → ground-truth (F7.1)** | Auto-rotulado, fora do headline | Curadoria humana | ~1 dia | Média |
+| E | **Eval set real → ground-truth (F7.1)** | ✅ Curado (8/9 → `human`, 2026-06-15) | — (entregue) | — | **Feito** |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
 
 **Caminho mínimo para "fechar e demonstrar":** A → E → (B *ou* D, escolher um para mostrar
@@ -163,25 +163,25 @@ rastreável, com a limitação anotada.
 
 ---
 
-## E. Eval set real → ground-truth (F7.1)
+## E. Eval set real → ground-truth (F7.1)  *(entregue — 2026-06-15)*
 
-**Estado.** `data/eval/cohort_real.yaml` (9 entradas, untracked) é gerado pela ponte
-`packages/eval/cohort_to_eval.py` a partir da coorte. **Porém** é auto-rotulado pelo **próprio
-modelo** (`label_source=model`) → baseline circular → fica **fora do headline** por padrão (o
-headline segue nas 24 fixtures `human`). Ver `data/eval/README.md`.
+**Estado.** ✅ **Feito.** As 9 entradas reais de `data/eval/cohort_real.yaml` foram **revisadas contra
+a evidência pública** (cada `evidence_urls` + busca) e **8 promovidas a `label_source: human`** (entram
+no headline). A Semantix segue `model` (a evidência de LLM próprio "Lloro" mostra que `wrapper` está
+subavaliado, mas a região — provável `maduro` — ficou pendente). Correções: **Unico** `non-AI/fora_escopo`
+→ `AI-native/maduro` (biometria facial é IA no núcleo); **Hand Talk / Gupy / Idwall** `wrapper` →
+`alvo_graduacao` (data moat estabelecido); **Kunumi** re-pontuada (era `6/6/6/6`); **BotCity / Aquarela /
+Take Blip** confirmadas sem alteração. Ver `data/eval/README.md`.
 
-**O que falta.** Curadoria humana para promover `model → human`: revisar classe/AIMI/techs
-esperadas de cada empresa contra a fonte e corrigir o que o modelo errou (a memória nota casos
-discutíveis: maioria cai em região "wrapper" por extração só-de-descrição; Unico classificada non-AI).
+**Resultado (impacto honesto no headline, n=24 → 32).** O headline deixou de ser 100% sintético — o gap
+nº1 de credibilidade. Com empresas reais (descrição de 1 linha), a heurística **offline** pontua pior:
+**AIMI Spearman 0,815 → 0,685** (P4 starva sem funding/clientes na prosa) e **classificação piso offline
+0,38 → 0,314**. Em compensação a **recomendação melhorou**: alvo_graduacao recall **0,78 → 0,865** e recall
+geral **0,69 → 0,794**. O número-bandeira (classificação **ao vivo**, Nemotron-Super) foi re-rodado com as
+reais — ver `AVALIACAO.md`.
 
-**Passos.**
-1. Rodar a coorte (frente A) e gerar o YAML.
-2. Revisar manualmente as ~9 entradas (1 dia): conferir classe, AIMI e `expected_nvidia_techs`.
-3. Marcar `label_source=human` nas revisadas e versionar o YAML curado.
-4. Rodar as métricas incluindo as reais no headline (`load_eval_set(include_model=...)`) e atualizar `AVALIACAO.md`.
-
-**Bloqueio.** Trabalho humano de curadoria. **Esforço.** ~1 dia. **Resultado.** Métricas headline
-deixam de ser 100% sintéticas — o gap nº1 de credibilidade do eval.
+**O que falta (opcional).** Decidir a região da Semantix (promover a `maduro`?) e ampliar a curadoria à
+medida que a coorte cresce.
 
 ---
 
@@ -201,7 +201,7 @@ deixam de ser 100% sintéticas — o gap nº1 de credibilidade do eval.
 ## Sequência recomendada
 
 1. **A** (validar ao vivo) — destrava a demo, baratíssimo, gera screenshots.
-2. **E** (curar o eval) — maior ganho de credibilidade por hora investida.
+2. ~~**E** (curar o eval)~~ — ✅ **feito em 2026-06-15** (8/9 reais → `human` no headline).
 3. Escolher **uma** frente de profundidade para mostrar no case:
    - **D** (GPU/ROI) se quiser o diferencial "stack viva + ROI medido" — **não é pago**, é montar na GPU.
    - **B** (chat premium) se quiser a narrativa "descoberta conversacional com citações".
@@ -210,7 +210,7 @@ deixam de ser 100% sintéticas — o gap nº1 de credibilidade do eval.
 ## Checklist de fechamento (DoD consolidado)
 
 - [ ] Stack sobe com `run.ps1`, coorte seedada, `/radar` + `/descoberta` + detalhe AIMI navegáveis (A)
-- [ ] Eval com ao menos as ~9 entradas reais curadas (`label_source=human`) no headline (E)
+- [x] Eval com 8/9 entradas reais curadas (`label_source=human`) no headline (E) ✅ 2026-06-15
 - [ ] **Uma** das duas frentes de profundidade entregue: ROI no briefing (D) **ou** chat com citações (B)
 - [ ] `AVALIACAO.md` atualizado com os números finais
 - [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (F)

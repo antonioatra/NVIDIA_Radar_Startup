@@ -38,15 +38,26 @@ python -m packages.agents.cohort --seed --db sqlite:///data/cohort.db   # + flag
 python -m packages.eval.cohort_to_eval --db sqlite:///data/cohort.db
 ```
 
-**Honestidade — `label_source`.** O rótulo (classe/AIMI/techs) dessas entradas é a **saída do
-próprio modelo**, então medir o modelo contra ele é um **baseline circular**. Por isso elas
-carregam `label_source: model` e `load_eval_set()` as mantém **fora do headline** por padrão
-(`include_model=True` para incluí-las); o `AVALIACAO.md` reporta o baseline auto-rotulado em
-**linha separada**, nunca fundido nos números human-reviewed. Promover uma entrada a ground-truth
-exige **revisão humana** (virar `label_source: human`). O sourcing/evidência é real; o rótulo é
-proposto. (Por que curada e não por crawl: o crawl-discovery Scrapy rende **0 ao vivo** —
-robots/JS/bloqueio; a coleta por-empresa via Tavily/Firecrawl é robusta. Ver
-`data/seeds/cohort_candidates.yaml`.)
+**Honestidade — `label_source`.** Recém-geradas, essas entradas saem com `label_source: model`
+(o rótulo é a **saída do próprio modelo** → medir o modelo contra ele é **baseline circular**), e
+`load_eval_set()` as mantém **fora do headline** por padrão (`include_model=True` para incluí-las).
+Promover a ground-truth exige **revisão humana** (virar `label_source: human`).
+
+**Curadoria feita em 2026-06-15.** As 9 entradas foram revisadas contra a **evidência pública** (cada
+`evidence_urls` + busca) e **8 promovidas a `label_source: human`** (entram no headline). Correções
+relevantes: **Unico** `non-AI/fora_escopo` → `AI-native/maduro` (biometria facial é visão computacional
+no núcleo — erro de extração só-de-descrição); **Hand Talk / Gupy / Idwall** `wrapper` → `alvo_graduacao`
+(data moat estabelecido: corpus Libras, dados de recrutamento, base de documentos BR + lab de fraude);
+**Kunumi** re-pontuada (era `6/6/6/6` subavaliado) e confirmada AI-native. **BotCity / Aquarela / Take
+Blip** tiveram o rótulo do pipeline **confirmado** sem alteração (inclusive Take Blip como wrapper real —
+orquestra NLP de terceiros). A **Semantix** segue `label_source: model` (fora do headline): a evidência de
+LLM próprio ("Lloro") mostra que `wrapper` está subavaliado, mas a região (provável `maduro`) ficou
+pendente de decisão.
+
+⚠️ **Arquivo curado à mão.** Re-rodar `python -m packages.eval.cohort_to_eval` com o `--out` padrão
+**sobrescreve** a curadoria — use outro `--out` ou faça backup antes. (Por que curada e não por crawl: o
+crawl-discovery Scrapy rende **0 ao vivo** — robots/JS/bloqueio; a coleta por-empresa via Tavily/Firecrawl
+é robusta. Ver `data/seeds/cohort_candidates.yaml`.)
 
 ## Esquema (validado em `packages/eval/dataset.py`)
 `id` · `nome` · `setor` · `descricao` · `classificacao` (`AI-native|AI-enabled|non-AI`) ·

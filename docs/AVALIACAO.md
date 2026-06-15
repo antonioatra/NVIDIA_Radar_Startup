@@ -1,7 +1,7 @@
 # Relatório de Avaliação — TAPI (NVIDIA Startup AI Radar)
 
 **Tarefa:** F7.5 (consolida F7.2 · F6.4 · F7.2b · F7.2c · F7.3 · F7.4; metodologia/limitações
-revisadas após a **F7.1**). **Atualizado:** 2026-06-13.
+revisadas após a **F7.1**, com **8 empresas reais curadas** entrando no headline). **Atualizado:** 2026-06-15.
 
 Este relatório reúne, num lugar só e **contra metas declaradas** (§7 do brief), a qualidade aferida
 de cada peça do pipeline. O número final é o que os dados mostram; o alvo torna o resultado
@@ -9,16 +9,14 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 
 ## Metodologia (ler antes dos números)
 
-- **Conjunto de avaliação (F1.12):** 24 fixtures rotuladas (`data/eval/labeled_startups.yaml`) —
-  classe (§5.1) + AIMI esperado (4 pilares 0–25) + techs NVIDIA esperadas, cobrindo todas as regiões
-  do plano `classe × AIMI`. **São 100% sintéticas** (`synthetic: true`): é "modelo real sobre dados de
-  fixture". A **F7.1** acrescenta ao lado a **metade real automática** — coorte BR raspada ao vivo e
-  auto-rotulada pelo pipeline (`packages/eval/cohort_to_eval.py` → `data/eval/cohort_real.yaml`,
-  `synthetic: false`, `evidence_urls` reais). Mas como o rótulo é a **saída do próprio modelo**
-  (**baseline circular**), essas entradas saem com `label_source: model` e ficam **fora do headline**
-  (`load_eval_set(include_model=True)` para incluí-las; promover a ground-truth é revisão humana). Logo,
-  **todos os números abaixo são human-reviewed** (as 24 fixtures); o auto-rotulado real é reportado à
-  parte (ver §Limitações). O RAG usa um conjunto à parte de **7 perguntas NVIDIA**
+- **Conjunto de avaliação (F1.12 + F7.1):** o headline tem agora **32 entradas `human`** = 24 fixtures
+  sintéticas (`labeled_startups.yaml`, `synthetic: true`, cobrindo todas as regiões do plano `classe ×
+  AIMI`) **+ 8 empresas reais BR curadas** (`cohort_real.yaml`, `synthetic: false`, `evidence_urls`
+  rastreáveis). As reais foram raspadas/diagnosticadas pelo pipeline (F1.14) e depois **revisadas por
+  humano contra a evidência pública (2026-06-15)**, promovidas de `label_source: model` → `human`
+  (curadoria detalhada em `data/eval/README.md`). Logo, **o headline deixou de ser 100% sintético** — o
+  gap nº1 de credibilidade. A 9ª real (Semantix) segue `label_source: model` (fora do headline;
+  `load_eval_set(include_model=True)` para vê-la). O RAG usa um conjunto à parte de **7 perguntas NVIDIA**
   (`data/eval/rag/questions.yaml`).
 - **Espinha verde / real atrás de flag:** cada peça que precisa de rede/LLM/GPU tem um **substituto
   offline determinístico como _default_** (roda no CI, reprodutível), com o **backend real plugável**.
@@ -31,10 +29,10 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 
 | Entregável | Métrica | Meta §7 | Resultado | Veredito |
 |---|---|---|---|---|
-| Classificação (F7.2) | macro-F1 | ≥ 0,75 | **0,875** (Nemotron-Super real) · 0,38 piso offline | ✅ |
-| AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,815** | ✅ |
+| Classificação (F7.2) | macro-F1 | ≥ 0,75 | **0,875** (Nemotron-Super, 24 fixtures) · 0,314 piso offline (n=32) | ✅ fixtures · live c/ reais pendente |
+| AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,815** (24 fixtures) · 0,685 (n=32, c/ reais) | ⚠️ ✅ na prosa rica |
 | Recomendação (F7.2b) | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro F4.5) | ✅ |
-| Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,69** geral / **0,78** nos alvos · precision 0,23 | ⚠️ parcial |
+| Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,79** geral / **0,865** nos alvos · precision 0,37 | ✅ recall / ⚠️ precision |
 | RAG (F7.3) | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
 | RAG (F7.3 / F7.4) | context recall | ≥ 0,70 | 0,69 (proxy léxico) → **0,74** (reranker NeMo real) | ✅ com NeMo |
 | Briefing (F7.2c) | faithfulness do texto final | ≥ 0,80 | **0,870** (espinha; min 0,786) | ✅ |
@@ -44,45 +42,56 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 
 ### 1. Classificação — classe AI-native | AI-enabled | non-AI (F7.2)
 
-Mede a classe predita × rotulada (n=24), sobre o **mesmo sinal público que a produção vê** (perfil
+Mede a classe predita × rotulada sobre o **mesmo sinal público que a produção vê** (perfil
 só-de-descrição). Reporta accuracy + macro-F1 (média não-ponderada por classe, sem deixar a
-majoritária mascarar as raras) + matriz de confusão.
+majoritária mascarar as raras) + matriz de confusão. Com a curadoria (F7.1), o conjunto passou a
+**n=32** (24 fixtures + 8 reais curadas).
 
-| Caminho | macro-F1 | accuracy | AI-native recall |
-|---|---|---|---|
-| Heurística offline (piso/CI) | 0,38 | 0,375 | 0,20 |
-| **Nemotron-Super real (produção)** | **0,875** ✅ | 0,917 | 0,933 |
+| Caminho | macro-F1 | accuracy | AI-native recall | n |
+|---|---|---|---|---|
+| Heurística offline (piso/CI) | 0,314 | 0,313 | 0,18 | 32 (c/ reais) |
+| **Nemotron-Super real (produção)** | **0,875** ✅ | 0,917 | 0,933 | 24 (fixtures) |
 
-**Leitura:** o **caminho de produção bate a meta** (0,875 ≥ 0,75). O 0,38 é só o substituto
-determinístico, que rebaixa AI-native porque a heurística exige Workflow Depth alto e a prosa-só
-sub-prediz essa magnitude; o Super, com reasoning, lê o *papel* da IA na descrição e recupera
-AI-native (recall 0,20 → 0,933). Medido ao vivo (2026-06-11).
+**Leitura:** o **caminho de produção bate a meta** (0,875 ≥ 0,75) — medido ao vivo em 2026-06-11 sobre
+as 24 fixtures. O piso offline caiu 0,38 → **0,314** ao incluir as 8 reais: a heurística determinística
+exige Workflow Depth alto e a descrição-de-uma-linha das reais sub-prediz essa magnitude (o Super, com
+reasoning, lê o *papel* da IA e recupera AI-native — recall 0,18 → 0,933 nas fixtures). ⏳ **Pendente:**
+re-rodar o caminho live (`--llm`) sobre o conjunto n=32 para fixar o macro-F1 headline **com** as reais
+(comando em §Reprodução; usa créditos build.nvidia.com).
 
 ### 2. Índice AIMI — correlação com os rótulos (F6.4)
 
-`Spearman(total) = 0,815` ≥ 0,70 ✅ — a heurística v1, sobre a descrição-só, **ranqueia** as startups
-como o rótulo (sub-prediz a magnitude, preserva a ordem, que é o que o índice precisa). Por pilar:
-**P3 Technical Optimization ρ=+0,76** (o que dispara a graduação, recuperado bem); **P4 Distribution
-Moat ρ=+0,18** (o mais fraco — funding/clientes enterprise não vivem numa fixture em prosa; o total
-ainda passa porque P4 é 1 de 4).
+**Nas 24 fixtures sintéticas (descrição rica): `Spearman(total) = 0,815` ≥ 0,70 ✅.** Incluindo as 8
+reais curadas no headline (n=32): **`Spearman(total) = 0,685`** — abaixo do gate. A queda é **esperada
+e honesta**: a heurística v1 pontua **só pela descrição**, e as entradas reais carregam descrição de
+**uma linha** (sem funding/clientes/dado proprietário em prosa), então ela "passa fome" justo onde o
+rótulo humano usou a evidência externa. Por pilar (n=32): **P3 Technical Optimization ρ=+0,67** (o que
+dispara a graduação, ainda o mais forte), P1 Data Moat ρ=+0,62, P2 Workflow ρ=+0,62, **P4 Distribution
+Moat ρ=+0,12** (o mais fraco — confirma que GTM/funding não cabem numa frase). **Leitura:** o número
+justo da *heurística* é o das fixtures ricas (0,815); o 0,685 mede "ranquear uma empresa por 1 linha",
+não a qualidade do índice na produção (que vê a evidência raspada inteira, não a descrição-resumo).
+Reportado sem maquiar: a meta passa na prosa rica e falha na prosa pobre.
 
 ### 3. Recomendação — techs NVIDIA × esperadas, held-out (F7.2b)
 
-n=20 in-scope (4 `non-AI` fora de escopo, F2.13), 97 recomendações.
+n=28 in-scope (4 `non-AI` fora de escopo, F2.13 — a Unico saiu do non-AI com a curadoria), incluindo
+as 8 reais curadas.
 
 | Recorte | precision | recall | F1 |
 |---|---|---|---|
-| **alvo_graduacao** (a coorte que importa, F6.13) | 0,53 | **0,78** ✅ | 0,63 |
-| periférico / wrapper (AIMI baixo) | ~0,06 | 1,00 | ~0,11 |
-| maduro | 0,08 | 0,17 | 0,11 |
-| **geral** | 0,23 | 0,69 | 0,34 |
+| **alvo_graduacao** (a coorte que importa, F6.13) | 0,63 | **0,865** ✅ | 0,73 |
+| wrapper (AIMI baixo) | 0,28 | 1,00 | 0,44 |
+| periférico | 0,19 | 1,00 | 0,32 |
+| maduro | 0,16 | 0,27 | 0,20 |
+| **geral** | 0,37 | **0,79** ✅ | 0,51 |
 
-**Leitura honesta:** **evidência dos dois lados = 1,00** nas 97 recomendações (invariante duro do
-Guardrails F4.5) ✅. O **recall onde importa bate a meta** (alvos de graduação 0,78 ≥ 0,70: a graduação
-NIM/TensorRT/Triton **sempre** sai). O recall geral (0,69) é puxado pelo **maduro 0,17** (o rótulo
-espera `AI Enterprise`, mas a regra só dispara isso em gap de P4, e madura tem P4 forte). A **precision
-baixa (0,23) é super-recomendação** (a regra dispara em todo gap, ~5 techs/empresa; os rótulos esperam
-0–4), concentrada nas regiões de AIMI baixo. Ambos são **mismatch regra↔rótulo a reconciliar na F7.1**.
+**Leitura honesta:** **evidência dos dois lados = 1,00** (invariante duro do Guardrails F4.5) ✅. As
+reais curadas **melhoraram o recall onde importa** — alvos de graduação **0,865** (era 0,78) e geral
+**0,79** (era 0,69, agora ≥ 0,70) — porque os alvos reais (Hand Talk/Gupy/Idwall) têm techs de graduação
+claras (NIM/TensorRT/Triton) que a regra dispara. O recall geral segue puxado pelo **maduro 0,27** (o
+rótulo espera `AI Enterprise`, mas a regra só dispara isso em gap de P4, e madura tem P4 forte). A
+**precision 0,37 (super-recomendação)** — a regra dispara em todo gap (~5 techs/empresa; rótulos esperam
+0–4) — melhorou (era 0,23) mas segue como limitação conhecida, concentrada nas regiões de AIMI baixo.
 
 ### 4. RAG — RAGAS sobre as perguntas NVIDIA (F7.3)
 
@@ -138,19 +147,22 @@ key estiver disponível (`--cohere`).
 
 ## Limitações honestas (o que ainda não é real / não bate a meta)
 
-1. **Headline ainda sobre as 24 fixtures sintéticas** — toda métrica acima é "modelo real sobre dados
-   de fixture". A **F7.1** já entrega a **metade real automática** (coorte BR raspada ao vivo e
-   auto-rotulada, `cohort_real.yaml`), mas o rótulo é do próprio modelo (**baseline circular**) → fica
-   fora do headline por padrão. O gap nº 1 que **resta** é a **revisão humana** que promove essas
-   entradas reais a ground-truth (`label_source: model → human`).
+1. **Headline agora inclui 8 empresas reais curadas** (não é mais 100% sintético — gap nº1 endereçado):
+   revisadas por humano contra a evidência pública e promovidas a `label_source: human` (F7.1, 2026-06-15).
+   **Honestidade da curadoria:** é uma curadoria *light* — verificação contra fontes públicas + correção
+   dos erros do modelo (ex.: Unico `non-AI`→`AI-native/maduro`; Hand Talk/Gupy/Idwall `wrapper`→`alvo`) —
+   **não** rotulagem independente do zero. Para as 3 entradas onde o rótulo humano **não** mudou o score
+   do modelo (BotCity, Aquarela, Take Blip), a correlação AIMI dessas linhas conserva resíduo circular. A
+   9ª real (Semantix) segue fora do headline (região pendente). Ampliar a coorte curada é o próximo ganho.
 2. **Recomendação: precision 0,23 (super-recomendação) e maduro recall 0,17** — mismatch regra↔rótulo
    a reconciliar na **revisão de rótulos da F7.1** (parte é rótulo a revisar, ex.: RAPIDS pedido p/
    radiologia onde a regra prescreve Clara/MONAI).
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
 4. **Coluna Cohere do comparativo pendente** da trial key + SDK.
-5. **ROI/GPU (F6.8–F6.12) e a camada de coorte (F6.5–F6.7) não construídos** — dependem do cohort
-   builder (F1.14) e de serving GPU; o briefing sai sem linha de ROI.
+5. **ROI/GPU (F6.8–F6.12) não construído como medição ao vivo** — depende de serving GPU; o briefing sai
+   sem linha de ROI por padrão (engine atrás de flag — ver PROXIMOS-PASSOS §D). A **camada de coorte
+   (F6.5–F6.7) já foi entregue em CPU** (clustering + radar).
 
 ## Reprodução
 
