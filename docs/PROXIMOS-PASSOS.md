@@ -13,7 +13,7 @@
 |---|---|---|---|---|---|
 | A | **Validar a stack + chat ao vivo** | UI pronta, dados via seed | Nenhum (só rodar) | ~1–2 h | **Alta** |
 | B | **Chat "premium" (F3.10/F5.12)** | MVP determinístico entregue | Volume de coorte | ~2–3 dias | Média |
-| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | MVP entregue, clusters incoerentes | Embeddings reais + AIMI por evidência | ~1–2 dias | **Alta (demo)** |
+| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)+(d) feitos; faltam (b)/(c) gated | Embeddings reais + AIMI por evidência | ~1 dia | **Alta (demo)** |
 | D | **GPU Graduation Engine (F6.8–F6.12)** | Stub + contrato prontos | GPU local (**não pago**, ver §D) | ~3–6 dias | Média/Baixa |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
 
@@ -87,27 +87,28 @@ o premium se houver tempo e a coorte crescer. Não marcar o DoD de citações en
 ## C. Radar de coorte — qualidade para demo *(reaberto após feedback técnico, 2026-06-15)*
 
 **Estado.** MVP entregue em CPU (`packages/scoring/cohort_cluster.py`: hashing + numpy KMeans + PCA;
-`GET /cohort/clusters`; UI `/coorte`). **Mas a saída não convence para demo:** clusters incoerentes
-(ex.: Hand Talk + BotCity + Gupy + Semantix + Aquarela no mesmo cluster), nomes de cluster enganosos e
-**0% de "prontas ★"** em toda a coorte. Diagnóstico (feedback + código):
+`GET /cohort/clusters`; UI `/coorte`). Os fixes **grátis/offline (a)+(d) foram feitos** (commit desta
+sessão); o que ainda trava a coerência total e o ★ é gated por recurso ((b) rede, (c) créditos):
 
-- **(a) O texto do clustering ignora a descrição.** `CohortPoint.text()` usa só `setor + tecnologias`
-  (e `load_cohort_points` nem carrega `company.descricao`). Clusteriza-se a *string do setor*, não o
-  que a empresa faz → maior dreno de coerência. **Fix (grátis, offline):** carregar `company.descricao`
-  no `CohortPoint` e incluí-la em `text()`.
+- **(a) O texto do clustering ignorava a descrição** — ✅ **feito.** `CohortPoint` agora carrega
+  `company.descricao` (`load_cohort_points`) e `text()` a inclui (encurtada por `_DESC_CHARS` p/ não
+  dominar o bag-of-words). Clusteriza-se o que a empresa **faz**, não a *string do setor* — o maior
+  dreno de coerência. Testes: `test_text_includes_descricao`.
 - **(b) Embeddings hashing-offline** (default da espinha verde) não têm semântica. **Fix:** ligar
-  `nv-embedqa` (`embeddings_use_nv`) no caminho do radar — modelo já na arquitetura (§5.2).
+  `nv-embedqa` (`embeddings_use_nv`) no caminho do radar — modelo já na arquitetura (§5.2). *(gated: rede)*
 - **(c) "Prontas ★ = 0%" + AIMI baixo (31–43)** — mesma causa raiz do eval (Spearman 0,815 → 0,685):
   o AIMI de produção é **gated por evidência** (RUBRICA §0: sub-score > 6 exige citação) e o scrape
   por-empresa é raso → o Nemotron (corretamente) não sobe P1/P4 sem fonte. **Fix honesto:** coletar
   **mais evidência por empresa** (mais fontes Tavily/Firecrawl) e re-pontuar — **não** afrouxar a
-  rubrica (isso alucina). Conferir Gupy/Idwall/Unico caindo em `alvo_graduacao ★` depois.
-- **(d) Nome do cluster por setor dominante** (`label = setor_dom`) engana em cluster heterogêneo.
-  **Fix:** nomear por centroide/LLM sobre os membros.
+  rubrica (isso alucina). Conferir Gupy/Idwall/Unico caindo em `alvo_graduacao ★` depois. *(gated: créditos)*
+- **(d) Nome do cluster por setor dominante** (`label = setor_dom`) — ✅ **feito.** `_cluster_label`
+  só usa o setor quando ele domina (≥60% dos membros, `_LABEL_DOMINANT_SHARE`); abaixo disso nomeia
+  pela **mistura** (top-2 setores, ex.: `fintech · healthtech`) em vez de mentir com um só. Empate
+  desempatado por ordem alfabética (determinístico). Testes: `test_cluster_label_{dominant_sector,heterogeneous}`.
 
-**Sequência:** (a)+(d) [código grátis, validável offline] → (b) [flag + rede no clustering] → (c)
-[re-run da coorte com mais fontes, **créditos**]. **Bloqueio:** (c) precisa de coorte re-raspada.
-**Esforço.** ~1–2 dias.
+**Sequência:** ~~(a)+(d) [código grátis, validável offline]~~ ✅ → (b) [flag + rede no clustering] → (c)
+[re-run da coorte com mais fontes, **créditos**]. **Bloqueio restante:** (b) rede no clustering, (c)
+coorte re-raspada. **Esforço restante.** ~1 dia (depende dos créditos da coorte).
 
 ---
 
@@ -200,6 +201,6 @@ rastreável, com a limitação anotada.
 - [x] Eval com 8/9 entradas reais curadas (`label_source=human`) no headline ✅ 2026-06-15 (ver Já entregues)
 - [x] `AVALIACAO.md` atualizado com os números finais (incl. classificação live n=32 = 0,720) ✅ 2026-06-15
 - [ ] Stack sobe com `run.ps1`, coorte seedada, `/radar` + `/descoberta` + detalhe AIMI navegáveis (A)
-- [ ] Radar de coorte com clusters coerentes (descrição no embedding + `nv-embedqa`) e ★ calibrado (C)
+- [~] Radar de coorte: descrição no embedding + nome de cluster honesto ✅ (C-a, C-d); falta `nv-embedqa` (C-b) e ★ calibrado (C-c, gated)
 - [ ] **Uma** das duas frentes de profundidade entregue: ROI no briefing (D) **ou** chat com citações (B)
 - [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (F)

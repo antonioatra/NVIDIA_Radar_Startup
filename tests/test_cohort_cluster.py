@@ -30,6 +30,33 @@ def test_graduation_ready_star() -> None:
     assert is_graduation_ready(enabled) is False
 
 
+def test_text_includes_descricao() -> None:
+    # (a) A descricao (o que a empresa faz) entra no texto de perfil que vai ao embedder.
+    p = _pt(1, setor="healthtech", descricao="Plataforma de IA para laudos radiologicos.")
+    assert "radiologicos" in p.text()
+    # Descricao longa e encurtada p/ nao dominar o embedding (setor + <=_DESC_CHARS + stack).
+    longa = _pt(2, descricao="palavra " * 100)
+    assert len(longa.text()) < 400
+
+
+def test_cluster_label_dominant_sector() -> None:
+    # (d) Setor presente em >=60% dos membros -> nome limpo do setor (caso homogeneo).
+    res = cluster_cohort([_pt(i, setor="healthtech") for i in range(1, 5)], k=1)
+    assert res.clusters[0].label == "healthtech"
+
+
+def test_cluster_label_heterogeneous() -> None:
+    # (d) Nenhum setor domina -> nomeia pela mistura (top-2 setores), nao por um so (enganoso).
+    pts = (
+        [_pt(1, setor="healthtech"), _pt(2, setor="healthtech")]
+        + [_pt(3, setor="fintech"), _pt(4, setor="fintech")]
+        + [_pt(5, setor="retail")]
+    )
+    label = cluster_cohort(pts, k=1).clusters[0].label
+    assert " · " in label
+    assert "healthtech" in label and "fintech" in label  # os 2 mais comuns (2 cada)
+
+
 def test_normalize_dedup_by_name() -> None:
     pts = [_pt(1, nome="Acme"), _pt(2, nome=" acme "), _pt(3, nome="Beta", setor="  fintech ")]
     out = normalize_cohort(pts)

@@ -21,6 +21,8 @@ rede/GPU; cuDF/cuML/nv-embedqa entram atrás de flag (`embeddings_use_nv` etc.).
 
 from __future__ import annotations
 
+from collections import Counter
+
 import numpy as np
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
@@ -35,6 +37,21 @@ _GRAD_CLASSE = "AI-native"
 _GRAD_WORKFLOW_DATA_MIN = 13  # média (data_moat + workflow_depth) ≳ metade da escala
 _GRAD_TECH_OPT_MAX = 10  # gap de inferência: Technical Optimization baixo
 
+# F6.6 — quanto da descrição entra no texto de perfil: o bastante p/ o "o que a empresa faz"
+# pesar no embedding, curto p/ uma empresa verbosa não dominar o cluster (hashing bag-of-words).
+_DESC_CHARS = 240
+# F6.7 — nome do cluster: usa o setor quando ele domina (≥60% dos membros); abaixo disso nomeia
+# pela mistura (top-2 setores) p/ não enganar num cluster heterogêneo (feedback 2026-06-15).
+_LABEL_DOMINANT_SHARE = 0.6
+
+
+def _short(text: str, limit: int) -> str:
+    """Trecho curto p/ o texto de perfil (F6.6): normaliza espaços e corta na palavra ≤ `limit`."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0] or text[:limit]
+
 
 class CohortPoint(BaseModel):
     """Uma startup da coorte como ponto de clustering (perfil + diagnóstico)."""
@@ -42,6 +59,7 @@ class CohortPoint(BaseModel):
     id: int
     nome: str
     setor: str | None = None
+    descricao: str | None = None
     classe: str | None = None
     aimi: int | None = None
     inception_priority: int | None = None
@@ -52,9 +70,18 @@ class CohortPoint(BaseModel):
     tecnologias: list[str] = Field(default_factory=list)
 
     def text(self) -> str:
-        """Texto de perfil que vai ao embedder (F6.6): setor + descrição-curta + stack."""
+        """Texto de perfil que vai ao embedder (F6.6): setor + descrição-curta + stack.
+
+        A descrição (o que a empresa faz) é o sinal mais semântico — sem ela o clustering agrupava
+        a *string do setor*, não o produto (feedback 2026-06-15). Entra encurtada (`_DESC_CHARS`)
+        p/ uma empresa verbosa não dominar o cluster no embedding bag-of-words da espinha verde.
+        """
         techs = ", ".join(self.tecnologias)
-        partes = [self.setor or "", f"tecnologias: {techs}" if techs else ""]
+        partes = [
+            self.setor or "",
+            _short(self.descricao or "", _DESC_CHARS),
+            f"tecnologias: {techs}" if techs else "",
+        ]
         return ". ".join(p for p in partes if p) or self.nome
 
 
@@ -182,6 +209,32 @@ def _dominant(values: list[str | None]) -> str | None:
     return max(counts, key=counts.get) if counts else None  # type: ignore[arg-type]
 
 
+def _cluster_label(members_pts: list[CohortPoint], classe_dom: str | None, cid: int) -> str:
+    """Nome do cluster (F6.7): setor dominante quando há um (≥60%); senão a mistura (top-2).
+
+    Antes nomeava sempre pelo setor mais comum — enganoso num cluster heterogêneo, ex.: 5 empresas
+    de setores diferentes saíam com o rótulo de uma só (feedback 2026-06-15). Agora só usa o setor
+    quando ele de fato domina (`_LABEL_DOMINANT_SHARE`); abaixo disso expõe os dois setores mais
+    frequentes. Sem setor em ninguém, cai p/ techs compartilhadas → classe → id. Empate de contagem
+    é desempatado por ordem alfabética (determinístico, p/ a UI e os testes).
+    """
+    setores = [p.setor for p in members_pts if p.setor]
+    if setores:
+        ranked = sorted(Counter(setores).items(), key=lambda kv: (-kv[1], kv[0]))
+        top, n = ranked[0]
+        if n / len(members_pts) >= _LABEL_DOMINANT_SHARE:
+            return top
+        return " · ".join(s for s, _ in ranked[:2])
+    techs = sorted(
+        Counter(t for p in members_pts for t in p.tecnologias).items(),
+        key=lambda kv: (-kv[1], kv[0]),
+    )
+    shared = [t for t, c in techs[:2] if c >= 2]
+    if shared:
+        return " · ".join(shared)
+    return classe_dom or f"cluster {cid}"
+
+
 def _build_cluster(cid: int, members_pts: list[CohortPoint], coords: np.ndarray) -> Cluster:
     """Monta um `Cluster` a partir dos pontos e suas coords 2D: agregados + prontidão (F6.7)."""
     aimis = [p.aimi for p in members_pts if p.aimi is not None]
@@ -203,8 +256,7 @@ def _build_cluster(cid: int, members_pts: list[CohortPoint], coords: np.ndarray)
     ]
     classe_dom = _dominant([p.classe for p in members_pts])
     share = sum(ready_flags) / len(members_pts) if members_pts else 0.0
-    setor_dom = _dominant([p.setor for p in members_pts])
-    label = setor_dom or classe_dom or f"cluster {cid}"
+    label = _cluster_label(members_pts, classe_dom, cid)
     return Cluster(
         id=cid,
         label=label,
@@ -276,6 +328,7 @@ def load_cohort_points(session: Session) -> list[CohortPoint]:
                 id=c.id,
                 nome=c.nome,
                 setor=c.setor,
+                descricao=c.descricao,
                 classe=score.classificacao.value if score else None,
                 aimi=score.total if score else None,
                 inception_priority=score.inception_priority if score else None,
