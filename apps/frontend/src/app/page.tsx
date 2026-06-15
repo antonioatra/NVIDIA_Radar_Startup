@@ -25,6 +25,12 @@ const TELAS = [
       "Pergunte em portugues sobre a coorte (classe, AIMI, tech NVIDIA) e receba as startups.",
   },
   {
+    id: "F6.7",
+    titulo: "Radar de coorte",
+    descricao:
+      "Visao de portfolio: o ecossistema agrupado por perfil e ranqueado por prontidao de graduacao.",
+  },
+  {
     id: "F5.5",
     titulo: "Diagnostico AIMI",
     descricao: "Detalhe da startup com o radar dos 4 pilares e evidencias com link a fonte.",
@@ -73,6 +79,12 @@ export default function Home() {
               className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
             >
               Descobrir por chat
+            </Link>
+            <Link
+              href="/coorte"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+            >
+              Radar de coorte
             </Link>
           </div>
           <p className="text-sm text-muted-foreground">

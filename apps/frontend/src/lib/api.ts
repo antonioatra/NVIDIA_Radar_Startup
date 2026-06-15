@@ -371,3 +371,51 @@ export async function pingAuth(): Promise<boolean> {
   }
   return true;
 }
+
+// Uma startup posicionada no radar de coorte (ClusterMember, packages/scoring/cohort_cluster.py —
+// F6.7): coords 2D (x/y da projecao) + diagnostico + flag de alvo de graduacao ★.
+export interface CohortClusterMember {
+  id: number;
+  nome: string;
+  setor: string | null;
+  classe: string | null;
+  aimi: number | null;
+  inception_priority: number | null;
+  x: number;
+  y: number;
+  graduation_ready: boolean;
+}
+
+// Um cluster do ecossistema (Cluster, F6.7): metricas agregadas + prontidao de graduacao + membros.
+export interface CohortCluster {
+  id: number;
+  label: string;
+  size: number;
+  mean_aimi: number;
+  mean_inception: number;
+  classe_dominante: string | null;
+  graduation_ready_share: number;
+  graduation_ready: boolean;
+  members: CohortClusterMember[];
+}
+
+// Radar de portfolio da coorte (CohortClustering, F6.5-F6.7): clusters ja ordenados por prontidao +
+// proveniencia (backend de clustering numpy/cuml e embedder hashing/nv). `method`/`embedder` deixam
+// honesto se rodou offline (default) ou com a stack NVIDIA (flags).
+export interface CohortClustering {
+  n_companies: number;
+  method: string;
+  embedder: string;
+  clusters: CohortCluster[];
+}
+
+// Carrega o radar de coorte (`GET /cohort/clusters`, F6.7). `k` opcional (nº de clusters; default
+// heuristico no backend). Clusters ja vem ordenados por prontidao de graduacao (share ★ + Inception).
+export async function getCohortClusters(k?: number): Promise<CohortClustering> {
+  const qs = k != null ? `?k=${k}` : "";
+  const res = await req(`${API_URL}/cohort/clusters${qs}`);
+  if (!res.ok) {
+    throw new Error(`Falha ao carregar o radar da coorte (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<CohortClustering>;
+}
