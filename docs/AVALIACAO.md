@@ -29,7 +29,7 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 
 | Entregável | Métrica | Meta §7 | Resultado | Veredito |
 |---|---|---|---|---|
-| Classificação (F7.2) | macro-F1 | ≥ 0,75 | **0,875** (Nemotron-Super, 24 fixtures) · 0,314 piso offline (n=32) | ✅ fixtures · live c/ reais pendente |
+| Classificação (F7.2) | macro-F1 | ≥ 0,75 | **0,875** (24 fixtures) · **0,720** (n=32 c/ reais) · 0,314 piso offline | ⚠️ ✅ fixtures · reais ↓ (AI-enabled n=6) |
 | AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,815** (24 fixtures) · 0,685 (n=32, c/ reais) | ⚠️ ✅ na prosa rica |
 | Recomendação (F7.2b) | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro F4.5) | ✅ |
 | Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,79** geral / **0,865** nos alvos · precision 0,37 | ✅ recall / ⚠️ precision |
@@ -50,14 +50,20 @@ majoritária mascarar as raras) + matriz de confusão. Com a curadoria (F7.1), o
 | Caminho | macro-F1 | accuracy | AI-native recall | n |
 |---|---|---|---|---|
 | Heurística offline (piso/CI) | 0,314 | 0,313 | 0,18 | 32 (c/ reais) |
-| **Nemotron-Super real (produção)** | **0,875** ✅ | 0,917 | 0,933 | 24 (fixtures) |
+| Nemotron-Super real — só fixtures | **0,875** ✅ | 0,917 | 0,933 | 24 |
+| **Nemotron-Super real — c/ as 8 reais** | **0,720** | 0,844 | 0,955 | 32 |
 
-**Leitura:** o **caminho de produção bate a meta** (0,875 ≥ 0,75) — medido ao vivo em 2026-06-11 sobre
-as 24 fixtures. O piso offline caiu 0,38 → **0,314** ao incluir as 8 reais: a heurística determinística
-exige Workflow Depth alto e a descrição-de-uma-linha das reais sub-prediz essa magnitude (o Super, com
-reasoning, lê o *papel* da IA e recupera AI-native — recall 0,18 → 0,933 nas fixtures). ⏳ **Pendente:**
-re-rodar o caminho live (`--llm`) sobre o conjunto n=32 para fixar o macro-F1 headline **com** as reais
-(comando em §Reprodução; usa créditos build.nvidia.com).
+Por classe no conjunto **n=32** (Nemotron-Super, medido ao vivo 2026-06-15): **AI-native P=0,91 R=0,96
+F1=0,93** · AI-enabled P=1,00 R=0,33 F1=0,50 · non-AI P=0,57 R=1,00 F1=0,73.
+
+**Leitura honesta:** a classe que importa para achar alvos de graduação — **AI-native — segue forte
+(recall 0,96)**. Mas o macro-F1 caiu **0,875 → 0,720** (abaixo do gate 0,75) ao incluir as reais,
+puxado pelo **AI-enabled (recall 0,33, n=6)**: com só 6 exemplos cada erro custa caro no macro, e em
+empresa real de descrição curta o Super tende a ler IA-periférica como AI-native. É o **custo honesto
+de sair do sintético**: accuracy alta (0,84), AI-native robusto, e o gap real é **separar AI-enabled de
+AI-native** com pouco sinal — não um colapso do classificador. O piso offline (0,314) é só o substituto
+determinístico do CI (rebaixa AI-native porque a heurística exige Workflow Depth alto que a prosa-só
+sub-prediz). Medido ao vivo em 2026-06-15 (24 fixtures: 2026-06-11).
 
 ### 2. Índice AIMI — correlação com os rótulos (F6.4)
 
@@ -92,6 +98,10 @@ claras (NIM/TensorRT/Triton) que a regra dispara. O recall geral segue puxado pe
 rótulo espera `AI Enterprise`, mas a regra só dispara isso em gap de P4, e madura tem P4 forte). A
 **precision 0,37 (super-recomendação)** — a regra dispara em todo gap (~5 techs/empresa; rótulos esperam
 0–4) — melhorou (era 0,23) mas segue como limitação conhecida, concentrada nas regiões de AIMI baixo.
+**Capar a regra não é o conserto** (os 7 casos do §5.5/F4.8 — gate 7/7 — *exigem* o leque, ex.: `saude`
+requer 5 techs incl. MONAI/AI Enterprise de prioridade média): a precision baixa é majoritariamente
+**rótulo esparso**, não regra errada — onde o rótulo é completo (§5.5) ela é ~1,0. Lever honesto na
+Limitação nº2.
 
 ### 4. RAG — RAGAS sobre as perguntas NVIDIA (F7.3)
 
@@ -154,9 +164,15 @@ key estiver disponível (`--cohere`).
    **não** rotulagem independente do zero. Para as 3 entradas onde o rótulo humano **não** mudou o score
    do modelo (BotCity, Aquarela, Take Blip), a correlação AIMI dessas linhas conserva resíduo circular. A
    9ª real (Semantix) segue fora do headline (região pendente). Ampliar a coorte curada é o próximo ganho.
-2. **Recomendação: precision 0,23 (super-recomendação) e maduro recall 0,17** — mismatch regra↔rótulo
-   a reconciliar na **revisão de rótulos da F7.1** (parte é rótulo a revisar, ex.: RAPIDS pedido p/
-   radiologia onde a regra prescreve Clara/MONAI).
+2. **Recomendação: precision 0,37 (super-recomendação), maduro recall 0,27** — investigado a fundo:
+   **capar/podar a regra não é opção** porque o gate de aderência ao §5.5 (F4.8, hoje 7/7) *exige* o
+   leque de techs — o caso `saude` requer 5 (incl. MONAI/AI Enterprise de prioridade média), `governanca`
+   exige NeMo Evaluator, etc.; qualquer corte por prioridade derruba techs obrigatórias. Logo a precision
+   baixa é, em sua maior parte, **rótulo esparso** nas regiões de AIMI baixo (não regra errada): onde o
+   rótulo é completo — os 7 casos do §5.5 — a precision é ~1,0. **Lever honesto:** reconciliar os
+   `expected_nvidia_techs` do eval com **julgamento humano independente** (coerente com o §5.5), não capar
+   a regra nem alinhar rótulo à saída da regra (isso zeraria a informatividade da métrica). Pendente —
+   próxima curadoria do eval de recomendação.
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
 4. **Coluna Cohere do comparativo pendente** da trial key + SDK.

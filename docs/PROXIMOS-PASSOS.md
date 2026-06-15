@@ -1,10 +1,11 @@
 # Próximos passos para fechar o TAPI
 
 > **Estado em 2026-06-15.** O núcleo testável dos 7 entregáveis está feito (suíte ~747 passed,
-> 4 skipped; métricas batendo as metas do §7 — ver [AVALIACAO.md](AVALIACAO.md)). Tudo que resta
-> abaixo é **stretch gated por recurso** (volume de coorte, GPU, dependência ou chave externa),
-> **não** código de base faltando. Este documento detalha cada frente: estado real no código, o
-> que falta, os passos concretos, o bloqueio (se houver) e o esforço.
+> 4 skipped). As metas do §7 batem nas **24 fixtures**; com as **8 reais curadas** (F7.1) no headline,
+> classificação (0,72) e AIMI (0,685) ficam **logo abaixo** do gate e a recomendação melhora — o custo
+> honesto de sair do sintético, detalhado em [AVALIACAO.md](AVALIACAO.md). Tudo que resta abaixo é
+> **stretch gated por recurso** (volume de coorte, GPU, dependência ou chave externa), **não** código de
+> base faltando. Este documento detalha cada frente: estado real, o que falta, os passos e o bloqueio.
 
 ## Visão geral
 
@@ -12,13 +13,15 @@
 |---|---|---|---|---|---|
 | A | **Validar a stack + chat ao vivo** | UI pronta, dados via seed | Nenhum (só rodar) | ~1–2 h | **Alta** |
 | B | **Chat "premium" (F3.10/F5.12)** | MVP determinístico entregue | Volume de coorte | ~2–3 dias | Média |
-| C | **Clustering de coorte (F6.5–F6.7)** | Não iniciado | Coorte em volume | ~2–3 dias | Média |
 | D | **GPU Graduation Engine (F6.8–F6.12)** | Stub + contrato prontos | GPU local (**não pago**, ver §D) | ~3–6 dias | Média/Baixa |
-| E | **Eval set real → ground-truth (F7.1)** | ✅ Curado (8/9 → `human`, 2026-06-15) | — (entregue) | — | **Feito** |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
 
-**Caminho mínimo para "fechar e demonstrar":** A → E → (B *ou* D, escolher um para mostrar
-profundidade). **Caminho completo:** A → B → C → D → E → F.
+> **Já entregues (fora do escopo de próximos passos):** **C** — Clustering de coorte (F6.5–F6.7),
+> em CPU (commits `cbf7576`/`efe515e`; GPU é stretch opcional, dobrado em §D) · **E** — Eval real →
+> ground-truth (F7.1), 8/9 reais curadas a `human` no headline (commit `13cdc48`; impacto em AVALIACAO.md).
+
+**Caminho mínimo para "fechar e demonstrar":** A → (B *ou* D, escolher um para mostrar profundidade).
+**Caminho completo:** A → B → D → F.
 
 ---
 
@@ -79,28 +82,6 @@ o premium se houver tempo e a coorte crescer. Não marcar o DoD de citações en
 
 ---
 
-## C. Clustering de coorte (F6.5–F6.7)  *(entregue em CPU — 2026-06-14)*
-
-**Estado.** **Feito em CPU/offline** (commits `cbf7576`/`efe515e`): `packages/scoring/cohort_cluster.py`
-(load → normalize/dedup → embed via `get_embedder` → KMeans + PCA 2D em numpy → clusters ranqueados
-por prontidão ★), endpoint `GET /cohort/clusters`, UI `/coorte` (scatter SVG + lista ranqueada), 10
-testes. **Só falta a aceleração GPU** (cuDF/cuML/UMAP), que é o stretch explícito do DoD.
-
-**O que falta (a fatia GPU, opcional):**
-- **F6.5** cuDF: normalização/dedup na GPU (hoje é numpy/python — idêntico em ~dezenas de empresas).
-- **F6.6** cuML (KMeans) + UMAP no lugar do numpy (KMeans+PCA) — wire atrás de flag quando houver RAPIDS.
-- **F6.7** ✅ radar/ranking entregue (CPU).
-
-**Passos.**
-1. `packages/scoring/cohort_cluster.py`: carregar a coorte, embeddar perfis, KMeans + UMAP.
-2. **Fallback travado:** se cuML/UMAP der problema, cair para scikit-learn em CPU (o radar continua, anota-se a limitação).
-3. Expor um endpoint `GET /cohort/clusters` + uma aba de radar visual na UI (scatter 2D por cluster, cor por classe).
-
-**Bloqueio.** Coorte em volume (mesma dependência da frente A/B). **Esforço.** ~2–3 dias
-(MVP cuDF dedup + ranking simples; clustering visual é o stretch dentro do stretch).
-
----
-
 ## D. GPU Graduation Engine (F6.8–F6.12) — a maior fatia, **e não precisa ser paga**
 
 ### "É pago?" — esclarecendo o bloqueio
@@ -114,7 +95,7 @@ build.nvidia.com (Nemotron) já roda em créditos grátis. Resumo:
 | Componente | Custo | Necessário para fechar? |
 |---|---|---|
 | TensorRT-LLM / Triton / vLLM (serving otimizado) | **Grátis (OSS)** | Sim (ou fallback vLLM) |
-| RAPIDS / cuDF / cuML | **Grátis (OSS)** | Frente C |
+| RAPIDS / cuDF / cuML | **Grátis (OSS)** | Clustering de coorte (stretch GPU; CPU já entregue) |
 | NIM self-hosted (NGC dev tier) | Grátis para dev | Opcional (vLLM substitui) |
 | NVIDIA AI Enterprise (NIM produção) | **Pago** | **Não** |
 
@@ -163,28 +144,6 @@ rastreável, com a limitação anotada.
 
 ---
 
-## E. Eval set real → ground-truth (F7.1)  *(entregue — 2026-06-15)*
-
-**Estado.** ✅ **Feito.** As 9 entradas reais de `data/eval/cohort_real.yaml` foram **revisadas contra
-a evidência pública** (cada `evidence_urls` + busca) e **8 promovidas a `label_source: human`** (entram
-no headline). A Semantix segue `model` (a evidência de LLM próprio "Lloro" mostra que `wrapper` está
-subavaliado, mas a região — provável `maduro` — ficou pendente). Correções: **Unico** `non-AI/fora_escopo`
-→ `AI-native/maduro` (biometria facial é IA no núcleo); **Hand Talk / Gupy / Idwall** `wrapper` →
-`alvo_graduacao` (data moat estabelecido); **Kunumi** re-pontuada (era `6/6/6/6`); **BotCity / Aquarela /
-Take Blip** confirmadas sem alteração. Ver `data/eval/README.md`.
-
-**Resultado (impacto honesto no headline, n=24 → 32).** O headline deixou de ser 100% sintético — o gap
-nº1 de credibilidade. Com empresas reais (descrição de 1 linha), a heurística **offline** pontua pior:
-**AIMI Spearman 0,815 → 0,685** (P4 starva sem funding/clientes na prosa) e **classificação piso offline
-0,38 → 0,314**. Em compensação a **recomendação melhorou**: alvo_graduacao recall **0,78 → 0,865** e recall
-geral **0,69 → 0,794**. O número-bandeira (classificação **ao vivo**, Nemotron-Super) foi re-rodado com as
-reais — ver `AVALIACAO.md`.
-
-**O que falta (opcional).** Decidir a região da Semantix (promover a `maduro`?) e ampliar a curadoria à
-medida que a coorte cresce.
-
----
-
 ## F. Recursos externos (degradam limpo — baixa prioridade)
 
 - **F7.4 — Cohere Reranker.** O comparativo `packages/eval/reranker_comparison.py` já liga o
@@ -201,16 +160,15 @@ medida que a coorte cresce.
 ## Sequência recomendada
 
 1. **A** (validar ao vivo) — destrava a demo, baratíssimo, gera screenshots.
-2. ~~**E** (curar o eval)~~ — ✅ **feito em 2026-06-15** (8/9 reais → `human` no headline).
-3. Escolher **uma** frente de profundidade para mostrar no case:
+2. Escolher **uma** frente de profundidade para mostrar no case:
    - **D** (GPU/ROI) se quiser o diferencial "stack viva + ROI medido" — **não é pago**, é montar na GPU.
    - **B** (chat premium) se quiser a narrativa "descoberta conversacional com citações".
-4. **C** e **F** por último, se sobrar tempo.
+3. **F** por último, se sobrar tempo.
 
 ## Checklist de fechamento (DoD consolidado)
 
+- [x] Eval com 8/9 entradas reais curadas (`label_source=human`) no headline ✅ 2026-06-15 (ver Já entregues)
+- [x] `AVALIACAO.md` atualizado com os números finais (incl. classificação live n=32 = 0,720) ✅ 2026-06-15
 - [ ] Stack sobe com `run.ps1`, coorte seedada, `/radar` + `/descoberta` + detalhe AIMI navegáveis (A)
-- [x] Eval com 8/9 entradas reais curadas (`label_source=human`) no headline (E) ✅ 2026-06-15
 - [ ] **Uma** das duas frentes de profundidade entregue: ROI no briefing (D) **ou** chat com citações (B)
-- [ ] `AVALIACAO.md` atualizado com os números finais
 - [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (F)
