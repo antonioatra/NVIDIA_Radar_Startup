@@ -103,8 +103,13 @@ sessão); o que ainda trava a coerência total e o ★ é gated por recurso ((b)
   `company.descricao` (`load_cohort_points`) e `text()` a inclui (encurtada por `_DESC_CHARS` p/ não
   dominar o bag-of-words). Clusteriza-se o que a empresa **faz**, não a *string do setor* — o maior
   dreno de coerência. Testes: `test_text_includes_descricao`.
-- **(b) Embeddings hashing-offline** (default da espinha verde) não têm semântica. **Fix:** ligar
-  `nv-embedqa` (`embeddings_use_nv`) no caminho do radar — modelo já na arquitetura (§5.2). *(gated: rede)*
+- **(b) Embeddings hashing-offline** (default da espinha verde) não têm semântica — ✅ **resolvido
+  por flag.** Ligar `nv-embedqa` (`embeddings_use_nv`) no radar **basta**: o clustering é numpy em
+  memória, **não** toca o Qdrant, então **não há** o conflito de dimensão (256×2048) que aparece só
+  no RAG do recommender (`index_use_qdrant`, esse sim gated). Validado sobre o `cohort.db` real (10
+  empresas): com nv-embedqa o par de identidade (Unico+Idwall) e o de dados (Cortex+Aquarela) se
+  separam; com hashing grudavam por token ("Tecnologia de…"). **+ k default ajustado** (`_suggested_k`:
+  `n//3` → ~`n/2`, teto 8) — `k=3` era grosseiro p/ 10 domínios distintos. Teste: `test_suggested_k_*`.
 - **(c) "Prontas ★ = 0%" + AIMI baixo (31–43)** — mesma causa raiz do eval (Spearman 0,815 → 0,685):
   o AIMI de produção é **gated por evidência** (RUBRICA §0: sub-score > 6 exige citação) e o scrape
   por-empresa é raso → o Nemotron (corretamente) não sobe P1/P4 sem fonte. **Fix honesto:** coletar
@@ -115,9 +120,9 @@ sessão); o que ainda trava a coerência total e o ★ é gated por recurso ((b)
   pela **mistura** (top-2 setores, ex.: `fintech · healthtech`) em vez de mentir com um só. Empate
   desempatado por ordem alfabética (determinístico). Testes: `test_cluster_label_{dominant_sector,heterogeneous}`.
 
-**Sequência:** ~~(a)+(d) [código grátis, validável offline]~~ ✅ → (b) [flag + rede no clustering] → (c)
-[re-run da coorte com mais fontes, **créditos**]. **Bloqueio restante:** (b) rede no clustering, (c)
-coorte re-raspada. **Esforço restante.** ~1 dia (depende dos créditos da coorte).
+**Sequência:** ~~(a)+(d) [código grátis]~~ ✅ → ~~(b) [flag `embeddings_use_nv` + k default]~~ ✅ → (c)
+[re-run da coorte com mais fontes, **créditos**]. **Bloqueio restante:** só (c) — mais evidência por
+empresa p/ calibrar o ★ (AIMI gated por evidência, RUBRICA §0). **Esforço restante.** ~créditos da coorte.
 
 ---
 

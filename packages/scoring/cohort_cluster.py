@@ -131,10 +131,16 @@ def is_graduation_ready(p: CohortPoint) -> bool:
 
 
 def _suggested_k(n: int) -> int:
-    """k default proporcional ao tamanho da coorte, limitado p/ não estourar com poucos pontos."""
+    """k default ~ n/2 (blocos pequenos e coerentes p/ o radar), com teto p/ não fragmentar.
+
+    O `n // 3` anterior era grosseiro: 10 startups de domínios distintos caíam em 3 baldes mistos
+    (feedback 2026-06-15). ~n/2 dá blocos de ~2 — o par de identidade (Unico+Idwall) e o de dados
+    se separam com embeddings reais (C-b) — e o teto evita que uma coorte grande vire dezenas de
+    micro-clusters. Com hashing o ganho é limitado (sem semântica); brilha com `embeddings_use_nv`.
+    """
     if n < 4:
         return 1
-    return max(2, min(6, n // 3))
+    return max(2, min(8, round(n / 2)))
 
 
 def _kmeans(x: np.ndarray, k: int, *, seed: int = 0, iters: int = 100) -> np.ndarray:

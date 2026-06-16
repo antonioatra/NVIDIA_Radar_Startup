@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from packages.scoring.cohort_cluster import (
     CohortPoint,
+    _suggested_k,
     cluster_cohort,
     is_graduation_ready,
     normalize_cohort,
@@ -37,6 +38,13 @@ def test_text_includes_descricao() -> None:
     # Descricao longa e encurtada p/ nao dominar o embedding (setor + <=_DESC_CHARS + stack).
     longa = _pt(2, descricao="palavra " * 100)
     assert len(longa.text()) < 400
+
+
+def test_suggested_k_granular_for_small_cohorts() -> None:
+    # n//3 (antes) era grosseiro p/ coorte pequena/diversa; ~n/2 da blocos coerentes, com teto.
+    assert _suggested_k(3) == 1  # poucos pontos -> 1 cluster
+    assert _suggested_k(10) == 5  # ~n/2: blocos de ~2 (par de dominio separa)
+    assert _suggested_k(40) == 8  # teto p/ nao fragmentar coorte grande
 
 
 def test_cluster_label_dominant_sector() -> None:
