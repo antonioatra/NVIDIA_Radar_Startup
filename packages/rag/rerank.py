@@ -277,6 +277,13 @@ class NeMoReranker:
         )
 
 
+#: Retry do 429 (rate limit) do Cohere — a **trial key** é limitada a 10 req/min, e o comparativo
+#: F7.4 faz ~2 chamadas por pergunta. Em vez de crashar (o 429 não é `RerankerUnavailable`),
+#: espera-se a janela deslizante rolar e re-tenta; esgotado, degrada limpo p/ o `LexicalReranker`.
+_COHERE_RL_RETRIES = 12
+_COHERE_RL_WAIT_S = 7.0
+
+
 class CohereReranker:
     """Backend **alternativo** (comparativo F7.4): Cohere Rerank — cross-encoder gerenciado.
 
@@ -322,16 +329,39 @@ class CohereReranker:
             return ()
         client = self._ensure_client()
         documents = [_rerank_surface(c) for c in chunks]
-        result = client.rerank(
-            model=self.model,
-            query=query,
-            documents=documents,
-            top_n=len(chunks) if top_n is None else top_n,
+        result = self._rerank_with_retry(
+            client, query, documents, top_n=len(chunks) if top_n is None else top_n
         )
         # `index` mapeia o resultado de volta ao RetrievedChunk; `relevance_score` ∈ [0,1] ordena.
         return _order(
             [(chunks[r.index], float(r.relevance_score)) for r in result.results], top_n
         )
+
+    def _rerank_with_retry(self, client, query: str, documents: list[str], *, top_n: int):  # noqa: ANN202
+        """Chama o Cohere tolerando o **429** (rate limit da trial, 10 req/min): espera e re-tenta.
+
+        Sem isto o 429 (não é `RerankerUnavailable`) crashava o comparativo F7.4 inteiro. Espera a
+        janela rolar (`_COHERE_RL_WAIT_S`) e re-tenta até `_COHERE_RL_RETRIES`; persistindo, degrada
+        limpo (`RerankerUnavailable`) p/ o pipeline cair no `LexicalReranker` — nunca número falso.
+        """
+        import time
+
+        from cohere.errors import TooManyRequestsError
+
+        for attempt in range(_COHERE_RL_RETRIES):
+            try:
+                return client.rerank(
+                    model=self.model, query=query, documents=documents, top_n=top_n
+                )
+            except TooManyRequestsError as exc:
+                if attempt == _COHERE_RL_RETRIES - 1:
+                    raise RerankerUnavailable(
+                        f"cohere-rerank: rate limit da trial key persistente após "
+                        f"{_COHERE_RL_RETRIES} tentativas (10 req/min); offline o RAG usa o "
+                        "LexicalReranker. Use uma production key p/ medir sem espera."
+                    ) from exc
+                time.sleep(_COHERE_RL_WAIT_S)
+        raise AssertionError("unreachable")  # o loop sempre retorna ou levanta
 
 
 def get_reranker(*, prefer_nv: bool | None = None) -> Reranker:

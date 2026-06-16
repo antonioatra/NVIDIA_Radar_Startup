@@ -172,3 +172,52 @@ def test_cohere_reranker_maps_results_and_orders() -> None:
     assert reranked[0].retrieved is retrieved[n - 1]  # idx n-1 tinha o maior score
     # respeita top_n (corte no servidor + no _order).
     assert len(reranker.rerank("Triton TensorRT NIM", retrieved, top_n=2)) == 2
+
+
+class _RateLimitedThenOkClient:
+    """Fake do cohere: levanta 429 (TooManyRequestsError) nas primeiras `fails` chamadas e depois
+    responde — exercita o retry/backoff do `CohereReranker` sob o teto da trial key (10 req/min)."""
+
+    def __init__(self, order: list[tuple[int, float]], *, fails: int) -> None:
+        self._order = order
+        self._fails = fails
+        self.calls = 0
+
+    def rerank(self, *, model: str, query: str, documents: list[str], top_n: int):  # noqa: ANN201
+        from cohere.errors import TooManyRequestsError
+
+        self.calls += 1
+        if self.calls <= self._fails:
+            raise TooManyRequestsError(body="rate limit (trial: 10 req/min)")
+        ranked = [_FakeCohereResult(i, s) for i, s in self._order][:top_n]
+        return type("Resp", (), {"results": ranked})()
+
+
+def test_cohere_reranker_retries_on_rate_limit(monkeypatch) -> None:
+    # F7.4: a trial key é 10 req/min; o 429 não pode crashar (não é RerankerUnavailable) — espera e
+    # re-tenta até responder. time.sleep mockado p/ o teste não dormir.
+    monkeypatch.setattr("time.sleep", lambda _s: None)
+    retrieved = build_retriever().search("Triton TensorRT NIM", limit=3)
+    n = len(retrieved)
+    reranker = CohereReranker(api_key="x")
+    reranker._client = _RateLimitedThenOkClient([(i, (i + 1) / n) for i in range(n)], fails=2)
+    reranked = reranker.rerank("Triton TensorRT NIM", retrieved)
+    assert reranker._client.calls == 3  # 2× 429 + 1 sucesso
+    assert {r.chunk_id for r in reranked} == {r.chunk_id for r in retrieved}  # nada inventado
+
+
+def test_cohere_reranker_degrades_when_rate_limit_persists(monkeypatch) -> None:
+    # 429 que não cede: esgotadas as tentativas, degrada limpo (RerankerUnavailable) p/ o lexical —
+    # nunca crasha o comparativo nem inventa número. (o submódulo vem por `sys.modules`: o pacote
+    # exporta a *função* `rerank`, que sombreia o atributo num `import packages.rag.rerank as rr`.)
+    import sys
+
+    rr = sys.modules["packages.rag.rerank"]
+    monkeypatch.setattr("time.sleep", lambda _s: None)
+    monkeypatch.setattr(rr, "_COHERE_RL_RETRIES", 3)
+    retrieved = build_retriever().search("Triton TensorRT NIM", limit=3)
+    reranker = CohereReranker(api_key="x")
+    reranker._client = _RateLimitedThenOkClient([(0, 1.0)], fails=99)  # nunca responde
+    with pytest.raises(RerankerUnavailable):
+        reranker.rerank("Triton TensorRT NIM", retrieved)
+    assert reranker._client.calls == 3  # tentou _COHERE_RL_RETRIES vezes, depois desistiu

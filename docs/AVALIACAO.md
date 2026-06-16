@@ -36,7 +36,7 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 | RAG (F7.3) | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
 | RAG (F7.3 / F7.4) | context recall | ≥ 0,70 | 0,69 (proxy léxico) → **0,74** (reranker NeMo real) | ✅ com NeMo |
 | Briefing (F7.2c) | faithfulness do texto final | ≥ 0,80 | **0,870** (espinha; min 0,786) | ✅ |
-| Reranker (F7.4) | qualidade (NeMo × Cohere) | decisão com dados | NeMo **0,823** > léxico 0,802; Cohere pendente | ⚠️ Cohere pendente |
+| Reranker (F7.4) | qualidade (NeMo × Cohere) | decisão com dados | NeMo **0,823** > Cohere **0,816** > léxico 0,802 (ao vivo) | ✅ |
 
 ## Detalhe por entregável
 
@@ -147,13 +147,18 @@ Três dimensões, mesmo conjunto (n=7), mesmo scorer (comparação justa):
 |---|---|---|---|---|
 | lexical-offline (piso) | 0,802 | 0,69 | 0,21 ms/q | $0 |
 | **nv-rerankqa (NeMo, ao vivo)** | **0,823** | **0,74** | ~1002 ms/q | $0 (catálogo) |
-| cohere-rerank | — | — | — | indisponível (sem trial key + SDK) |
+| cohere-rerank (ao vivo, 2026-06-16) | 0,816 | 0,69 | ~388 ms/q | $2,00 |
 
-**Decisão (parcial):** o **NeMo real supera o piso léxico** em qualidade e cruza o gate de recall
-(0,74 ≥ 0,70); o custo é **latência** (~1 s/consulta, ida-volta ao NIM do catálogo). O backend Cohere
-está **ligado e testado** (`CohereReranker`, modelo multilíngue), mas a coluna fica **pendente da
-Cohere trial key + SDK `cohere`** — sem número falso. A decisão NeMo×Cohere final entra aqui quando a
-key estiver disponível (`--cohere`).
+> **Comparação justa:** as três linhas reranqueiam o **mesmo conjunto recuperado** (recuperação
+> offline compartilhada — só o **reranker** varia); o piso léxico idêntico (0,802 / cr 0,69) nas duas
+> medições confirma o mesmo substrato. A trial key Cohere é 10 req/min, então o run se auto-regula no
+> 429 (retry com backoff; ver `CohereReranker`). O número é o lado Cohere medido com `--cohere`.
+
+**Decisão (F7.5) — com dados:** **NeMo 0,823 > Cohere 0,816 > léxico 0,802.** O **NeMo vence em
+qualidade _e_ é grátis** (catálogo build.nvidia.com); seu custo é **latência** (~1 s/consulta). O
+Cohere é **~2,6× mais rápido** (~388 ms) mas **pago** ($2/1k) e levemente abaixo na qualidade — não
+compensa trocar a escolha do build. A escolha do **NeMo** fica justificada **com dados**, não por
+omissão. *(Falta só o head-to-head com a recuperação nv-embed ao vivo — gated pelo endpoint.)*
 
 ## Limitações honestas (o que ainda não é real / não bate a meta)
 
@@ -175,7 +180,9 @@ key estiver disponível (`--cohere`).
    próxima curadoria do eval de recomendação.
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
-4. **Coluna Cohere do comparativo pendente** da trial key + SDK.
+4. ~~**Coluna Cohere do comparativo pendente** da trial key + SDK.~~ ✅ **medida (2026-06-16)** —
+   Cohere 0,816 (vs NeMo 0,823, léxico 0,802); resta só o head-to-head com a recuperação nv-embed ao
+   vivo (gated pelo endpoint). Ver §6.
 5. **ROI/GPU (F6.8–F6.12) não construído como medição ao vivo** — depende de serving GPU; o briefing sai
    sem linha de ROI por padrão (engine atrás de flag — ver PROXIMOS-PASSOS §D). A **camada de coorte
    (F6.5–F6.7) está entregue em CPU** (clustering + radar), mas a **qualidade do radar é limitada para
