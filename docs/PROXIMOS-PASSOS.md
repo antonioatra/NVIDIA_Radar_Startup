@@ -138,9 +138,11 @@ empresa p/ calibrar o ★ (AIMI gated por evidência, RUBRICA §0). **Esforço r
   ligar `INDEX_USE_QDRANT=true` e ter o **recommender RAG ao vivo com citação** (hoje as recs vêm
   **persistidas** do build, o que basta p/ a demo). Sem isso, ligar Qdrant + nv-embed dá
   `Vector dimension error 256≠2048`. *(gated: re-index, ~30 min de máquina.)*
-- **Cosmético (1 linha):** `_dominant` desempata classe por ordem de inserção — num cluster 1×1
-  (ex.: Unico non-AI + Idwall AI-native) o rótulo de `classe_dominante` pode sair "non-AI". Preferir a
-  classe **mais madura** (AI-native > AI-enabled > non-AI) no empate fica mais fiel ao DSS. *(opcional.)*
+- ~~**Cosmético (1 linha):** `_dominant` desempata classe por ordem de inserção~~ ✅ **feito
+  (2026-06-16)** — num cluster 1×1 (ex.: Unico non-AI + Idwall AI-native) o `classe_dominante`
+  desempata agora pela classe **mais madura** (AI-native > AI-enabled > non-AI, `_CLASSE_MATURITY`),
+  mais fiel ao DSS (e não suprime a prontidão ★); a frequência ainda manda quando há maioria. Testes:
+  `test_classe_dominante_{breaks_tie_by_maturity,frequency_beats_maturity}`.
 
 ---
 

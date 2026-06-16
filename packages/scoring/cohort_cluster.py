@@ -206,13 +206,25 @@ def normalize_cohort(points: list[CohortPoint]) -> list[CohortPoint]:
     return out
 
 
+#: Ordem de maturidade das classes (§5.1) p/ desempatar a classe dominante: AI-native > AI-enabled
+#: > non-AI. Classe fora do enum cai em -1 (perde o empate p/ qualquer classe conhecida).
+_CLASSE_MATURITY: dict[str, int] = {"AI-native": 2, "AI-enabled": 1, "non-AI": 0}
+
+
 def _dominant(values: list[str | None]) -> str | None:
-    """Valor mais frequente não-nulo (classe dominante do cluster); `None` se todos nulos."""
+    """Classe dominante do cluster: a mais frequente; no empate, a **mais madura** (§5.1).
+
+    `None` se todos nulos. Antes o empate caía na ordem de inserção — num cluster 1×1 (ex.: non-AI +
+    AI-native) o rótulo de classe podia sair "non-AI", menos fiel ao DSS (e suprimia a prontidão de
+    graduação ★). Agora desempata por maturidade (AI-native > AI-enabled > non-AI), determinístico.
+    """
     counts: dict[str, int] = {}
     for v in values:
         if v:
             counts[v] = counts.get(v, 0) + 1
-    return max(counts, key=counts.get) if counts else None  # type: ignore[arg-type]
+    if not counts:
+        return None
+    return max(counts, key=lambda c: (counts[c], _CLASSE_MATURITY.get(c, -1)))
 
 
 def _cluster_label(members_pts: list[CohortPoint], classe_dom: str | None, cid: int) -> str:

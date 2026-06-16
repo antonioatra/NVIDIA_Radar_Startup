@@ -65,6 +65,19 @@ def test_cluster_label_heterogeneous() -> None:
     assert "healthtech" in label and "fintech" in label  # os 2 mais comuns (2 cada)
 
 
+def test_classe_dominante_breaks_tie_by_maturity() -> None:
+    # Empate de classe num cluster 1x1: prefere a mais madura (AI-native > AI-enabled > non-AI), nao
+    # a ordem de insercao — mais fiel ao DSS (e nao suprime a prontidao de graduacao ★).
+    pts = [_pt(1, classe="non-AI"), _pt(2, classe="AI-native")]  # non-AI inserido primeiro
+    assert cluster_cohort(pts, k=1).clusters[0].classe_dominante == "AI-native"
+
+
+def test_classe_dominante_frequency_beats_maturity() -> None:
+    # A frequencia ainda manda: classe menos madura porem majoritaria vence (maturidade so empata).
+    pts = [_pt(1, classe="non-AI"), _pt(2, classe="non-AI"), _pt(3, classe="AI-native")]
+    assert cluster_cohort(pts, k=1).clusters[0].classe_dominante == "non-AI"
+
+
 def test_normalize_dedup_by_name() -> None:
     pts = [_pt(1, nome="Acme"), _pt(2, nome=" acme "), _pt(3, nome="Beta", setor="  fintech ")]
     out = normalize_cohort(pts)
