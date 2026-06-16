@@ -24,6 +24,7 @@ from packages.eval.ragas import (
     RagasUnavailable,
     RagQuestion,
     RagSample,
+    _ensure_ragas_importable,
     answer_relevancy,
     build_sample,
     compose_extractive_answer,
@@ -152,8 +153,9 @@ def test_get_evaluator_toggle() -> None:
 
 
 def test_ragas_judge_degrades_clean_offline() -> None:
-    # Hook de rede F3.9: sem a lib ragas/credencial (ou sem rede), o juiz levanta RagasUnavailable
-    # e a avaliacao cai no LexicalRagasMetrics — nunca trava o CI (run LLM-judged e a F7.3).
+    # Hook de rede F3.9: sem credencial o juiz levanta RagasUnavailable (sem tocar a rede) e a
+    # avaliacao cai no LexicalRagasMetrics — nunca trava o CI (run LLM-judged e a F7.3). api_key=""
+    # forca o ramo "sem credencial" deterministico (com o shim F7.3 a lib ragas agora importa).
     sample = RagSample(
         question_id="x",
         question="O que e o NIM?",
@@ -164,7 +166,18 @@ def test_ragas_judge_degrades_clean_offline() -> None:
         retrieved_techs=(),
     )
     with pytest.raises(RagasUnavailable):
-        RagasJudge(api_key="dummy").score(sample)
+        RagasJudge(api_key="").score(sample)
+
+
+def test_ensure_ragas_importable_unblocks_lib() -> None:
+    # F7.3 — o shim destrava o import do ragas 0.4.3 sob langchain-community 0.4.x (ChatVertexAI
+    # removido). Idempotente; so registra o stub se o caminho real faltar. O juiz ao vivo segue
+    # gated por endpoint, mas a dep deixa de quebrar o import (degrada por credencial/rede, nao mais
+    # por ImportError). pytest.importorskip evita falso negativo se a lib nao estiver instalada.
+    pytest.importorskip("ragas")
+    _ensure_ragas_importable()
+    from ragas import EvaluationDataset, evaluate  # noqa: F401 — so prova que o import passa
+    from ragas.metrics import Faithfulness  # noqa: F401
 
 
 # --- harness ponta a ponta sobre a KB real ------------------------------------

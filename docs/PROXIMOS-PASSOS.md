@@ -222,10 +222,15 @@ rastreável, com a limitação anotada.
   `CohereReranker` (`packages/rag/rerank.py`), mas falta a **trial key** + o SDK para gerar o número
   Cohere. NeMo já foi medido ao vivo (0,823). **Passo:** obter trial key, `pip install cohere`,
   rodar `python -m packages.eval.reranker_comparison --cohere`. **Esforço.** ~1 h.
-- **F7.3 — Juiz LLM da RAGAS.** A lib `ragas` quebra no import (conflito `langchain-community`
-  removido — ver memória de ambiente). O proxy léxico roda; o juiz ao vivo está reservado e degrada
-  limpo. **Passo:** resolver o conflito de dependência num venv isolado **ou** documentar como
-  limitação conhecida. **Esforço.** ~1–2 h (ou aceitar a limitação).
+- **F7.3 — Juiz LLM da RAGAS.** ✅ **import destravado (2026-06-16).** A causa era o `ragas 0.4.3`
+  importar `langchain_community.chat_models.vertexai.ChatVertexAI`, caminho **removido** no
+  `langchain-community 0.4.x` (o `ChatVertexAI` migrou p/ `langchain-google-vertexai`). Como o `ragas`
+  só usa essa classe num `isinstance` e o juiz aqui é o **Nemotron** (nunca VertexAI), o
+  `_ensure_ragas_importable` (`packages/eval/ragas.py`) registra um **stub em `sys.modules`**
+  (idempotente; só age se o caminho real faltar) — sem mexer no `langchain` 1.x do projeto nem puxar
+  a dep do Google. Testes: `test_ensure_ragas_importable_unblocks_lib` + `degrades_clean_offline`
+  ajustado (degrada por credencial, sem rede). **Resta** o run consolidado contra os limiares (§7):
+  *gated pelo LLM endpoint* (mesmo congestionamento). O proxy léxico segue cobrindo a métrica offline.
 
 ---
 

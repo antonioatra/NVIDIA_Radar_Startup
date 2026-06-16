@@ -376,6 +376,33 @@ class LexicalRagasMetrics:
         )
 
 
+def _ensure_ragas_importable() -> None:
+    """Destrava o import do `ragas` 0.4.3 sob `langchain-community` 0.4.x (conflito de dep, F7.3).
+
+    O `ragas/llms/base.py` importa no topo `from langchain_community.chat_models.vertexai import
+    ChatVertexAI` — caminho **removido** no `langchain-community` 0.4.x (o ChatVertexAI migrou p/
+    `langchain-google-vertexai`). O `ragas` só usa essa classe num `isinstance`
+    (`MULTIPLE_COMPLETION_SUPPORTED`); como o juiz aqui é o **Nemotron** (nunca VertexAI), um
+    placeholder satisfaz o import sem puxar a dep do Google nem mexer no `langchain` 1.x do projeto.
+    Idempotente e **só age se o caminho real faltar** (não sombreia uma versão futura que o traga).
+    """
+    import sys
+
+    mod_name = "langchain_community.chat_models.vertexai"
+    if mod_name in sys.modules:
+        return
+    try:  # se um dia o caminho real existir (langchain reintroduzir), prefere ele
+        import importlib
+
+        importlib.import_module(mod_name)
+    except ModuleNotFoundError:
+        import types
+
+        stub = types.ModuleType(mod_name)
+        stub.ChatVertexAI = type("ChatVertexAI", (), {})  # placeholder só p/ o isinstance do ragas
+        sys.modules[mod_name] = stub
+
+
 class RagasJudge:
     """Backend **preferido** (dogfood): biblioteca `ragas` + juiz Nemotron via build.nvidia.com.
 
@@ -395,6 +422,7 @@ class RagasJudge:
 
     def score(self, sample: RagSample) -> RagasMetrics:
         try:
+            _ensure_ragas_importable()  # shim do conflito ragas×langchain-community (F7.3)
             from ragas import EvaluationDataset, evaluate
             from ragas.embeddings import LangchainEmbeddingsWrapper
             from ragas.llms import LangchainLLMWrapper
