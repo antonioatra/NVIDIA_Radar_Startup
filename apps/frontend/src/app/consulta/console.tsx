@@ -20,6 +20,8 @@ import {
   briefingUrl,
   createRun,
   getRunReview,
+  getRunStatus,
+  getRunTrace,
   type ProgressEvent,
   type ResumeDecision,
   resumeRun,
@@ -50,6 +52,53 @@ const PAUSED = "awaiting_review";
 // Classes de maturidade (Classification, packages/schemas/enums.py — §5.1) p/ o select de edicao.
 const CLASSES: ReadonlyArray<string> = ["AI-native", "AI-enabled", "non-AI"];
 
+// --- Reconexao da consulta (F5.3+) -------------------------------------------
+// O run roda no worker (F2.10) e SOBREVIVE a sair da tela; so a UI perdia o handle. Guardamos o
+// run em andamento no localStorage (sobrevive a fechar a aba) e, ao reabrir a tela, reencontramos
+// o run via GET /runs/{id}/status: rodando -> reabre o SSE; pausado/terminado -> hidrata do
+// checkpoint (o pub/sub de progresso nao reentrega o que ja passou). TTL curto evita ressuscitar
+// consulta antiga.
+const ACTIVE_RUN_KEY = "tapi:consulta:active-run";
+const ACTIVE_RUN_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+
+type StoredRun = { runId: string; mode: RunMode; query: string; ts: number };
+
+function saveActiveRun(run: { runId: string; mode: RunMode; query: string }): void {
+  try {
+    localStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify({ ...run, ts: Date.now() }));
+  } catch {
+    // localStorage indisponivel (modo privado) — degrada p/ o comportamento antigo, sem reconexao.
+  }
+}
+
+function loadActiveRun(): StoredRun | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_RUN_KEY);
+    if (!raw) return null;
+    const run = JSON.parse(raw) as StoredRun;
+    if (!run?.runId || Date.now() - run.ts > ACTIVE_RUN_TTL_MS) {
+      localStorage.removeItem(ACTIVE_RUN_KEY);
+      return null;
+    }
+    return run;
+  } catch {
+    return null;
+  }
+}
+
+function clearActiveRun(): void {
+  try {
+    localStorage.removeItem(ACTIVE_RUN_KEY);
+  } catch {
+    // no-op
+  }
+}
+
+// Evento terminal sintetico p/ hidratar o desfecho ao reconectar (o pub/sub nao o reentrega).
+function endEvent(runId: string, status: string): ProgressEvent {
+  return { run_id: runId, node: END_NODE, status, pct: 100, ts: new Date().toISOString(), extra: {} };
+}
+
 export function ConsultaConsole() {
   const [mode, setMode] = useState<RunMode>("single_company");
   const [query, setQuery] = useState("");
@@ -64,6 +113,52 @@ export function ConsultaConsole() {
 
   // Fecha o stream ao desmontar — o EventSource reconecta sozinho se nao for fechado.
   useEffect(() => () => esRef.current?.close(), []);
+
+  // Reconexao ao montar (F5.3+): se ha um run guardado, reencontra a consulta longa em vez de
+  // perde-la ao voltar a tela (o worker segue rodando, F2.10). Decide pela fase do run sem pendurar
+  // no SSE: rodando -> reabre o stream; pausado/terminado -> hidrata do checkpoint (F2.2). setState
+  // vive so no callback async (evita o set-state-in-effect do React 19, como na auth/F5.9), guardado
+  // contra desmonte por `alive`. Roda uma vez no mount.
+  useEffect(() => {
+    const stored = loadActiveRun();
+    if (!stored) return;
+    let alive = true;
+    getRunStatus(stored.runId)
+      .then((info) => {
+        if (!alive) return;
+        if (info.phase === "unknown") {
+          clearActiveRun(); // run orfao (job expirou do RQ + sem checkpoint) — descarta
+          return;
+        }
+        setMode(stored.mode);
+        setQuery(stored.query);
+        setRunId(stored.runId);
+        if (info.phase === "running") {
+          setPhase("streaming");
+          hydrateLadder(stored.runId); // historico ja concluido; o SSE anexa o que falta
+          openStream(stored.runId);
+        } else if (info.phase === "failed") {
+          setPhase("error");
+          setError("A consulta anterior falhou no servidor. Tente novamente.");
+          clearActiveRun();
+        } else {
+          // done | awaiting_review: hidrata o desfecho do checkpoint (sem pendurar no SSE).
+          const status =
+            info.phase === "awaiting_review" ? PAUSED : (info.run_status ?? "completed");
+          setTerminal(endEvent(stored.runId, status));
+          setPhase("done");
+          hydrateLadder(stored.runId);
+          if (info.phase === "awaiting_review") loadReview(stored.runId);
+        }
+      })
+      .catch(() => {
+        // sem rede / API fora: nao apaga o run (pode estar so offline); fica idle ate o usuario agir.
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: reconecta a consulta uma vez
+  }, []);
 
   const busy = phase === "starting" || phase === "streaming";
 
@@ -106,6 +201,33 @@ export function ConsultaConsole() {
     };
   }
 
+  // Reconstroi a escada de nos ja concluidos a partir do estado persistido (F2.2): o pub/sub de
+  // progresso nao reentrega os eventos por no, entao ao reconectar buscamos o trace (F5.7) e
+  // marcamos os done. Merge (nao clobber) p/ conviver com os eventos ao vivo que o SSE for
+  // anexando no caso "running"; degrada limpo se o checkpoint ainda nao existir.
+  function hydrateLadder(id: string) {
+    getRunTrace(id)
+      .then((trace) =>
+        setEvents((prev) => {
+          const seen = new Set(prev.map((ev) => ev.node));
+          const hist: ProgressEvent[] = trace.steps
+            .filter((s) => s.status === "done" && !seen.has(s.node))
+            .map((s) => ({
+              run_id: id,
+              node: s.node,
+              status: "running",
+              pct: null,
+              ts: new Date().toISOString(),
+              extra: {},
+            }));
+          return [...hist, ...prev];
+        }),
+      )
+      .catch(() => {
+        // sem trace (checkpoint ainda nao escrito) — a escada fica sem historico; o desfecho aparece.
+      });
+  }
+
   async function start(e: React.FormEvent) {
     e.preventDefault();
     const q = query.trim();
@@ -122,6 +244,8 @@ export function ConsultaConsole() {
     try {
       const accepted = await createRun(q, mode);
       setRunId(accepted.run_id);
+      // Guarda o run em andamento p/ reencontra-lo se a tela fechar (o worker segue rodando, F2.10).
+      saveActiveRun({ runId: accepted.run_id, mode, query: q });
       setPhase("streaming");
       openStream(accepted.run_id);
     } catch (err) {
@@ -189,6 +313,10 @@ export function ConsultaConsole() {
           {mode === "single_company"
             ? "Diagnostica uma empresa e pausa para revisao (HITL sync, F2.8)."
             : "Descobre empresas por setor/regiao em lote, sem bloquear a fila (HITL auto)."}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          A consulta roda no servidor e continua mesmo se voce sair desta tela — ao voltar, ela e
+          reencontrada automaticamente.
         </p>
       </form>
 

@@ -120,6 +120,29 @@ export async function resumeRun(runId: string, decision: ResumeDecision): Promis
   return res.json() as Promise<RunAccepted>;
 }
 
+// Fase de um run em andamento p/ a UI reencontrar uma consulta longa ao voltar a tela (F5.3+). O
+// trabalho roda no worker (F2.10) e SOBREVIVE a navegacao; isto so diz o que mostrar ao reabrir:
+// running (reabrir o SSE ao vivo), awaiting_review (painel de revisao), done (hidratar do
+// checkpoint), failed (job caiu) ou unknown (run expirado/orfao -> a UI descarta o run guardado).
+export type RunPhase = "running" | "awaiting_review" | "done" | "failed" | "unknown";
+
+// Estado de um run (RunStatusOut, apps/api/schemas.py): a fase + o desfecho real quando phase=done.
+export interface RunStatusInfo {
+  run_id: string;
+  phase: RunPhase;
+  run_status: string | null;
+}
+
+// Consulta a fase de um run (`GET /runs/{id}/status`, F5.3+) p/ a reconexao da consulta. Nunca 404:
+// o backend sempre devolve uma fase acionavel (combina o status do job RQ com o checkpoint, F2.2).
+export async function getRunStatus(runId: string): Promise<RunStatusInfo> {
+  const res = await req(`${API_URL}/runs/${encodeURIComponent(runId)}/status`);
+  if (!res.ok) {
+    throw new Error(`Falha ao consultar o estado do run (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<RunStatusInfo>;
+}
+
 // Formatos do briefing servidos por `GET /briefings/{id}` (F4.6): JSON | Markdown | PDF.
 export type BriefingFormat = "json" | "md" | "pdf";
 

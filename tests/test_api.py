@@ -23,6 +23,7 @@ from apps.api.deps import (
     db_session,
     get_auth_token,
     get_briefing_loader,
+    get_job_phase,
     get_langfuse_url,
     get_progress_source,
     get_queue,
@@ -240,7 +241,7 @@ def test_stream_run_emits_sse_frames(client: TestClient) -> None:
         ProgressEvent(run_id="r1", node="scraper", status="running", pct=20),
         ProgressEvent(run_id="r1", node=END_NODE, status="completed", pct=100),
     ]
-    app.dependency_overrides[get_progress_source] = lambda: (lambda run_id: events)
+    app.dependency_overrides[get_progress_source] = lambda: lambda run_id: events
 
     resp = client.get("/runs/r1")
     assert resp.status_code == 200
@@ -431,7 +432,7 @@ def _briefing():
 
 
 def test_briefing_json_md_and_pdf(client: TestClient) -> None:
-    app.dependency_overrides[get_briefing_loader] = lambda: (lambda run_id: _briefing())
+    app.dependency_overrides[get_briefing_loader] = lambda: lambda run_id: _briefing()
 
     js = client.get("/briefings/r1")
     assert js.status_code == 200
@@ -447,12 +448,12 @@ def test_briefing_json_md_and_pdf(client: TestClient) -> None:
 
 
 def test_briefing_404_when_absent(client: TestClient) -> None:
-    app.dependency_overrides[get_briefing_loader] = lambda: (lambda run_id: None)
+    app.dependency_overrides[get_briefing_loader] = lambda: lambda run_id: None
     assert client.get("/briefings/missing").status_code == 404
 
 
 def test_briefing_rejects_bad_format(client: TestClient) -> None:
-    app.dependency_overrides[get_briefing_loader] = lambda: (lambda run_id: _briefing())
+    app.dependency_overrides[get_briefing_loader] = lambda: lambda run_id: _briefing()
     assert client.get("/briefings/r1?format=xml").status_code == 422
 
 
@@ -567,7 +568,7 @@ def test_build_run_trace_passes_langfuse_url_and_budget() -> None:
 
 
 def test_run_trace_endpoint_returns_steps(client: TestClient) -> None:
-    app.dependency_overrides[get_trace_loader] = lambda: (lambda run_id: _completed_state(run_id))
+    app.dependency_overrides[get_trace_loader] = lambda: lambda run_id: _completed_state(run_id)
     body = client.get("/runs/r1/trace").json()
 
     assert body["run_id"] == "r1"
@@ -578,7 +579,7 @@ def test_run_trace_endpoint_returns_steps(client: TestClient) -> None:
 
 
 def test_run_trace_endpoint_404_when_absent(client: TestClient) -> None:
-    app.dependency_overrides[get_trace_loader] = lambda: (lambda run_id: None)
+    app.dependency_overrides[get_trace_loader] = lambda: lambda run_id: None
     assert client.get("/runs/missing/trace").status_code == 404
 
 
@@ -619,8 +620,61 @@ def test_run_review_endpoint_not_awaiting_when_resumed(client: TestClient) -> No
 
 
 def test_run_review_endpoint_404_when_absent(client: TestClient) -> None:
-    app.dependency_overrides[get_review_loader] = lambda: (lambda run_id: None)
+    app.dependency_overrides[get_review_loader] = lambda: lambda run_id: None
     assert client.get("/runs/missing/review").status_code == 404
+
+
+# --- run status / reconexao da consulta (F5.3+) -------------------------------
+
+
+def _phase(value: str):
+    """Override do get_job_phase: fixa a fase do job RQ sem broker."""
+    return lambda: lambda run_id: value
+
+
+def test_run_status_running_when_job_in_flight(client: TestClient) -> None:
+    # Job na fila/executando: a UI reabre o SSE ao vivo (nao consulta o checkpoint).
+    app.dependency_overrides[get_job_phase] = _phase("running")
+    body = client.get("/runs/r1/status").json()
+    assert body == {"run_id": "r1", "phase": "running", "run_status": None}
+
+
+def test_run_status_failed_when_job_failed(client: TestClient) -> None:
+    app.dependency_overrides[get_job_phase] = _phase("failed")
+    assert client.get("/runs/r1/status").json()["phase"] == "failed"
+
+
+def test_run_status_awaiting_review_when_job_done_and_paused(client: TestClient) -> None:
+    # Job concluido + checkpoint pausado no interrupt (next nao-vazio) = aguarda revisao (F2.8).
+    app.dependency_overrides[get_job_phase] = _phase("finished")
+    app.dependency_overrides[get_review_loader] = lambda: (
+        lambda run_id: (_completed_state(run_id), True)
+    )
+    assert client.get("/runs/r1/status").json()["phase"] == "awaiting_review"
+
+
+def test_run_status_done_carries_outcome(client: TestClient) -> None:
+    # Job concluido + checkpoint sem `next` = terminou; carrega o desfecho real p/ a UI hidratar.
+    app.dependency_overrides[get_job_phase] = _phase("finished")
+    app.dependency_overrides[get_review_loader] = lambda: (
+        lambda run_id: (_completed_state(run_id), False)
+    )
+    body = client.get("/runs/r1/status").json()
+    assert body["phase"] == "done"
+    assert body["run_status"] == "completed"
+
+
+def test_run_status_unknown_when_no_job_nor_checkpoint(client: TestClient) -> None:
+    # Job expirou do RQ e nao ha checkpoint: run guardado pela UI ficou orfao -> ela o descarta.
+    app.dependency_overrides[get_job_phase] = _phase("absent")
+    app.dependency_overrides[get_review_loader] = lambda: lambda run_id: None
+    assert client.get("/runs/r1/status").json()["phase"] == "unknown"
+
+
+def test_run_status_behind_gate(client: TestClient) -> None:
+    # Endpoint de negocio: exige credencial quando o gate (F5.9) esta fechado.
+    _gate_closed()
+    assert client.get("/runs/r1/status").status_code == 401
 
 
 # --- auth / gate interno (F5.9) -----------------------------------------------

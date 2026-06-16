@@ -38,6 +38,7 @@ from .deps import (
     db_session,
     get_auth_token,
     get_briefing_loader,
+    get_job_phase,
     get_langfuse_url,
     get_progress_source,
     get_queue,
@@ -52,6 +53,7 @@ from .schemas import (
     RunAccepted,
     RunRequest,
     RunReviewOut,
+    RunStatusOut,
     RunTraceOut,
     TechFacetsOut,
 )
@@ -77,6 +79,7 @@ QueueDep = Annotated[Queue, Depends(get_queue)]
 SessionDep = Annotated[Session, Depends(db_session)]
 _ProgressSource = Callable[[str], Iterable[ProgressEvent]]
 ProgressSourceDep = Annotated[_ProgressSource, Depends(get_progress_source)]
+JobPhaseDep = Annotated[Callable[[str], str], Depends(get_job_phase)]
 BriefingLoaderDep = Annotated[Callable[[str], Briefing | None], Depends(get_briefing_loader)]
 TraceLoaderDep = Annotated[Callable[[str], GraphState | None], Depends(get_trace_loader)]
 ReviewLoaderDep = Annotated[
@@ -159,6 +162,30 @@ def get_run_trace(run_id: str, load: TraceLoaderDep, langfuse_url: LangfuseUrlDe
     if state is None:
         raise HTTPException(status_code=404, detail="run não encontrado")
     return build_run_trace(state, langfuse_url=langfuse_url)
+
+
+@router.get("/runs/{run_id}/status")
+def get_run_status(run_id: str, phase_of: JobPhaseDep, load: ReviewLoaderDep) -> RunStatusOut:
+    """Fase de um run p/ a UI reencontrar uma consulta longa ao voltar à tela (F5.3+).
+
+    O worker (F2.10) mantém o run rodando mesmo se a tela fechar; este endpoint deixa a UI saber o
+    que mostrar ao reabrir **sem pendurar no SSE** (o pub/sub não reentrega o progresso que já
+    passou). Combina o status do job RQ — **autoritativo** p/ "ainda rodando" — com o checkpoint
+    (F2.2): job na fila/executando → `running` (a UI reabre o stream); job caído → `failed`; job
+    concluído + checkpoint pausado no interrupt (F2.8) → `awaiting_review`; concluído e terminal →
+    `done` (+ o desfecho real); sem job nem checkpoint → `unknown` (run expirado/estranho → a UI
+    descarta o run guardado). Nunca 404: a UI sempre recebe uma fase acionável.
+    """
+    phase = phase_of(run_id)
+    if phase in {"running", "failed"}:
+        return RunStatusOut(run_id=run_id, phase=phase)
+    loaded = load(run_id)
+    if loaded is None:
+        return RunStatusOut(run_id=run_id, phase="unknown")
+    state, awaiting = loaded
+    if awaiting:
+        return RunStatusOut(run_id=run_id, phase="awaiting_review")
+    return RunStatusOut(run_id=run_id, phase="done", run_status=state.status.value)
 
 
 # --- companies ----------------------------------------------------------------

@@ -54,6 +54,15 @@ que copia de `data/cohort.db` (gitignored) para o Postgres. Sem `cohort.db`, a s
 
 **Bloqueio.** Nenhum. **Resultado.** Demo navegável de ponta a ponta com dados reais.
 
+> ✅ **Entregue nesta sessão — consulta resiliente a sair/voltar da tela (F5.3+).** A consulta
+> longa já rodava no worker (F2.10) e **sobrevivia** à navegação; o que faltava era a UI
+> reencontrá-la. Agora `GET /runs/{id}/status` (combina o status do **job RQ** — autoritativo p/
+> "ainda rodando" — com o checkpoint F2.2) diz à UI a fase do run sem pendurar no SSE, e o console
+> guarda o run em andamento (localStorage, TTL 12 h): ao voltar, **rodando** → reabre o stream;
+> **pausado/terminado** → hidrata o desfecho + a escada de nós do trace (o pub/sub não reentrega o
+> que passou); **falhou/órfão** → descarta. Testes: `test_run_status_*` (5 fases) + tsc/eslint
+> verdes. Por que importava: a coleta+LLM demora, e fechar a aba dava a impressão de perder o run.
+
 ---
 
 ## B. Chat "premium" — cohort-RAG semântico (F3.10/F5.12 stretch)

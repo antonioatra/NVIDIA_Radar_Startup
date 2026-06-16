@@ -49,6 +49,24 @@ class RunReviewOut(BaseModel):
     recomendacoes: list[str] = Field(default_factory=list)
 
 
+class RunStatusOut(BaseModel):
+    """Fase de um run p/ a UI reencontrar uma consulta longa ao voltar à tela (F5.3+).
+
+    O trabalho roda no worker RQ (F2.10) e **sobrevive** à navegação — fechar a tela não para o
+    run. Esta projeção diz à UI o que mostrar ao reabrir **sem pendurar no SSE** (o pub/sub de
+    progresso não reentrega o que já passou): `running` (job na fila/executando → reabre o stream
+    ao vivo), `awaiting_review` (pausado no HITL sync, F2.8 → painel de revisão), `done` (terminou
+    — `run_status` carrega o desfecho real, ex.: completed/insufficient_data → hidrata do
+    checkpoint), `failed` (job caiu) ou `unknown` (sem job nem checkpoint — run expirado/estranho).
+    """
+
+    run_id: str
+    phase: str = Field(description="running | awaiting_review | done | failed | unknown")
+    run_status: str | None = Field(
+        default=None, description="Desfecho (valor de RunStatus) quando phase='done'."
+    )
+
+
 class CompanyOut(BaseModel):
     """Projeção de empresa para a lista (F5.4/F5.11): perfil + diagnóstico AIMI mais recente.
 
@@ -235,6 +253,7 @@ class RunTraceOut(BaseModel):
 __all__ = [
     "RunRequest",
     "RunAccepted",
+    "RunStatusOut",
     "RunReviewOut",
     "CompanyOut",
     "TechFacetsOut",

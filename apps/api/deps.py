@@ -55,6 +55,40 @@ def get_progress_source() -> Callable[[str], Iterable[ProgressEvent]]:
     return _source
 
 
+def get_job_phase() -> Callable[[str], str]:
+    """Fase do job RQ de um run (F2.10): `running` | `failed` | `finished` | `absent`.
+
+    Sinal **autoritativo** de "ainda rodando" que o checkpoint sozinho não dá — pausado no HITL
+    (F2.8) e mid-flight têm ambos `next` não-vazio no snapshot. `job_id=run_id` (e `{run_id}:resume`
+    no resume) casa o job RQ com o run (`apps/worker/jobs.py`), então olhar os dois cobre o ciclo:
+    qualquer um na fila/executando ⇒ `running`; algum falhou ⇒ `failed`; concluídos ⇒ `finished`;
+    nenhum encontrado (job expirou do RQ ou run inexistente) ⇒ `absent`. Em teste, sobrescreve-se.
+    """
+    from packages.config import get_settings
+
+    def _phase(run_id: str) -> str:
+        from redis import Redis
+        from rq.exceptions import NoSuchJobError
+        from rq.job import Job
+
+        conn = Redis.from_url(get_settings().redis_url)
+        statuses: list[str] = []
+        for jid in (run_id, f"{run_id}:resume"):
+            try:
+                statuses.append(str(Job.fetch(jid, connection=conn).get_status(refresh=True)))
+            except NoSuchJobError:
+                continue
+        if not statuses:
+            return "absent"
+        if any(s in {"queued", "started", "deferred", "scheduled"} for s in statuses):
+            return "running"
+        if any(s == "failed" for s in statuses):
+            return "failed"
+        return "finished"
+
+    return _phase
+
+
 def get_briefing_loader() -> Callable[[str], Briefing | None]:
     """Leitor do briefing de um run (`GET /briefings/{id}`, F5.2): lê do checkpoint (F2.2).
 
@@ -188,6 +222,7 @@ __all__ = [
     "db_session",
     "get_queue",
     "get_progress_source",
+    "get_job_phase",
     "get_briefing_loader",
     "get_trace_loader",
     "get_review_loader",
