@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 
+from packages.config import get_settings
 from packages.eval.ragas import (
     CONTEXT_RECALL_GATE,
     FAITHFULNESS_GATE,
@@ -40,6 +41,21 @@ from packages.eval.ragas import (
 from packages.rag import build_retriever, get_reranker
 
 GROUNDING_TECH = "AI-Native (grounding)"  # F3.1d — define o AIMI, não é tech recomendável
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _force_offline_substrate():
+    """Crava a espinha-verde offline neste módulo: o baseline/qualidade RAGAS é o do embedder
+    **hashing determinístico**, não o do nv-embedqa. Sem isto, rodar com uma `.env` de dev que tem
+    `EMBEDDINGS_USE_NV=true` faria o "fresh offline run" usar embeddings NV **ao vivo** e divergir
+    do baseline versionado (que é offline) — o teste passaria na CI (sem flags) e falharia local."""
+    mp = pytest.MonkeyPatch()
+    settings = get_settings()
+    mp.setattr(settings, "embeddings_use_nv", False)
+    mp.setattr(settings, "index_use_qdrant", False)
+    mp.setattr(settings, "reranker_use_nv", False)
+    yield
+    mp.undo()
 
 
 # --- fixtures (constrói a KB uma vez) -----------------------------------------
