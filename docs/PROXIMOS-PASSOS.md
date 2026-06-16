@@ -11,32 +11,41 @@
 
 | # | Frente | Estado | Bloqueio real | Esforço | Prioridade |
 |---|---|---|---|---|---|
-| A | **Validar a stack + chat ao vivo** | UI pronta, dados via seed | Nenhum (só rodar) | ~1–2 h | **Alta** |
+| A | **Validar a stack + chat ao vivo** | ✅ **validado ao vivo** (coorte real + radar coerente + consulta resiliente) | — | feito | ✅ |
 | B | **Chat "premium" (F3.10/F5.12)** | MVP determinístico entregue | Volume de coorte | ~2–3 dias | Média |
-| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)+(d) feitos; faltam (b)/(c) gated | Embeddings reais + AIMI por evidência | ~1 dia | **Alta (demo)** |
-| D | **GPU Graduation Engine (F6.8–F6.12)** | Stub + contrato prontos | GPU local (**não pago**, ver §D) | ~3–6 dias | Média/Baixa |
+| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)(b)(d) ✅ ao vivo; falta só **(c) ★** | AIMI gated por evidência (créditos) | ~créditos | **Alta (demo)** |
+| D | **GPU Graduation Engine (F6.8–F6.12)** | Engine + ROI no produto (UI + **texto do briefing**) ✅; falta só medição real | Endpoint NIM grátis congestionado (ver §D) | ~medição | Média/Baixa |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
 
-> **Já entregue (fora do escopo de próximos passos):** **E** — Eval real → ground-truth (F7.1),
-> 8/9 reais curadas a `human` no headline (commit `13cdc48`; impacto em AVALIACAO.md). *(A frente **C**
-> — radar de coorte — saiu de "entregue" e **voltou** como item de qualidade abaixo, após feedback
-> técnico de 2026-06-15: clusters incoerentes + 0% "prontas ★".)*
+> **Já entregue (fora do escopo de próximos passos):**
+> - **E** — Eval real → ground-truth (F7.1), 8/9 reais curadas a `human` no headline (commit `13cdc48`).
+> - **A** — **validação ao vivo (2026-06-16):** coorte real construída (`cohort.db`, 10 empresas com
+>   perfil + AIMI + 41 recs), stack no ar (`run.ps1`), `/radar` + `/coorte` + `/radar/[id]` navegáveis.
+> - **Consulta resiliente (F5.3+)** — o run sobrevive a sair/voltar da tela (`GET /runs/{id}/status` +
+>   localStorage; ver §A).
+> - **C-a/C-b/C-d** — radar **coerente ao vivo**: descrição no embedding, `nv-embedqa` (com degradação
+>   p/ hashing), nomes honestos e `k` default ajustado. Par de identidade (Unico+Idwall) agora junto.
+>   Só o **★ (C-c)** segue gated por evidência (créditos).
 
-**Caminho mínimo para "fechar e demonstrar":** A → (B *ou* D, escolher um para mostrar profundidade).
-**Caminho completo:** A → B → D → F.
+**Caminho mínimo para "fechar e demonstrar":** ~~A~~ ✅ → (B *ou* D, escolher um para mostrar profundidade).
+**Caminho completo:** ~~A~~ ✅ → B → D → F. **Restam:** C-c (★, créditos), uma frente de profundidade
+(D *ou* B) e a F opcional.
 
 ---
 
-## A. Validar a stack e o chat ao vivo  *(prioridade 1 — barato, destrava a demo)*
+## A. Validar a stack e o chat ao vivo  *(✅ FEITO — 2026-06-16)*
 
-**Estado.** A UI do chat está pronta (`apps/frontend/src/app/descoberta/`), o endpoint
-`GET /discover` existe (`apps/api/main.py`), `tsc`+`eslint` verdes. **Mas o chat e o radar só
-mostram empresas se o banco estiver populado.** O `scripts/run.ps1` chama `scripts/seed_postgres.py`,
-que copia de `data/cohort.db` (gitignored) para o Postgres. Sem `cohort.db`, a stack sobe vazia.
+**Estado.** ✅ **Validado ao vivo.** A coorte real foi construída (`cohort.db`, 10 empresas com perfil
++ AIMI + 41 recomendações), a stack subiu (`run.ps1`) e `/radar` + `/coorte` + `/radar/[id]` estão
+navegáveis com dados reais. As flags do caminho real ficam na `.env` (`SCRAPER_USE_NETWORK`,
+`EXTRACTOR_USE_LLM`, `CLASSIFIER_USE_LLM`, `RECOMMENDER_USE_LLM`, `BRIEFING_USE_LLM`, `EMBEDDINGS_USE_NV`;
+Langfuse off no build em lote). **`INDEX_USE_QDRANT` fica off** — a coleção da KB é 256-dim e o
+`nv-embedqa` é 2048; o RAG ao vivo do recommender exigiria **re-indexar a KB em 2048** (item aberto,
+abaixo). As recs servidas hoje vêm **persistidas** do build, não do RAG ao vivo.
 
-**O que falta.** Rodar a coorte uma vez (gera `cohort.db`), subir a stack e conferir o fluxo.
+**O que falta.** Nada para a demo navegável. *(Os passos abaixo ficam como runbook de reprodução.)*
 
-**Passos.**
+**Passos (runbook).**
 1. Gerar a coorte real (run ao vivo, ~10–15 min, usa créditos build.nvidia.com):
    ```powershell
    # .env com NVIDIA_API_KEY, TAVILY_API_KEY, FIRECRAWL_API_KEY
@@ -95,9 +104,9 @@ o premium se houver tempo e a coorte crescer. Não marcar o DoD de citações en
 
 ## C. Radar de coorte — qualidade para demo *(reaberto após feedback técnico, 2026-06-15)*
 
-**Estado.** MVP entregue em CPU (`packages/scoring/cohort_cluster.py`: hashing + numpy KMeans + PCA;
-`GET /cohort/clusters`; UI `/coorte`). Os fixes **grátis/offline (a)+(d) foram feitos** (commit desta
-sessão); o que ainda trava a coerência total e o ★ é gated por recurso ((b) rede, (c) créditos):
+**Estado.** ✅ **(a)(b)(d) feitos e validados ao vivo (2026-06-16)** — o radar de `/coorte` mostra
+clusters **coerentes** sobre a coorte real (par de identidade Unico+Idwall junto, par de dados
+Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (créditos). Detalhe por item:
 
 - **(a) O texto do clustering ignorava a descrição** — ✅ **feito.** `CohortPoint` agora carrega
   `company.descricao` (`load_cohort_points`) e `text()` a inclui (encurtada por `_DESC_CHARS` p/ não
@@ -123,6 +132,15 @@ sessão); o que ainda trava a coerência total e o ★ é gated por recurso ((b)
 **Sequência:** ~~(a)+(d) [código grátis]~~ ✅ → ~~(b) [flag `embeddings_use_nv` + k default]~~ ✅ → (c)
 [re-run da coorte com mais fontes, **créditos**]. **Bloqueio restante:** só (c) — mais evidência por
 empresa p/ calibrar o ★ (AIMI gated por evidência, RUBRICA §0). **Esforço restante.** ~créditos da coorte.
+
+**Itens abertos descobertos na validação ao vivo (2026-06-16):**
+- **Re-indexar a KB do RAG em 2048 dims** (coleção Qdrant atual = 256, do hashing). Só assim dá p/
+  ligar `INDEX_USE_QDRANT=true` e ter o **recommender RAG ao vivo com citação** (hoje as recs vêm
+  **persistidas** do build, o que basta p/ a demo). Sem isso, ligar Qdrant + nv-embed dá
+  `Vector dimension error 256≠2048`. *(gated: re-index, ~30 min de máquina.)*
+- **Cosmético (1 linha):** `_dominant` desempata classe por ordem de inserção — num cluster 1×1
+  (ex.: Unico non-AI + Idwall AI-native) o rótulo de `classe_dominante` pode sair "non-AI". Preferir a
+  classe **mais madura** (AI-native > AI-enabled > non-AI) no empate fica mais fiel ao DSS. *(opcional.)*
 
 ---
 
@@ -156,11 +174,19 @@ LLM+Triton de verdade), não self-host em 4 GB. **Só falta a medição real:** 
 `python scripts/bench_nim.py --tier medium` (sua `NVIDIA_API_KEY`) — ele mede o NIM e grava a célula
 com `is_live_run=true`. A matriz versionada (`data/benchmark/matrix.json`) é **ilustrativa** até lá.
 
+> **Medição tentada (2026-06-16) — endpoint grátis congestionado, não gravado.** A chave funciona,
+> mas o tier grátis do build.nvidia.com está saturado: uma chamada curta (16 tokens) levou **227 s**,
+> e cada chamada do `bench_nim.py` estoura o teto de 180 s. Gravar isso daria throughput **~0,07 tok/s**
+> (dominado pela fila, **mais lento que o baseline**) — um número desonesto sobre o NIM. Decisão
+> coerente com o princípio de proveniência da `matrix.py` ("nada aparece como medido enquanto não
+> for"): **não gravei**; a matriz segue ilustrativa (`is_live_run=false`, rótulo explícito). Re-tentar
+> quando o endpoint estiver menos carregado (ou apontar `--model` para um NIM dedicado).
+
 **O que você precisa fazer (passos):**
 1. `python scripts/bench_nim.py --tier medium` (mede o Nemotron-Nano-8B hospedado; opcional `--tier large --model ...super-49b...`).
 2. Ajustar o lado **baseline** da célula no `matrix.json` para o preço/latência da API externa que a startup-alvo usa hoje (o número de comparação).
 3. Rodar um run com `GPU_BENCHMARK_USE_MATRIX=true` → o ROI aparece no cartão da UI (`/radar/[id]`).
-4. *(Opcional)* Adicionar a linha de ROI numérica no **texto** do briefing (a UI já mostra; o briefing hoje só narra o ROI qualitativamente).
+4. ~~*(Opcional)* Adicionar a linha de ROI numérica no **texto** do briefing~~ ✅ **feito (2026-06-16)** — `_rec_lines` (Markdown) + `render_pdf` cravam o ROI (throughput/custo/p95 + `baseline → otimizado` + proveniência `medido ao vivo`×`matriz de benchmark` + fonte) com paridade ao `RoiStrip` da UI; degrada limpo sem `rec.roi`. Testes: `test_render_{markdown,pdf}_*roi*`.
 
 ### O que falta
 
@@ -201,20 +227,28 @@ rastreável, com a limitação anotada.
 
 ---
 
-## Sequência recomendada
+## Sequência recomendada *(o que ainda falta, em ordem)*
 
-1. **A** (validar ao vivo) — destrava a demo, baratíssimo, gera screenshots.
-2. **C** (qualidade do radar de coorte) — **se o radar entra na demo**, corrigir embeddings/descrição/AIMI antes; o item (a) é grátis e offline.
-3. Escolher **uma** frente de profundidade para mostrar no case:
+1. ~~**A** (validar ao vivo)~~ ✅ **feito 2026-06-16** — coorte real, stack no ar, radar coerente.
+2. ~~**C** (qualidade do radar): descrição + embeddings reais + nomes + k~~ ✅ — **resta só C-c** (★),
+   que precisa de **mais evidência por empresa** (re-raspar = créditos). Opcional: re-indexar a KB em
+   2048 p/ o recommender RAG ao vivo; cosmético do desempate de classe (ver §C).
+3. Escolher **uma** frente de profundidade para mostrar no case *(— a maior peça que falta —)*:
    - **D** (GPU/ROI) se quiser o diferencial "stack viva + ROI medido" — **não é pago**, é montar na GPU.
    - **B** (chat premium) se quiser a narrativa "descoberta conversacional com citações".
 4. **F** por último, se sobrar tempo.
 
 ## Checklist de fechamento (DoD consolidado)
 
-- [x] Eval com 8/9 entradas reais curadas (`label_source=human`) no headline ✅ 2026-06-15 (ver Já entregues)
+- [x] Eval com 8/9 entradas reais curadas (`label_source=human`) no headline ✅ 2026-06-15
 - [x] `AVALIACAO.md` atualizado com os números finais (incl. classificação live n=32 = 0,720) ✅ 2026-06-15
-- [ ] Stack sobe com `run.ps1`, coorte seedada, `/radar` + `/descoberta` + detalhe AIMI navegáveis (A)
-- [~] Radar de coorte: descrição no embedding + nome de cluster honesto ✅ (C-a, C-d); falta `nv-embedqa` (C-b) e ★ calibrado (C-c, gated)
-- [ ] **Uma** das duas frentes de profundidade entregue: ROI no briefing (D) **ou** chat com citações (B)
-- [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (F)
+- [x] Stack sobe com `run.ps1`, coorte real seedada, `/radar` + `/coorte` + detalhe AIMI navegáveis ✅ 2026-06-16
+- [x] Consulta resiliente: o run sobrevive a sair/voltar da tela (F5.3+) ✅ 2026-06-16
+- [x] Radar de coorte coerente ao vivo: descrição + `nv-embedqa` + nomes honestos + k default (C-a/b/d) ✅ 2026-06-16
+- [ ] **C-c:** ★ calibrado (Gupy/Idwall/Unico em `alvo_graduacao`) — **gated: mais evidência por empresa (créditos)**
+- [~] **Frente de profundidade — D (ROI no briefing):** ROI numérico ponta a ponta no produto
+  (matriz/engine → `gpu_benchmark` → persist → API → **UI `RoiStrip` + texto do briefing Markdown/PDF**)
+  ✅ 2026-06-16. **Falta só a medição real** (`bench_nim.py`) — *gated: endpoint NIM grátis congestionado
+  hoje* (ver §D). Alternativa: chat com citações (**B**) se a coorte crescer.
+- [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (**F**)
+- [ ] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)

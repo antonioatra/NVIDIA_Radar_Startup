@@ -46,6 +46,7 @@ from packages.schemas import (
     Priority,
     Product,
     Recommendation,
+    ROIEstimate,
     RunStatus,
     StartupProfile,
     Technology,
@@ -90,6 +91,23 @@ def _rec(
         evidencia_gap=[_ev()],
         evidencia_nvidia=[_ev(url="https://docs.nvidia.com/nim", snippet="NVIDIA NIM")],
     )
+
+
+def _roi(*, is_live_run: bool = False) -> ROIEstimate:
+    """ROI da célula `medium` ilustrativa (160/50 tok/s; p95 950 vs 2500; $0,18 vs $0,50)."""
+    return ROIEstimate(
+        throughput_speedup=3.2,
+        latency_p95_delta_pct=-62.0,
+        cost_delta_pct=-64.0,
+        baseline="API externa (pay-per-token)",
+        optimized="NIM (TensorRT-LLM + Triton)",
+        benchmark_source="medium/7-8B — ilustrativo",
+        is_live_run=is_live_run,
+    )
+
+
+def _rec_with_roi(roi: ROIEstimate, tech: str = "NVIDIA NIM") -> Recommendation:
+    return _rec(tech).model_copy(update={"roi": roi})
 
 
 def _healthcare_wrapper() -> StartupProfile:
@@ -201,6 +219,32 @@ def test_render_markdown_covers_diagnosis_recs_and_axes() -> None:
     assert "**Comercial:**" in md and "**Técnica:**" in md and "**Comunidade (Inception):**" in md
 
 
+def test_render_markdown_shows_roi_line_when_present() -> None:
+    # F6.11 — com ROI anexado (matriz/benchmark), o texto do briefing crava os números (paridade
+    # com o cartão RoiStrip da UI): throughput/custo/p95 + migração + proveniência honesta.
+    aimi = _aimi(20, 20, 4, 22)
+    md = render_markdown(build_briefing(aimi, None, [_rec_with_roi(_roi())], empresa="ACME"))
+    assert "**ROI (graduação de inferência):**" in md
+    assert "throughput 3.2x" in md
+    assert "custo -64.0%" in md and "p95 -62.0%" in md  # sinal explícito; negativo = melhora
+    assert "API externa (pay-per-token) → NIM (TensorRT-LLM + Triton)" in md
+    assert "matriz de benchmark" in md and "medido ao vivo" not in md  # ilustrativa, não medida
+    assert "fonte: medium/7-8B — ilustrativo" in md
+
+
+def test_render_markdown_roi_marks_live_run() -> None:
+    # is_live_run=True (medição real do NIM) → a proveniência muda de "matriz" p/ "medido ao vivo".
+    recs = [_rec_with_roi(_roi(is_live_run=True))]
+    md = render_markdown(build_briefing(_aimi(20, 20, 4, 22), None, recs, empresa="X"))
+    assert "medido ao vivo" in md and "matriz de benchmark" not in md
+
+
+def test_render_markdown_omits_roi_line_without_roi() -> None:
+    # Sem ROI (sem matriz/benchmark) a recomendação degrada graciosa: nenhuma linha de ROI (F5.6).
+    base = build_briefing(_aimi(20, 20, 4, 22), None, [_rec("NVIDIA NIM")], empresa="X")
+    assert "ROI (graduação de inferência)" not in render_markdown(base)  # ausente sem rec.roi
+
+
 def test_render_markdown_handles_terminal_briefing_with_lacunas() -> None:
     # A view também serve os terminais (F2.12): sem AIMI/recomendações, mostra as lacunas.
     from packages.schemas import Briefing
@@ -244,6 +288,16 @@ def test_render_pdf_is_valid_and_covers_diagnosis_recs_and_axes() -> None:
     assert "Provisionar o NIM." in text
     assert "https://docs.nvidia.com/nim" in text  # evidência NVIDIA citada (os dois lados)
     assert "Próximas ações" in text
+
+
+def test_render_pdf_shows_roi_line_when_present() -> None:
+    # A view PDF (F4.6) também crava o ROI numérico quando há matriz/benchmark anexado.
+    aimi = _aimi(20, 20, 4, 22)
+    pdf = render_pdf(build_briefing(aimi, None, [_rec_with_roi(_roi())], empresa="ACME"))
+    text = _pdf_text(pdf)
+    assert "ROI (graduação de inferência)" in text
+    assert "3.2x" in text and "-64.0%" in text  # throughput + custo
+    assert "matriz de benchmark" in text
 
 
 def test_render_pdf_is_deterministic() -> None:

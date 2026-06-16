@@ -43,6 +43,7 @@ from packages.schemas import (
     BriefingStatus,
     Priority,
     Recommendation,
+    ROIEstimate,
     RunStatus,
     StartupProfile,
 )
@@ -213,9 +214,42 @@ def _aimi_lines(aimi: AIMIScore) -> list[str]:
     return lines
 
 
+def _delta_pct(pct: float) -> str:
+    """Delta percentual com sinal explícito; negativo = melhora (menos custo/latência). Espelha o
+    `deltaPct` da UI (`detail.tsx`) p/ o texto do briefing bater com o cartão `RoiStrip`."""
+    return f"{'+' if pct > 0 else ''}{pct}%"
+
+
+def _roi_summary(roi: ROIEstimate) -> str | None:
+    """Resumo PT-BR de uma linha do ROI (F6) p/ o texto do briefing — paridade com o `RoiStrip`.
+
+    Mostra **só os números que existem** (throughput / custo / p95), a migração `baseline →
+    otimizado` e a **proveniência honesta**: `medido ao vivo` vs `matriz de benchmark` (+ a fonte da
+    célula, que já carrega o rótulo "ilustrativo" enquanto não for medição). `None` quando não há
+    métrica nem migração — a recomendação degrada graciosa, sem inventar ROI (F5.6).
+    """
+    partes: list[str] = []
+    if roi.throughput_speedup is not None:
+        partes.append(f"throughput {roi.throughput_speedup}x")
+    if roi.cost_delta_pct is not None:
+        partes.append(f"custo {_delta_pct(roi.cost_delta_pct)}")
+    if roi.latency_p95_delta_pct is not None:
+        partes.append(f"p95 {_delta_pct(roi.latency_p95_delta_pct)}")
+    migracao = f"{roi.baseline} → {roi.optimized}" if roi.baseline and roi.optimized else None
+    if not partes and migracao is None:
+        return None
+    texto = ", ".join(partes) if partes else "sem números"
+    if migracao:
+        texto += f" ({migracao})"
+    texto += "; medido ao vivo" if roi.is_live_run else "; matriz de benchmark"
+    if roi.benchmark_source:
+        texto += f" · fonte: {roi.benchmark_source}"
+    return texto
+
+
 def _rec_lines(rec: Recommendation) -> list[str]:
-    """Bloco Markdown de uma recomendação (§5.5) com as evidências dos dois lados."""
-    return [
+    """Bloco Markdown de uma recomendação (§5.5): evidências dos dois lados (+ ROI, se houver)."""
+    lines = [
         f"### {rec.tech} — prioridade {rec.prioridade.value} · "
         f"complexidade {rec.complexidade.value}",
         f"- **Justificativa técnica:** {rec.justificativa_tecnica}",
@@ -224,6 +258,10 @@ def _rec_lines(rec: Recommendation) -> list[str]:
         f"- **Evidência (gap da startup):** {_evidence_urls(rec.evidencia_gap)}",
         f"- **Evidência (NVIDIA):** {_evidence_urls(rec.evidencia_nvidia)}",
     ]
+    roi = _roi_summary(rec.roi) if rec.roi is not None else None
+    if roi is not None:
+        lines.append(f"- **ROI (graduação de inferência):** {roi}")
+    return lines
 
 
 def render_markdown(briefing: Briefing) -> str:
@@ -333,13 +371,17 @@ def render_pdf(briefing: Briefing) -> bytes:
                 f"complexidade {rec.complexidade.value}"
             )
             story.append(Paragraph(_pdf_escape(head), h3))
-            for label, value in (
+            campos = [
                 ("Justificativa técnica", rec.justificativa_tecnica),
                 ("Justificativa de negócio", rec.justificativa_negocio),
                 ("Próxima ação", rec.proxima_acao),
                 ("Evidência (gap da startup)", _evidence_urls(rec.evidencia_gap)),
                 ("Evidência (NVIDIA)", _evidence_urls(rec.evidencia_nvidia)),
-            ):
+            ]
+            roi = _roi_summary(rec.roi) if rec.roi is not None else None
+            if roi is not None:
+                campos.append(("ROI (graduação de inferência)", roi))
+            for label, value in campos:
                 story.append(Paragraph(_pdf_field(label, value), body))
 
     acoes = [
