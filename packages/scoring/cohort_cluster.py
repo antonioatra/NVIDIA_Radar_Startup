@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from packages.db.models import Company, Score
-from packages.rag.embed import Embedder, get_embedder
+from packages.rag.embed import Embedder, EmbedderUnavailable, HashingEmbedder, get_embedder
 from packages.schemas.tech_vocab import normalize_techs
 
 # Limiares do alvo de graduação ★ (§6 / RUBRICA): AI-native + P1/P2 alto + P3 (Technical
@@ -295,7 +295,13 @@ def cluster_cohort(
     result_method = "numpy"
     if n == 0:
         return CohortClustering(n_companies=0, method=result_method, embedder=emb.name)
-    x = _embed(pts, emb)
+    try:
+        x = _embed(pts, emb)
+    except EmbedderUnavailable:
+        # nv-embedqa sem infra (sem rede/credencial/dep no serving) → cai p/ o hashing offline: o
+        # radar nunca 500 pelo embedder; `embedder` no resultado conta o que de fato rodou.
+        emb = HashingEmbedder()
+        x = _embed(pts, emb)
     kk = max(1, min(k or _suggested_k(n), n))
     labels = np.zeros(n, dtype=int) if kk == 1 else _kmeans(x, kk, seed=seed)
     coords = _project_2d(x, seed=seed)

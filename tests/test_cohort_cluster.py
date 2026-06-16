@@ -135,6 +135,27 @@ def test_cluster_cohort_deterministic() -> None:
     ]
 
 
+def test_cluster_cohort_degrades_when_embedder_unavailable() -> None:
+    # nv-embedqa sem infra no serving nao pode 500 o radar: cai limpo p/ o hashing offline.
+    from packages.rag.embed import EmbedderUnavailable
+
+    class _Broken:
+        name = "nv-embedqa"
+        model = "x"
+        dimension = 8
+
+        def embed_passages(self, texts):  # noqa: ANN001, ANN201
+            raise EmbedderUnavailable("sem infra")
+
+        def embed_query(self, text):  # noqa: ANN001, ANN201
+            raise EmbedderUnavailable("sem infra")
+
+    res = cluster_cohort([_pt(i, nome=f"S{i}") for i in range(1, 6)], k=2, embedder=_Broken())
+    assert res.embedder == "hashing-offline"  # degradou, nao estourou
+    assert res.n_companies == 5
+    assert sum(c.size for c in res.clusters) == 5  # ninguem perdido
+
+
 def test_k_capped_to_n() -> None:
     res = cluster_cohort([_pt(1), _pt(2)], k=10)
     assert sum(c.size for c in res.clusters) == 2  # k limitado a n; ninguem perdido
