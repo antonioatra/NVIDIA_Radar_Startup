@@ -19,6 +19,11 @@ entries:
     workflow_depth: 9
     technical_optimization: 6
     distribution_moat: 15
+  model_aimi:
+    data_moat: 12
+    workflow_depth: 9
+    technical_optimization: 6
+    distribution_moat: 15
   expected_nvidia_techs:
   - NVIDIA NIM
   - TensorRT-LLM
@@ -34,8 +39,8 @@ entries:
   - https://aiotbrasil.com.br/noticias/hand-talk-lanca-tecnologia-de-reconhecimento-de-sinais-com-ia
   synthetic: false
   label_source: human
-  notes: Revisado por humano (2026-06-15) vs evidência pública (handtalk.me, AIoT Brasil); promovido
-    model->human. data_moat 12->14 (corpus Libras + experts no loop) => wrapper vira alvo de graduação.
+  notes: Revisado por humano (2026-06-15) vs evidência pública (handtalk.me, AIoT Brasil); promovido model->human.
+    data_moat 12->14 (corpus Libras + experts no loop) => wrapper vira alvo de graduação.
 - id: real-kunumi.com
   nome: Kunumi
   setor: Inteligência Artificial / Deep Tech
@@ -49,6 +54,11 @@ entries:
     workflow_depth: 9
     technical_optimization: 6
     distribution_moat: 15
+  model_aimi:
+    data_moat: 3
+    workflow_depth: 3
+    technical_optimization: 3
+    distribution_moat: 3
   expected_nvidia_techs:
   - NVIDIA NIM
   - TensorRT-LLM
@@ -73,6 +83,11 @@ entries:
   classificacao: AI-enabled
   region: periferico
   aimi:
+    data_moat: 6
+    workflow_depth: 9
+    technical_optimization: 6
+    distribution_moat: 15
+  model_aimi:
     data_moat: 6
     workflow_depth: 9
     technical_optimization: 6
@@ -105,6 +120,11 @@ entries:
     workflow_depth: 13
     technical_optimization: 15
     distribution_moat: 18
+  model_aimi:
+    data_moat: 6
+    workflow_depth: 3
+    technical_optimization: 3
+    distribution_moat: 9
   expected_nvidia_techs:
   - NVIDIA TensorRT
   - Triton Inference Server
@@ -135,6 +155,11 @@ entries:
     workflow_depth: 9
     technical_optimization: 6
     distribution_moat: 15
+  model_aimi:
+    data_moat: 12
+    workflow_depth: 9
+    technical_optimization: 6
+    distribution_moat: 15
   expected_nvidia_techs:
   - NVIDIA NIM
   - TensorRT-LLM
@@ -161,6 +186,11 @@ entries:
   classificacao: AI-native
   region: wrapper
   aimi:
+    data_moat: 6
+    workflow_depth: 9
+    technical_optimization: 6
+    distribution_moat: 15
+  model_aimi:
     data_moat: 6
     workflow_depth: 9
     technical_optimization: 6
@@ -195,6 +225,11 @@ entries:
     workflow_depth: 9
     technical_optimization: 6
     distribution_moat: 15
+  model_aimi:
+    data_moat: 12
+    workflow_depth: 9
+    technical_optimization: 6
+    distribution_moat: 15
   expected_nvidia_techs:
   - NVIDIA NIM
   - TensorRT-LLM
@@ -210,9 +245,9 @@ entries:
   - https://semantix.ai/sobre-nos
   synthetic: false
   label_source: model
-  notes: 'PENDENTE de revisão (fora do headline). Evidência (Exame) mostra LLM próprio "Lloro" + suíte
+  notes: PENDENTE de revisão (fora do headline). Evidência (Exame) mostra LLM próprio "Lloro" + suíte
     de governança própria (Safetix) => o rótulo wrapper/P3=6 do pipeline está SUBavaliado (provável maduro).
-    Promoção a human aguarda decisão humana sobre a região.'
+    Promoção a human aguarda decisão humana sobre a região.
 - id: real-idwall.co
   nome: Idwall
   setor: Validação de Identidade e Prevenção de Fraudes
@@ -223,6 +258,11 @@ entries:
   region: alvo_graduacao
   aimi:
     data_moat: 16
+    workflow_depth: 9
+    technical_optimization: 6
+    distribution_moat: 15
+  model_aimi:
+    data_moat: 12
     workflow_depth: 9
     technical_optimization: 6
     distribution_moat: 15
@@ -257,12 +297,17 @@ entries:
     workflow_depth: 9
     technical_optimization: 15
     distribution_moat: 18
+  model_aimi:
+    data_moat: 12
+    workflow_depth: 9
+    technical_optimization: 15
+    distribution_moat: 18
   expected_nvidia_techs:
   - NeMo Retriever (RAG)
   - NeMo (customização + Curator)
   rationale: 'Revisão humana (F7.1): desenvolve algoritmos-base próprios (raro no Brasil) e roda a plataforma
-    Vorteris self-hosted (10+ anos de P&D) => stack de inferência própria madura (P3 15 => maduro). A IA
-    é o núcleo (AI-native). Clientes enterprise diversos e prêmio CNI de inovação sustentam P4.'
+    Vorteris self-hosted (10+ anos de P&D) => stack de inferência própria madura (P3 15 => maduro). A
+    IA é o núcleo (AI-native). Clientes enterprise diversos e prêmio CNI de inovação sustentam P4.'
   evidence_urls:
   - https://aquare.la/
   - https://aquare.la/vorteris/

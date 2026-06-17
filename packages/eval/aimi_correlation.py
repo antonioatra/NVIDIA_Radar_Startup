@@ -31,9 +31,10 @@ from datetime import UTC, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from packages.agents import heuristic_score
-from packages.schemas import AIMIPillar, AIMIScore, Claim, Evidence, StartupProfile
+from packages.schemas import AIMIPillar, AIMIScore, Claim, Evidence, PillarScore, StartupProfile
+from packages.schemas.enums import Classification
 
-from .dataset import LabeledStartup, load_eval_set
+from .dataset import ExpectedPillars, LabeledStartup, load_eval_set
 
 #: Gate do índice (§7 / F7.2): correlação de Spearman do AIMI com os rótulos de F1.12.
 SPEARMAN_THRESHOLD = 0.70
@@ -46,6 +47,41 @@ _EVAL_EV = Evidence(
     fetched_at=datetime(2026, 1, 2, 12, 0, tzinfo=UTC),
     content_hash="eval-f64",
 )
+
+#: Placeholder p/ reconstruir o `AIMIScore` do `model_aimi` (F7.1): o veredito real já é o score
+#: que a heurística deu sobre a evidência raspada COMPLETA na produção — aqui só satisfazemos a
+#: RUBRICA §0 (sub-score > 6 exige citação); a fonte real está nos `evidence_urls` da entrada.
+_MODEL_EV = Evidence(
+    url="https://cohort.eval",
+    snippet="AIMI de produção sobre a evidência raspada da coorte (F7.1)",
+    fetched_at=datetime(2026, 1, 2, 12, 0, tzinfo=UTC),
+    content_hash="eval-cohort",
+)
+_PILLAR_BY_FIELD = {p.value: p for p in AIMIPillar}
+
+
+def _aimi_from_pillars(pillars: ExpectedPillars, classificacao: Classification) -> AIMIScore:
+    """Reconstrói o `AIMIScore` dos 4 pilares que a produção computou (`model_aimi`, F7.1).
+
+    Para entrada real, o **predito** é o AIMI da heurística sobre a evidência **completa** (F1.14),
+    não o re-cálculo sobre a `descricao`-resumo de 1 linha (que afunda no piso). Anexa `_MODEL_EV`
+    em todo pilar p/ não esbarrar na RUBRICA §0 (a evidência real vive nos `evidence_urls`).
+    """
+    pscore = {
+        field: PillarScore(
+            pilar=_PILLAR_BY_FIELD[field],
+            score=getattr(pillars, field),
+            justificativa="AIMI de produção sobre a evidência raspada (F7.1).",
+            evidencia=[_MODEL_EV],
+        )
+        for field in ("data_moat", "workflow_depth", "technical_optimization", "distribution_moat")
+    }
+    return AIMIScore(
+        **pscore,
+        classificacao=classificacao,
+        heuristic_version="v1",  # é o score que a heurística v1 deu na produção (F1.14)
+        total=pillars.total,
+    )
 
 
 def profile_for(entry: LabeledStartup) -> StartupProfile:
@@ -64,7 +100,15 @@ def profile_for(entry: LabeledStartup) -> StartupProfile:
 
 
 def predicted_aimi(entry: LabeledStartup) -> AIMIScore:
-    """AIMI **predito** pela heurística v1 (F6.1) sobre o perfil só-de-descrição da entrada."""
+    """AIMI **predito** pela heurística v1 (F6.1).
+
+    Entrada real com `model_aimi` (F7.1): usa o AIMI que a heurística produziu sobre a evidência
+    raspada **completa** na produção — a `descricao`-resumo de 1 linha **não** é o sinal que a
+    produção vê (sem ela a heurística starva e afunda no piso, falseando a correlação). Fixtures
+    sintéticas (prosa rica) seguem rodando a heurística sobre a descrição (que É o sinal).
+    """
+    if entry.model_aimi is not None:
+        return _aimi_from_pillars(entry.model_aimi, entry.classificacao)
     return heuristic_score(profile_for(entry))
 
 

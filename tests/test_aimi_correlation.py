@@ -99,5 +99,47 @@ def test_predicted_aimi_is_v1_and_deterministic() -> None:
     assert predicted_aimi(entry).total == first.total  # puro/reprodutível
 
 
+def test_predicted_aimi_uses_model_aimi_for_real_entries() -> None:
+    # F7.1 lever: empresa real carrega o AIMI que a heurística deu sobre a evidência COMPLETA
+    # (model_aimi). A descrição-resumo de 1 linha afundaria no piso — o predito deve ser o
+    # model_aimi, não o re-cálculo sobre a descrição pobre.
+    from packages.eval.dataset import ExpectedPillars, LabeledStartup
+    from packages.schemas.enums import Classification, PlaneRegion
+
+    rich = ExpectedPillars(
+        data_moat=15, workflow_depth=9, technical_optimization=6, distribution_moat=15
+    )
+    entry = LabeledStartup(
+        id="real-x",
+        nome="X",
+        setor="tech",
+        descricao="Empresa de IA.",  # 1 linha pobre → heurística afundaria no piso
+        classificacao=Classification.AI_NATIVE,
+        region=PlaneRegion.ALVO_GRADUACAO,
+        aimi=rich,
+        model_aimi=rich,
+        synthetic=False,
+        label_source="human",
+        rationale="teste",
+        evidence_urls=["https://x.co"],
+    )
+    pred = predicted_aimi(entry)
+    assert pred.total == rich.total  # usou o model_aimi (45), não o piso da descrição
+    assert pred.data_moat.score == 15 and pred.distribution_moat.score == 15
+    # sem model_aimi (fixture sintética) cai no heurístico sobre a descrição (piso baixo).
+    syn = LabeledStartup(
+        id="syn-x",
+        nome="X",
+        setor="tech",
+        descricao="Empresa de IA.",
+        classificacao=Classification.AI_NATIVE,
+        region=PlaneRegion.ALVO_GRADUACAO,
+        aimi=rich,
+        rationale="teste",
+        synthetic=True,
+    )
+    assert predicted_aimi(syn).total < rich.total  # descrição-só não alcança o model_aimi
+
+
 def test_main_returns_zero_when_above_gate() -> None:
     assert main() == 0

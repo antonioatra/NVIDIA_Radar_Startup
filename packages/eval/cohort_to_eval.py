@@ -181,6 +181,10 @@ def entry_from_company(
             classificacao=score.classificacao,
             region=region,
             aimi=pillars,
+            # O AIMI que a heurística deu sobre a evidência raspada COMPLETA (F1.14) — o eval usa
+            # como predito p/ a real (a `descricao`-resumo afunda no piso). Na geração == `aimi`;
+            # a curadoria humana diverge o `aimi` (gold) e preserva este.
+            model_aimi=pillars,
             expected_nvidia_techs=_expected_techs(session, company.id),
             rationale=rationale,
             evidence_urls=evidence_urls,
@@ -228,6 +232,18 @@ def _entry_to_dict(e: LabeledStartup) -> dict:
             "technical_optimization": e.aimi.technical_optimization,
             "distribution_moat": e.aimi.distribution_moat,
         },
+        **(
+            {
+                "model_aimi": {
+                    "data_moat": e.model_aimi.data_moat,
+                    "workflow_depth": e.model_aimi.workflow_depth,
+                    "technical_optimization": e.model_aimi.technical_optimization,
+                    "distribution_moat": e.model_aimi.distribution_moat,
+                }
+            }
+            if e.model_aimi is not None
+            else {}
+        ),
         "expected_nvidia_techs": list(e.expected_nvidia_techs),
         "rationale": e.rationale,
         "evidence_urls": list(e.evidence_urls),

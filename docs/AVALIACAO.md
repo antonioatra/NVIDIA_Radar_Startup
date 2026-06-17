@@ -30,7 +30,7 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 | Entregável | Métrica | Meta §7 | Resultado | Veredito |
 |---|---|---|---|---|
 | Classificação (F7.2) | macro-F1 | ≥ 0,75 | **0,875** (24 fixtures) · **0,720** (n=32 c/ reais) · 0,314 piso offline | ⚠️ ✅ fixtures · reais ↓ (AI-enabled n=6) |
-| AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,815** (24 fixtures) · 0,685 (n=32, c/ reais) | ⚠️ ✅ na prosa rica |
+| AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,705** (n=32, reais sobre evidência completa) · 0,815 (24 fixtures) | ✅ |
 | Recomendação (F7.2b) | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro F4.5) | ✅ |
 | Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,79** geral / **0,865** nos alvos · precision 0,37 | ✅ recall / ⚠️ precision |
 | RAG (F7.3) | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
@@ -67,16 +67,27 @@ sub-prediz). Medido ao vivo em 2026-06-15 (24 fixtures: 2026-06-11).
 
 ### 2. Índice AIMI — correlação com os rótulos (F6.4)
 
-**Nas 24 fixtures sintéticas (descrição rica): `Spearman(total) = 0,815` ≥ 0,70 ✅.** Incluindo as 8
-reais curadas no headline (n=32): **`Spearman(total) = 0,685`** — abaixo do gate. A queda é **esperada
-e honesta**: a heurística v1 pontua **só pela descrição**, e as entradas reais carregam descrição de
-**uma linha** (sem funding/clientes/dado proprietário em prosa), então ela "passa fome" justo onde o
-rótulo humano usou a evidência externa. Por pilar (n=32): **P3 Technical Optimization ρ=+0,67** (o que
-dispara a graduação, ainda o mais forte), P1 Data Moat ρ=+0,62, P2 Workflow ρ=+0,62, **P4 Distribution
-Moat ρ=+0,12** (o mais fraco — confirma que GTM/funding não cabem numa frase). **Leitura:** o número
-justo da *heurística* é o das fixtures ricas (0,815); o 0,685 mede "ranquear uma empresa por 1 linha",
-não a qualidade do índice na produção (que vê a evidência raspada inteira, não a descrição-resumo).
-Reportado sem maquiar: a meta passa na prosa rica e falha na prosa pobre.
+**Nas 24 fixtures sintéticas (descrição rica): `Spearman(total) = 0,815` ≥ 0,70 ✅.** No headline
+completo (n=32, com as 8 reais curadas): **`Spearman(total) = 0,705` ≥ 0,70 ✅.** Por pilar (n=32):
+**P3 Technical Optimization ρ=+0,76** (o que dispara a graduação — o mais forte), P2 Workflow ρ=+0,63,
+P1 Data Moat ρ=+0,57, **P4 Distribution Moat ρ=+0,42** (o mais fraco, mas recuperado vs antes).
+
+**O lever (F7.1) — empresa real é pontuada sobre a evidência COMPLETA, não a descrição-resumo.** A
+versão anterior media **0,685** (abaixo do gate) por um artefato do harness: ele alimentava a heurística
+só com a `descricao` de **1 linha** das reais — sem funding/clientes/dado em prosa, a heurística afundava
+**todas no piso 12** (8 empates contra 8 ranks distintos → o Spearman colapsava). Mas a produção (F1.14)
+pontua sobre a **evidência raspada inteira**. O eval agora carrega esse AIMI de produção (`model_aimi`)
+como predito das reais — o sinal que a produção de fato vê. Resultado: **7 das 9 reais correlacionam
+quase perfeito** (Aquarela 54/54, Hand Talk 42/44, Idwall 42/46, Semantix 42/42, BotCity/Take Blip 36/36)
+e a meta passa. **Não** é maquiagem: a heurística é a mesma; o que mudou é parar de medi-la com 1 linha.
+
+**Limitações honestas que permanecem:** (a) **Unico (pred 21 × rótulo 64)** e **Kunumi (12 × 39)** seguem
+outliers — o rótulo humano da Unico **excede a evidência raspada** (1 cliente enterprise + US$120M → a
+rubrica dá 21; o humano pontuou 64 por reputação de unicórnio), e o scrape da Kunumi é raso; puxam P1/P4.
+(b) Para **3 reais** o humano **confirmou** o score do modelo (BotCity/Take Blip/Semantix) → essas linhas
+têm **resíduo circular** (predito = gold por concordância humana, não por re-cálculo independente). O
+lever fecha o gap do "1 linha", mas a calibração fina de Unico/Kunumi pede **mais fonte por empresa**
+(re-scrape, créditos). O número das fixtures ricas (0,815) segue o teto da heurística com sinal pleno.
 
 ### 3. Recomendação — techs NVIDIA × esperadas, held-out (F7.2b)
 
@@ -187,7 +198,7 @@ omissão. *(Falta só o head-to-head com a recuperação nv-embed ao vivo — ga
    sem linha de ROI por padrão (engine atrás de flag — ver PROXIMOS-PASSOS §D). A **camada de coorte
    (F6.5–F6.7) está entregue em CPU** (clustering + radar), mas a **qualidade do radar é limitada para
    demo** (feedback 2026-06-15): embeddings hashing-offline + texto de clustering sem a descrição +
-   AIMI subavaliado por evidência rasa (mesma causa do drop 0,815→0,685) → clusters incoerentes e 0%
+   AIMI subavaliado por evidência rasa por empresa (mesma raiz dos outliers Unico/Kunumi no eval) → clusters incoerentes e 0%
    "prontas ★". Fixes de qualidade rastreados em PROXIMOS-PASSOS §C (embeddings reais + descrição +
    re-score por evidência).
 

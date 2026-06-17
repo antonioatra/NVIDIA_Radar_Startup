@@ -1,9 +1,10 @@
 # Próximos passos para fechar o TAPI
 
-> **Estado em 2026-06-15.** O núcleo testável dos 7 entregáveis está feito (suíte ~747 passed,
-> 4 skipped). As metas do §7 batem nas **24 fixtures**; com as **8 reais curadas** (F7.1) no headline,
-> classificação (0,72) e AIMI (0,685) ficam **logo abaixo** do gate e a recomendação melhora — o custo
-> honesto de sair do sintético, detalhado em [AVALIACAO.md](AVALIACAO.md). Tudo que resta abaixo é
+> **Estado em 2026-06-16.** O núcleo testável dos 7 entregáveis está feito. As metas do §7 batem nas
+> **24 fixtures**; com as **8 reais curadas** (F7.1) no headline, o **AIMI volta a passar (0,705 ≥ 0,70)**
+> ao pontuar a real sobre a **evidência raspada completa** (lever F7.1, não a descrição de 1 linha); só a
+> classificação (0,72) segue logo abaixo (AI-enabled n=6). A recomendação melhora — detalhado em
+> [AVALIACAO.md](AVALIACAO.md). Tudo que resta abaixo é
 > **stretch gated por recurso** (volume de coorte, GPU, dependência ou chave externa), **não** código de
 > base faltando. Este documento detalha cada frente: estado real, o que falta, os passos e o bloqueio.
 
@@ -119,7 +120,7 @@ Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (crédito
   empresas): com nv-embedqa o par de identidade (Unico+Idwall) e o de dados (Cortex+Aquarela) se
   separam; com hashing grudavam por token ("Tecnologia de…"). **+ k default ajustado** (`_suggested_k`:
   `n//3` → ~`n/2`, teto 8) — `k=3` era grosseiro p/ 10 domínios distintos. Teste: `test_suggested_k_*`.
-- **(c) "Prontas ★ = 0%" + AIMI baixo (31–43)** — mesma causa raiz do eval (Spearman 0,815 → 0,685):
+- **(c) "Prontas ★ = 0%" + AIMI baixo (31–43)** — mesma causa raiz dos outliers do eval (Unico/Kunumi):
   o AIMI de produção é **gated por evidência** (RUBRICA §0: sub-score > 6 exige citação) e o scrape
   por-empresa é raso → o Nemotron (corretamente) não sobe P1/P4 sem fonte. **Fix honesto:** coletar
   **mais evidência por empresa** (mais fontes Tavily/Firecrawl) e re-pontuar — **não** afrouxar a

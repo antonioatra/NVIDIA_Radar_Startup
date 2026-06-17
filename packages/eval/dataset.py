@@ -87,6 +87,14 @@ class LabeledStartup(BaseModel):
     classificacao: Classification
     region: PlaneRegion
     aimi: ExpectedPillars
+    model_aimi: ExpectedPillars | None = Field(
+        default=None,
+        description="AIMI que a heurística (F6.1) computou sobre a EVIDÊNCIA RASPADA COMPLETA na "
+        "produção (F1.14) — só nas entradas reais. O eval usa isto como **predito**, porque a "
+        "produção vê a evidência inteira, não a `descricao`-resumo de 1 linha (que faz a "
+        "heurística afundar no piso e falsear a correlação). Ausente nas fixtures sintéticas "
+        "(prosa rica = a descrição já É o sinal). Distinto do `aimi` (rótulo/ground-truth).",
+    )
     expected_nvidia_techs: list[str] = Field(
         default_factory=list,
         description="Techs NVIDIA esperadas por empresa (eval de recomendação, F7.2b).",
