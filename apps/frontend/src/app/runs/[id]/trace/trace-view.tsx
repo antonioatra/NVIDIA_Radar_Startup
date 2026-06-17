@@ -99,7 +99,7 @@ function Body({ trace }: { trace: RunTrace }) {
             </>
           )}
           {trace.budget_limited && (
-            <span className="rounded-full border border-primary/40 px-3 py-1 text-xs text-primary">
+            <span className="rounded-full border border-brand/40 px-3 py-1 text-xs text-brand-ink">
               Orcamento de LLM atingido (F2.11)
             </span>
           )}
@@ -111,7 +111,7 @@ function Body({ trace }: { trace: RunTrace }) {
           href={trace.langfuse_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-fit rounded-lg border border-border px-4 py-2 text-sm text-primary hover:bg-accent"
+          className="w-fit rounded-lg border border-border px-4 py-2 text-sm text-brand-ink hover:bg-accent"
         >
           Abrir trace completo no Langfuse →
         </a>
@@ -168,7 +168,7 @@ function StepRow({ step }: { step: RunTraceStep }) {
       <span
         className={cn(
           "shrink-0 text-xs",
-          step.status === "done" ? "text-primary" : "text-muted-foreground",
+          step.status === "done" ? "text-brand-ink" : "text-muted-foreground",
         )}
       >
         {STEP_STATUS_LABELS[step.status]}

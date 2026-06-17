@@ -35,6 +35,9 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-ink: var(--brand-ink);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -64,9 +67,16 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Acento de marca NVIDIA (#76B900). --brand: o verde-assinatura, para preenchimentos
+     (a cor de texto sobre ele e --brand-foreground, escura). --brand-ink: um verde mais
+     fechado, legivel como TEXTO/borda sobre fundo claro (o #76B900 puro nao tem contraste
+     suficiente para texto pequeno). No tema escuro, --brand-ink fica claro (ver .dark). */
+  --brand: oklch(0.713 0.1943 131);
+  --brand-foreground: oklch(0.21 0 0);
+  --brand-ink: oklch(0.55 0.135 132);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -84,24 +94,31 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  /* Fundo no cinza-escuro NVIDIA (#1E1E1E ~ oklch 0.235), nao preto puro — a propria
+     NVIDIA faz essa distincao. Card/popover sobem junto para continuarem "elevados". */
+  --background: oklch(0.235 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.27 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.27 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --secondary: oklch(0.31 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
+  --muted: oklch(0.31 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(0.31 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* No escuro o verde-assinatura ja contrasta bem como texto, mas subimos o L do --brand-ink
+     para ele "acender" sobre o fundo cinza. --brand/-foreground seguem iguais ao tema claro. */
+  --brand: oklch(0.713 0.1943 131);
+  --brand-foreground: oklch(0.21 0 0);
+  --brand-ink: oklch(0.82 0.17 132);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

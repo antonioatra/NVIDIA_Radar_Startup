@@ -103,7 +103,7 @@ function SubHeader({ company }: { company: CompanyDetail }) {
           href={company.website}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary hover:underline"
+          className="text-brand-ink hover:underline"
         >
           {company.website.replace(/^https?:\/\//, "")}
         </a>
@@ -172,7 +172,7 @@ function RecommendationCard({ rec }: { rec: RecommendationOut }) {
   return (
     <li className="rounded-lg border border-border bg-card p-5 text-card-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-primary">{rec.tech}</h3>
+        <h3 className="text-base font-semibold text-brand-ink">{rec.tech}</h3>
         <div className="flex flex-wrap items-center gap-2">
           <PriorityBadge prioridade={rec.prioridade} />
           <span className="text-xs text-muted-foreground">
@@ -219,10 +219,10 @@ function RoiStrip({ roi }: { roi: ROIOut }) {
   const migracao = roi.baseline && roi.optimized ? `${roi.baseline} → ${roi.optimized}` : null;
 
   return (
-    <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+    <div className="mt-3 rounded-md border border-brand/40 bg-brand/5 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-primary">ROI</span>
-        <span className="rounded-full border border-primary/30 px-2 py-0.5 text-[10px] text-primary">
+        <span className="text-xs font-medium text-brand-ink">ROI</span>
+        <span className="rounded-full border border-brand/40 px-2 py-0.5 text-[10px] text-brand-ink">
           {roi.is_live_run ? "medido ao vivo na GPU" : "matriz de benchmark"}
         </span>
       </div>
@@ -231,7 +231,7 @@ function RoiStrip({ roi }: { roi: ROIOut }) {
           {numeros.map((n) => (
             <div key={n.label} className="flex flex-col">
               <span className="text-xs text-muted-foreground">{n.label}</span>
-              <span className="font-mono text-sm font-semibold text-primary">{n.value}</span>
+              <span className="font-mono text-sm font-semibold text-brand-ink">{n.value}</span>
             </div>
           ))}
         </div>
@@ -265,7 +265,7 @@ function EvidenceColumn({ label, itens }: { label: string; itens: EvidenceOut[] 
                 href={ev.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
+                className="text-brand-ink hover:underline"
               >
                 {ev.source_title ?? ev.url}
               </a>
@@ -295,7 +295,7 @@ function PriorityBadge({ prioridade }: { prioridade: string }) {
       className={cn(
         "rounded-full border px-2 py-0.5 text-xs font-medium",
         prioridade === "alta"
-          ? "border-primary/40 text-primary"
+          ? "border-brand/40 text-brand-ink"
           : "border-border text-muted-foreground",
       )}
     >
@@ -352,7 +352,7 @@ function AimiRadar({ pilares }: { pilares: PillarOut[] }) {
 
       <polygon
         points={dataPoly}
-        className="text-primary"
+        className="text-brand"
         fill="currentColor"
         fillOpacity={0.18}
         stroke="currentColor"
@@ -360,7 +360,7 @@ function AimiRadar({ pilares }: { pilares: PillarOut[] }) {
       />
       {pilares.map((p, i) => {
         const [x, y] = point(p.score, ANGLES[i] ?? 0);
-        return <circle key={p.pilar} cx={x} cy={y} r={3} className="fill-primary" />;
+        return <circle key={p.pilar} cx={x} cy={y} r={3} className="fill-brand" />;
       })}
 
       <g className="fill-muted-foreground text-[10px]">
@@ -391,7 +391,7 @@ function PillarRow({ pilar }: { pilar: PillarOut }) {
       {/* Barra do sub-score (0-25) para leitura rapida ao lado do radar. */}
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-primary"
+          className="h-full rounded-full bg-brand"
           style={{ width: `${(pilar.score / 25) * 100}%` }}
         />
       </div>
@@ -406,7 +406,7 @@ function PillarRow({ pilar }: { pilar: PillarOut }) {
                 href={ev.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
+                className="text-brand-ink hover:underline"
               >
                 {ev.source_title ?? ev.url}
               </a>
@@ -427,7 +427,7 @@ function ClasseBadge({ classe }: { classe: string }) {
       className={cn(
         "rounded-full border px-2 py-0.5 text-xs font-medium",
         classe === "AI-native"
-          ? "border-primary/40 text-primary"
+          ? "border-brand/40 text-brand-ink"
           : "border-border text-muted-foreground",
       )}
     >
@@ -454,7 +454,7 @@ function Metric({
   return (
     <div className="flex min-w-28 flex-col gap-1 rounded-lg border border-border bg-card p-4">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={cn("font-mono text-lg", highlight && "font-semibold text-primary")}>
+      <span className={cn("font-mono text-lg", highlight && "font-semibold text-brand-ink")}>
         {display}
       </span>
     </div>

@@ -50,7 +50,10 @@ export default function Home() {
             decisao de outreach do gerente de Startups &amp; VCs.
           </p>
           <div className="mt-2 flex flex-wrap gap-3">
-            <Link href="/consulta" className={cn(buttonVariants({ size: "lg" }))}>
+            <Link
+              href="/consulta"
+              className={cn(buttonVariants({ variant: "brand", size: "lg" }))}
+            >
               Nova consulta
             </Link>
             <Link
@@ -67,13 +70,13 @@ export default function Home() {
             <Link
               key={tela.href}
               href={tela.href}
-              className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-card-foreground transition-colors hover:border-foreground/30 hover:bg-accent"
+              className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-card-foreground transition-colors hover:border-brand/40 hover:bg-accent"
             >
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-base font-semibold">{tela.titulo}</h2>
                 <span
                   aria-hidden
-                  className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                  className="text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-brand-ink"
                 >
                   →
                 </span>

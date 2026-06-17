@@ -88,7 +88,7 @@ export function CohortRadar() {
                 />
                 <h3 className="font-semibold">{c.label}</h3>
                 {c.graduation_ready && (
-                  <span className="rounded-full border border-primary/40 px-2 py-0.5 text-xs font-medium text-primary">
+                  <span className="rounded-full border border-brand/40 px-2 py-0.5 text-xs font-medium text-brand-ink">
                     ★ alvo de graduacao
                   </span>
                 )}
@@ -110,10 +110,10 @@ export function CohortRadar() {
                   <Link
                     key={m.id}
                     href={`/radar/${m.id}`}
-                    className="rounded-md border border-border px-2 py-1 text-xs hover:border-primary/40"
+                    className="rounded-md border border-border px-2 py-1 text-xs hover:border-brand/40"
                   >
                     {m.nome}
-                    {m.graduation_ready && <span className="ml-1 text-primary">★</span>}
+                    {m.graduation_ready && <span className="ml-1 text-brand-ink">★</span>}
                   </Link>
                 ))}
               </div>
@@ -161,7 +161,7 @@ function Scatter({ data }: { data: CohortClustering }) {
                 r={m.graduation_ready ? 2.6 : 1.8}
                 fill={color}
                 fillOpacity={0.85}
-                stroke={m.graduation_ready ? "var(--primary)" : "transparent"}
+                stroke={m.graduation_ready ? "var(--brand)" : "transparent"}
                 strokeWidth={m.graduation_ready ? 0.8 : 0}
               >
                 <title>
@@ -194,7 +194,7 @@ function Stat({
 }) {
   return (
     <span>
-      {label}: <span className={cn("font-mono", highlight && "font-semibold text-primary")}>{value}</span>
+      {label}: <span className={cn("font-mono", highlight && "font-semibold text-brand-ink")}>{value}</span>
     </span>
   );
 }

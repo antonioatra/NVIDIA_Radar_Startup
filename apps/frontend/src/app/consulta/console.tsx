@@ -305,7 +305,7 @@ export function ConsultaConsole() {
             disabled={busy}
             className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
           />
-          <Button type="submit" size="lg" disabled={busy || query.trim() === ""}>
+          <Button type="submit" variant="brand" size="lg" disabled={busy || query.trim() === ""}>
             {busy ? "Consultando..." : "Consultar"}
           </Button>
         </div>
@@ -331,7 +331,7 @@ export function ConsultaConsole() {
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
+              className="h-full rounded-full bg-brand transition-all duration-300"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -381,7 +381,7 @@ export function ConsultaConsole() {
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
               <Link
                 href={`/runs/${encodeURIComponent(runId)}/trace`}
-                className="text-sm text-primary hover:underline"
+                className="text-sm text-brand-ink hover:underline"
               >
                 Ver passos do run (trace) →
               </Link>
@@ -392,7 +392,7 @@ export function ConsultaConsole() {
                   href={briefingUrl(runId, "pdf")}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-brand-ink hover:underline"
                 >
                   Exportar briefing (PDF) ↓
                 </a>
@@ -464,7 +464,7 @@ function ReviewPanel({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-primary/30 bg-background p-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-brand/40 bg-background p-4">
       <div className="flex flex-col gap-1">
         <h3 className="text-sm font-semibold">Revisao humana (HITL)</h3>
         {review.empresa && (
@@ -531,7 +531,7 @@ function ReviewPanel({
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={() => decide(true)} disabled={submitting}>
+        <Button type="button" variant="brand" onClick={() => decide(true)} disabled={submitting}>
           {submitting ? "Retomando..." : editing ? "Salvar e aprovar" : "Aprovar e retomar"}
         </Button>
         <Button

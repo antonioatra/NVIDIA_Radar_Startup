@@ -171,7 +171,7 @@ export function RadarBoard() {
               <li key={c.id}>
                 <Link
                   href={`/radar/${c.id}`}
-                  className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 text-card-foreground transition-colors hover:border-primary/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 text-card-foreground transition-colors hover:border-brand/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <span className="w-6 shrink-0 text-center font-mono text-sm text-muted-foreground">
                     {i + 1}
@@ -244,7 +244,7 @@ function ClasseBadge({ classe }: { classe: string }) {
       className={cn(
         "rounded-full border px-2 py-0.5 text-xs font-medium",
         classe === "AI-native"
-          ? "border-primary/40 text-primary"
+          ? "border-brand/40 text-brand-ink"
           : "border-border text-muted-foreground",
       )}
     >
@@ -267,7 +267,7 @@ function Metric({
     <div className="flex w-16 shrink-0 flex-col items-end gap-0.5 text-right">
       <span className="text-xs text-muted-foreground">{label}</span>
       <span
-        className={cn("font-mono text-sm", highlight && "font-semibold text-primary")}
+        className={cn("font-mono text-sm", highlight && "font-semibold text-brand-ink")}
       >
         {value ?? "—"}
       </span>

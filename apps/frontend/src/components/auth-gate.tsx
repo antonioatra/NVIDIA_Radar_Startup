@@ -143,7 +143,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <Button type="submit" disabled={submitting || value.trim() === ""}>
+        <Button type="submit" variant="brand" disabled={submitting || value.trim() === ""}>
           {submitting ? "Validando..." : "Entrar"}
         </Button>
       </form>
