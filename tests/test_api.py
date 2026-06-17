@@ -310,7 +310,30 @@ def test_companies_limit(client: TestClient) -> None:
     assert len(client.get("/companies?limit=1").json()) == 1
 
 
-def test_cohort_clusters_radar(client: TestClient) -> None:
+# --- discover / chat de descoberta (F3.10/F5.12) ------------------------------
+
+
+def test_discover_modo_filtro_por_tech_recomendada(client: TestClient) -> None:
+    # "NIM" é filtro puro (sem texto livre) → ordem por Inception Priority, sem similaridade.
+    data = client.get("/discover?q=quais sao candidatas a NIM?").json()
+    assert data["modo"] == "filtro"
+    nomes = [h["empresa"]["nome"] for h in data["resultados"]]
+    assert nomes == ["Acme Health"]  # só a que tem NIM recomendado
+    assert data["resultados"][0]["similaridade"] is None
+
+
+def test_discover_modo_semantico_ranqueia_e_cita(client: TestClient) -> None:
+    # "saude" é texto livre (fora do vocabulário de filtro) → modo semântico. Asserção robusta ao
+    # embedder (hashing no CI ou nv-embed real): a empresa de saúde fica acima da de fintech por
+    # relevância, e a que tem evidência carrega a citação que sustenta o match (§8).
+    data = client.get("/discover?q=startups de saude").json()
+    assert data["modo"] == "semantico"
+    nomes = [h["empresa"]["nome"] for h in data["resultados"]]
+    assert nomes.index("Acme Health") < nomes.index("Bolt Pay")  # saúde > fintech (semântico)
+
+    acme = next(h for h in data["resultados"] if h["empresa"]["nome"] == "Acme Health")
+    assert acme["similaridade"] is not None
+    assert acme["citacao"] is not None and acme["citacao"]["url"].startswith("https://")
     # Radar de portfolio (F6.5-F6.7): agrupa a coorte seedada e devolve clusters ranqueados.
     data = client.get("/cohort/clusters").json()
     assert data["n_companies"] == 3  # Acme, Bolt, Cold Start

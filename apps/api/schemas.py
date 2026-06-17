@@ -101,26 +101,41 @@ class TechFacetsOut(BaseModel):
     nvidia_tech: list[str] = Field(default_factory=list)
 
 
-class DiscoverOut(BaseModel):
-    """Resposta do chat de descoberta da coorte (F3.10/F5.12).
-
-    `entendido` ecoa como a pergunta em PT-BR foi interpretada (filtros captados); `resumo` é a
-    frase de resposta; `empresas` são os matches já ordenados por Inception Priority. O front
-    desenha como conversa: pergunta → resumo + cartões de empresa (reusa `CompanyOut`).
-    """
-
-    pergunta: str
-    entendido: str
-    resumo: str
-    empresas: list[CompanyOut] = Field(default_factory=list)
-
-
 class EvidenceOut(BaseModel):
     """Fonte citável de um sub-score (tabela `evidence`, §8): o link que sustenta o pilar."""
 
     url: str
     snippet: str
     source_title: str | None = None
+
+
+class DiscoverHitOut(BaseModel):
+    """Uma empresa no resultado da descoberta: o perfil + por que casou (F3.10/F5.12).
+
+    `empresa` é a projeção da lista (reusa `CompanyOut`); `similaridade` é o cosseno 0–1 com a
+    pergunta quando o modo é **semântico** (texto livre), `None` no modo só-filtro; `citacao` é a
+    fonte rastreável que sustenta o match (§8 — nada sem evidência).
+    """
+
+    empresa: CompanyOut
+    similaridade: float | None = None
+    citacao: EvidenceOut | None = None
+
+
+class DiscoverOut(BaseModel):
+    """Resposta do chat de descoberta da coorte (F3.10/F5.12).
+
+    `entendido` ecoa como a pergunta em PT-BR foi interpretada (filtros captados); `resumo` é a
+    frase de resposta; `modo` diz se a ordem veio do **filtro** (Inception Priority) ou do ranking
+    **semântico** (relevância à busca em texto livre); `resultados` são os matches nessa ordem, cada
+    um com a empresa + a citação que o sustenta. O front desenha como conversa.
+    """
+
+    pergunta: str
+    entendido: str
+    resumo: str
+    modo: str = "filtro"
+    resultados: list[DiscoverHitOut] = Field(default_factory=list)
 
 
 class PillarOut(BaseModel):

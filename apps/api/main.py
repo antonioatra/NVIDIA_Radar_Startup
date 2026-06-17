@@ -26,7 +26,8 @@ from sqlmodel import Session
 
 from apps.worker import enqueue_resume, enqueue_run
 from packages.agents.briefing import render_markdown, render_pdf
-from packages.agents.discovery import parse_query, summarize
+from packages.agents.cohort_rag import rank_discovery
+from packages.agents.discovery import parse_query, residual_query, summarize
 from packages.agents.human_review import review_payload
 from packages.agents.progress import ProgressEvent
 from packages.config import get_settings
@@ -49,7 +50,9 @@ from .deps import (
 from .schemas import (
     CompanyDetailOut,
     CompanyOut,
+    DiscoverHitOut,
     DiscoverOut,
+    EvidenceOut,
     RunAccepted,
     RunRequest,
     RunReviewOut,
@@ -220,14 +223,19 @@ def discover_cohort(
     session: SessionDep,
     q: Annotated[str, Query(description="Pergunta em PT-BR sobre a coorte (F3.10/F5.12).")] = "",
 ) -> DiscoverOut:
-    """Chat de descoberta da coorte (F3.10/F5.12): pergunta NL → filtros → empresas + resumo.
+    """Chat de descoberta da coorte (F3.10/F5.12): pergunta NL → filtros + ranking semântico.
 
-    Traduz a pergunta nos filtros estruturados que `list_companies` já entende (`parse_query`,
-    determinístico/offline) e devolve os matches ordenados por Inception Priority + o `entendido`
-    (como interpretou) e um `resumo`. "Suscetível à tech X" = o recommender prescreveu X (o gap
-    que X preenche), então o filtro de tech NVIDIA recomendada captura a susceptibilidade.
+    Dois estágios honestos: (1) `parse_query` traduz a pergunta nos **filtros estruturados** que
+    `list_companies` já entende (tech NVIDIA recomendada · classe · piso de AIMI) — recorta *quem
+    entra*; (2) `rank_discovery` decide *como ordenar*: se há **texto livre** (setor/domínio que o
+    vocabulário não cobre, ex.: "fraude", "agro") re-ordena por **similaridade semântica**
+    (`embeddings_use_nv` real ou hashing offline) e cita a evidência de cada match (§8); senão
+    mantém a ordem por Inception Priority. "Suscetível à tech X" = o recommender prescreveu X.
     """
     query = parse_query(q)
+    # Limite generoso: no modo semântico o ranking precisa enxergar a coorte **inteira** filtrada
+    # (não só o top-N por prioridade) p/ não esconder um match relevante atrás do corte. Escala da
+    # coorte é de dezenas — devolver tudo é barato e o chat ordena o que importa no topo.
     empresas = list_companies(
         session,
         setor=query.setor,
@@ -235,12 +243,51 @@ def discover_cohort(
         min_aimi=query.min_aimi,
         tech=query.tech,
         nvidia_tech=query.nvidia_tech,
+        limit=500,
     )
+    by_id: dict[int, CompanyOut] = {e.id: e for e in empresas}
+    ranking = rank_discovery(session, q, [e.id for e in empresas])
+
+    resultados = [
+        DiscoverHitOut(
+            empresa=by_id[hit.company_id],
+            similaridade=round(hit.similaridade, 3) if hit.similaridade is not None else None,
+            citacao=(
+                EvidenceOut(
+                    url=hit.citacao.url,
+                    snippet=hit.citacao.snippet,
+                    source_title=hit.citacao.source_title,
+                )
+                if hit.citacao
+                else None
+            ),
+        )
+        for hit in ranking.hits
+        if hit.company_id in by_id
+    ]
+
+    if ranking.modo == "semantico":
+        livre = residual_query(q)
+        tem_filtro = query.entendido != "toda a coorte, por prioridade de outreach"
+        entendido = (
+            f"{query.entendido}; busca: “{livre}”" if tem_filtro
+            else f"busca semântica: “{livre}”"
+        )
+        plural = "startup" if len(resultados) == 1 else "startups"
+        resumo = (
+            f"Encontrei {len(resultados)} {plural} — {entendido} — "
+            "ordenadas por relevância semântica à sua busca."
+        )
+    else:
+        entendido = query.entendido
+        resumo = summarize(query, len(resultados))
+
     return DiscoverOut(
         pergunta=q,
-        entendido=query.entendido,
-        resumo=summarize(query, len(empresas)),
-        empresas=empresas,
+        entendido=entendido,
+        resumo=resumo,
+        modo=ranking.modo,
+        resultados=resultados,
     )
 
 

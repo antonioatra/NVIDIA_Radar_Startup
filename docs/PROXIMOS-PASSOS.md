@@ -1,10 +1,11 @@
 # Próximos passos para fechar o TAPI
 
-> **Estado em 2026-06-16.** O núcleo testável dos 7 entregáveis está feito. As metas do §7 batem nas
+> **Estado em 2026-06-17.** O núcleo testável dos 7 entregáveis está feito. As metas do §7 batem nas
 > **24 fixtures**; com as **8 reais curadas** (F7.1) no headline, o **AIMI volta a passar (0,705 ≥ 0,70)**
 > ao pontuar a real sobre a **evidência raspada completa** (lever F7.1, não a descrição de 1 linha); só a
 > classificação (0,72) segue logo abaixo (AI-enabled n=6). A recomendação melhora — detalhado em
-> [AVALIACAO.md](AVALIACAO.md). Tudo que resta abaixo é
+> [AVALIACAO.md](AVALIACAO.md). **Frente de profundidade B (chat premium) entregue (2026-06-17):** busca
+> semântica de texto livre + citação por empresa no `/discover`. Tudo que resta abaixo é
 > **stretch gated por recurso** (volume de coorte, GPU, dependência ou chave externa), **não** código de
 > base faltando. Este documento detalha cada frente: estado real, o que falta, os passos e o bloqueio.
 
@@ -13,7 +14,7 @@
 | # | Frente | Estado | Bloqueio real | Esforço | Prioridade |
 |---|---|---|---|---|---|
 | A | **Validar a stack + chat ao vivo** | ✅ **validado ao vivo** (coorte real + radar coerente + consulta resiliente) | — | feito | ✅ |
-| B | **Chat "premium" (F3.10/F5.12)** | MVP determinístico entregue | Volume de coorte | ~2–3 dias | Média |
+| B | **Chat "premium" (F3.10/F5.12)** | ✅ **busca semântica + citação entregues** (SSE adiado) | Volume amplia o ganho | feito (core) | Média |
 | C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)(b)(d) ✅ ao vivo; falta só **(c) ★** | AIMI gated por evidência (créditos) | ~créditos | **Alta (demo)** |
 | D | **GPU Graduation Engine (F6.8–F6.12)** | Engine + ROI no produto (UI + **texto do briefing**) ✅; falta só medição real | Endpoint NIM grátis congestionado (ver §D) | ~medição | Média/Baixa |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
@@ -27,10 +28,13 @@
 > - **C-a/C-b/C-d** — radar **coerente ao vivo**: descrição no embedding, `nv-embedqa` (com degradação
 >   p/ hashing), nomes honestos e `k` default ajustado. Par de identidade (Unico+Idwall) agora junto.
 >   Só o **★ (C-c)** segue gated por evidência (créditos).
+> - **B** — **chat premium / cohort-RAG (2026-06-17):** `/discover` ganhou busca **semântica** de texto
+>   livre (setor/domínio que o vocabulário não cobre) + **citação de evidência por empresa**, cosseno em
+>   memória (offline determinístico + nv-embed atrás de flag). SSE/reranker/índice dedicado adiados (§B).
 
-**Caminho mínimo para "fechar e demonstrar":** ~~A~~ ✅ → (B *ou* D, escolher um para mostrar profundidade).
-**Caminho completo:** ~~A~~ ✅ → B → D → F. **Restam:** C-c (★, créditos), uma frente de profundidade
-(D *ou* B) e a F opcional.
+**Caminho mínimo para "fechar e demonstrar":** ~~A~~ ✅ → ~~B (chat premium)~~ ✅ **feito**.
+**Caminho completo:** ~~A~~ ✅ → ~~B~~ ✅ → D → F. **Restam:** C-c (★, créditos), D (medição real,
+gated por GPU) e a F opcional.
 
 ---
 
@@ -75,31 +79,35 @@ abaixo). As recs servidas hoje vêm **persistidas** do build, não do RAG ao viv
 
 ---
 
-## B. Chat "premium" — cohort-RAG semântico (F3.10/F5.12 stretch)
+## B. Chat "premium" — cohort-RAG semântico (F3.10/F5.12)  *(✅ core entregue — 2026-06-17)*
 
-**Estado (honesto).** O `/discover` entregue é o **MVP determinístico**: parser de palavra-chave
-(`packages/agents/discovery.py`) traduz PT-BR → filtros (tech NVIDIA / classe / piso de AIMI) →
-`list_companies` ordenado por Inception Priority. É offline, reproduzível e sem alucinação; a UI
-casa com ele. **Não** cobre: setor/região livre, busca semântica, **citação de evidência por
-empresa** no chat, nem **streaming SSE**.
+**Estado.** ✅ **Busca semântica + citação por empresa entregues** (`packages/agents/cohort_rag.py`).
+O `/discover` agora faz **dois estágios honestos**: (1) `parse_query` recorta *quem entra* pelos
+filtros estruturados (tech NVIDIA / classe / piso de AIMI — inalterado); (2) `rank_discovery` decide
+*como ordenar* — se a pergunta traz **texto livre** que o vocabulário não cobre (`residual_query`
+não-vazio: setor/domínio como "fraude", "agro", "healthtech") **re-ordena por similaridade
+semântica** e **cita a evidência** que sustenta cada match; senão mantém a ordem por Inception
+Priority (comportamento anterior preservado). Fecha o gap documentado **"setor/região livre"** + a
+**citação por empresa no chat**. A UI mostra o chip "busca semântica", a relevância por cartão e a
+fonte citada (link externo) abaixo de cada empresa.
 
-**O que falta (a versão dos docs).** Índice de busca sobre a tabela `company` acumulada, distinto
-da KB NVIDIA mas reusando a mesma stack de RAG:
-- Coleção Qdrant separada para perfis/evidências da coorte (reusa `nv-embedqa` da F3.3, híbrida F3.5, reranker F3.6).
-- Nó Nemotron que extrai filtros estruturados **+** faz busca semântica → empresas com **citação à fonte**.
-- NeMo Guardrails: nunca retornar empresa sem evidência (princípio nº1 da ARQUITETURA §8).
-- UI: streaming via SSE (reusa o canal do `/runs/{id}` do console F5.3) + cards com a citação.
+**Disciplina (espinha verde).** Cosseno em **numpy, em memória** (espelha o radar de coorte F6.5) —
+**não toca o Qdrant**, logo **sem** o conflito 256×2048 do índice da KB. Offline = `HashingEmbedder`
+determinístico (CI); `embeddings_use_nv` liga o `nv-embedqa` real. Testes: `test_cohort_rag.py` (14)
++ `test_api.py::test_discover_modo_{filtro,semantico}` — verdes offline (hashing) **e** com nv-embed.
 
-**Passos.**
-1. `packages/rag/cohort_index.py`: indexar `company` + `evidence` numa coleção Qdrant nova (reusar o embedder e o cliente já existentes, só trocar a coleção).
-2. `packages/agents/cohort_rag.py`: `parse_query` (já existe) **+** retrieval semântico → merge → rerank → empresas com `evidence_url`.
-3. Estender `GET /discover` (ou novo `/discover/rag`) para devolver as citações por empresa; ligar Guardrails no caminho de resposta.
-4. UI: trocar o `fetch` único por `EventSource` (padrão do `console.tsx`) e renderizar a citação no `CompanyCard`.
+**O que ficou adiado (honesto):**
+- **Streaming SSE** — a parte cara (Next.js 16 + reuso do canal do console F5.3) e a que **menos
+  agrega a n≈10**; o `fetch` único responde rápido. Adiado de propósito, não meio-feito. Quando
+  fizer: trocar o `fetch` do `chat.tsx` por `EventSource` (padrão do `console.tsx`).
+- **Reranker NeMo no caminho do chat** — o cosseno + a citação léxica bastam na escala atual; o
+  reranker (F3.6) entra quando a coorte crescer (o ganho de reordenar só aparece com dezenas+).
+- **Índice Qdrant dedicado da coorte** — desnecessário enquanto o cosseno em memória cobre dezenas;
+  vira a opção de escala (junto com re-indexar a KB em 2048, item §C) quando o volume justificar.
 
-**Bloqueio.** Precisa da coorte **em volume** (frente A gera ~10 empresas; o RAG semântico só
-brilha com dezenas+). Sem volume, o MVP determinístico é honestamente melhor. **Esforço.** ~2–3 dias.
-**Decisão sugerida:** manter o MVP como entrega e documentar o premium como evolução — **ou** fazer
-o premium se houver tempo e a coorte crescer. Não marcar o DoD de citações enquanto não houver fonte por empresa.
+**Bloqueio restante.** Nenhum para o core; **volume de coorte só amplia o ganho** (com mais empresas
+o ranking semântico e o reranker brilham mais). **Decisão:** o premium está entregue como capacidade
+real e testada; SSE/reranker/índice dedicado seguem como evoluções de escala, não dívida de base.
 
 ---
 
@@ -241,9 +249,10 @@ rastreável, com a limitação anotada.
 2. ~~**C** (qualidade do radar): descrição + embeddings reais + nomes + k~~ ✅ — **resta só C-c** (★),
    que precisa de **mais evidência por empresa** (re-raspar = créditos). Opcional: re-indexar a KB em
    2048 p/ o recommender RAG ao vivo; cosmético do desempate de classe (ver §C).
-3. Escolher **uma** frente de profundidade para mostrar no case *(— a maior peça que falta —)*:
-   - **D** (GPU/ROI) se quiser o diferencial "stack viva + ROI medido" — **não é pago**, é montar na GPU.
-   - **B** (chat premium) se quiser a narrativa "descoberta conversacional com citações".
+3. ~~Escolher **uma** frente de profundidade~~ — **B (chat premium) entregue (2026-06-17):** busca
+   semântica de texto livre + citação por empresa no `/discover` (ver §B). A outra frente de
+   profundidade, **D (GPU/ROI)**, segue *gated por GPU* (4 GB local inviabiliza o self-host; endpoint
+   NIM grátis congestionado p/ a medição) — engine/UI já prontos, falta só a medição real.
 4. **F** por último, se sobrar tempo.
 
 ## Checklist de fechamento (DoD consolidado)
@@ -254,9 +263,12 @@ rastreável, com a limitação anotada.
 - [x] Consulta resiliente: o run sobrevive a sair/voltar da tela (F5.3+) ✅ 2026-06-16
 - [x] Radar de coorte coerente ao vivo: descrição + `nv-embedqa` + nomes honestos + k default (C-a/b/d) ✅ 2026-06-16
 - [ ] **C-c:** ★ calibrado (Gupy/Idwall/Unico em `alvo_graduacao`) — **gated: mais evidência por empresa (créditos)**
+- [x] **Frente de profundidade — B (chat premium / cohort-RAG):** busca semântica de texto livre +
+  citação de evidência por empresa no `/discover` (numpy em memória, offline determinístico + nv-embed
+  atrás de flag), com a UI mostrando relevância + fonte citada ✅ 2026-06-17 (SSE adiado; ver §B).
 - [~] **Frente de profundidade — D (ROI no briefing):** ROI numérico ponta a ponta no produto
   (matriz/engine → `gpu_benchmark` → persist → API → **UI `RoiStrip` + texto do briefing Markdown/PDF**)
-  ✅ 2026-06-16. **Falta só a medição real** (`bench_nim.py`) — *gated: endpoint NIM grátis congestionado
-  hoje* (ver §D). Alternativa: chat com citações (**B**) se a coorte crescer.
+  ✅ 2026-06-16. **Falta só a medição real** (`bench_nim.py`) — *gated: GPU local 4 GB + endpoint NIM
+  grátis congestionado* (ver §D).
 - [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (**F**)
 - [ ] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)

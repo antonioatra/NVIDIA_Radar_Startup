@@ -20,10 +20,14 @@ depois atrás de flag para NL mais livre — o contrato (`CohortQuery`) já isol
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from pydantic import BaseModel, Field
 
 from packages.schemas.tech_vocab import normalize_tech
+
+# Tokenização Unicode (palavras) compartilhada pelo parser e pelo resíduo semântico (F3.10).
+_TOKEN = re.compile(r"\w+", re.UNICODE)
 
 # Termo (minúsculo) → tag NVIDIA canônica recomendada. Ordem importa: termos compostos
 # ("nemo retriever") antes dos curtos ("nemo") p/ o match mais específico vencer.
@@ -132,6 +136,58 @@ def parse_query(text: str) -> CohortQuery:
     )
 
 
+# Palavras-função/genéricas das perguntas da coorte que **não** carregam intenção semântica
+# (conectivos + os verbos/substantivos de "pergunta de descoberta"). Tudo isto é descartado ao
+# medir se sobra texto livre — só o que NÃO está aqui (nem é filtro nem stem de inferência) conta
+# como sinal semântico (ex.: "fraude", "agro", "visão computacional").
+_QUERY_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "de", "da", "do", "das", "dos", "e", "o", "a", "os", "as", "um", "uma", "que", "com",
+        "sem", "por", "para", "pra", "quais", "qual", "quem", "sao", "são", "tem", "têm", "ter",
+        "mais", "menos", "muito", "startup", "startups", "empresa", "empresas", "negocio",
+        "negocios", "candidata", "candidatas", "candidato", "candidatos", "propensa", "propensas",
+        "propenso", "precisa", "precisam", "precisar", "precisando", "beneficia", "beneficiaria",
+        "beneficiariam", "gap", "gaps", "me", "mostra", "mostre", "lista", "liste", "quero", "ver",
+        "sobre", "na", "no", "nas", "nos", "ao", "aos", "todas", "todos", "toda", "todo", "essa",
+        "esse", "essas", "esses", "minha", "coorte", "ia", "ai",
+        # comparadores/qualificadores de maturidade (o número e "aimi"/"madur" já caem à parte)
+        "acima", "abaixo", "maior", "menor", "igual", "partir", "nivel", "niveis", "maturidade",
+        "alta", "alto", "baixa", "baixo", "media", "média", "score",
+    }
+)
+
+# Tokens das grafias de filtro (tech NVIDIA + classe): descartados ao medir o resíduo, pois já
+# viraram filtro estruturado. Flatten das surfaces (`_NVIDIA_TERMS`/`_CLASS_TERMS`) em palavras.
+_FILTER_TOKENS: frozenset[str] = frozenset(
+    tok for term, _ in (_NVIDIA_TERMS + _CLASS_TERMS) for tok in _TOKEN.findall(term)
+)
+
+
+def _is_content_token(tok: str) -> bool:
+    """True se o token carrega sinal semântico (não é filtro/stopword/intenção/número/curto)."""
+    if len(tok) < 3 or tok.isdigit():
+        return False
+    if tok in _QUERY_STOPWORDS or tok in _FILTER_TOKENS:
+        return False
+    if tok.startswith("aimi") or tok.startswith("madur"):
+        return False
+    return not any(stem in tok for stem in _INFERENCE_INTENT)
+
+
+def residual_query(text: str) -> str:
+    """Texto livre que sobra depois de remover tudo que o parser de filtro já consome.
+
+    Tokeniza a pergunta e descarta: grafias de tech/classe (viram filtro), os stems de intenção de
+    inferência (`_INFERENCE_INTENT`), o vocabulário de AIMI/maturidade, números, e as
+    palavras-função genéricas das perguntas da coorte (`_QUERY_STOPWORDS`). O que sobra é o **sinal
+    semântico** — setor/domínio em texto livre que o vocabulário controlado não cobre (ex.:
+    "fraude", "agro", "visão computacional"). Vazio ⇒ a pergunta é 100% filtro estruturado e o chat
+    mantém a ordem por Inception Priority; não-vazio ⇒ há o que ranquear por similaridade (F3.10).
+    """
+    tokens = _TOKEN.findall(unicodedata.normalize("NFC", text).lower())
+    return " ".join(tok for tok in tokens if _is_content_token(tok))
+
+
 def summarize(query: CohortQuery, count: int) -> str:
     """Frase de resposta do chat: o que entendeu + quantas achou (ordem = Inception Priority)."""
     plural = "startup" if count == 1 else "startups"
@@ -141,4 +197,4 @@ def summarize(query: CohortQuery, count: int) -> str:
     )
 
 
-__all__ = ["CohortQuery", "parse_query", "summarize", "normalize_tech"]
+__all__ = ["CohortQuery", "parse_query", "residual_query", "summarize", "normalize_tech"]

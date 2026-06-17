@@ -218,15 +218,25 @@ export async function listTechFacets(): Promise<TechFacets> {
   return res.json() as Promise<TechFacets>;
 }
 
+// Um match da descoberta (DiscoverHitOut, F3.10/F5.12): a empresa + por que casou. `similaridade`
+// e o cosseno 0-1 com a pergunta no modo semantico (texto livre), null no modo so-filtro; `citacao`
+// e a fonte rastreavel que sustenta o match (§8 — nada sem evidencia). Reusa CompanyOut/EvidenceOut.
+export interface DiscoverHit {
+  empresa: CompanyOut;
+  similaridade: number | null;
+  citacao: EvidenceOut | null;
+}
+
 // Resposta do chat de descoberta da coorte (DiscoverOut, apps/api/schemas.py — F3.10/F5.12).
-// `entendido` ecoa como a pergunta NL foi interpretada (os filtros que o parser deterministico
-// captou, packages/agents/discovery.py); `resumo` e a frase de resposta; `empresas` sao os
-// matches ja ordenados por Inception Priority (reusa CompanyOut da lista, F5.4).
+// `entendido` ecoa como a pergunta NL foi interpretada; `resumo` e a frase de resposta; `modo` diz
+// se a ordem veio do filtro (Inception Priority) ou do ranking semantico (relevancia ao texto
+// livre); `resultados` sao os matches nessa ordem, cada um com a empresa + a citacao que o sustenta.
 export interface DiscoverResult {
   pergunta: string;
   entendido: string;
   resumo: string;
-  empresas: CompanyOut[];
+  modo: "filtro" | "semantico";
+  resultados: DiscoverHit[];
 }
 
 // Pergunta a coorte em linguagem natural (`GET /discover?q=`, F3.10/F5.12): o backend traduz a
