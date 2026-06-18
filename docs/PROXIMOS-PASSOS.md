@@ -133,17 +133,19 @@ Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (crédito
   por-empresa é raso → o Nemotron (corretamente) não sobe P1/P4 sem fonte. **Fix honesto:** coletar
   **mais evidência por empresa** (mais fontes Tavily/Firecrawl) e re-pontuar — **não** afrouxar a
   rubrica (isso alucina). Conferir Gupy/Idwall/Unico caindo em `alvo_graduacao ★` depois. *(gated: créditos)*
-  → **Lever de evidência construído (flag `scrape_deep_evidence`, off por default = espinha verde).**
-  Diagnóstico medido na `cohort.db`: os 4 AI-native mais fortes (Hand Talk/Gupy/Idwall/Semantix)
-  travam em `data_moat=12, workflow_depth=9 → média 10,5`, **2,5 pts** abaixo do limiar de prontidão
-  (≥13), com P3 **já** baixo (6) — alvos de graduação de manual, só sem evidência citável p/ os
-  pilares subirem. A flag aprofunda **3 nós**: `search_planner` acrescenta 4 consultas por pilar
-  (data moat / workflow / clientes enterprise / funding, ancoradas no léxico do `classifier`),
-  `scraper` coleta 3 resultados/consulta (era 2) e `extractor` admite 9 docs (era 6, `doc_chars`
-  intacto p/ o teto F7.6). **Não** mexe na rubrica nem no limiar — só busca a evidência que falta.
-  Testável offline (plano determinístico) + verde. **Resta a calibração ao vivo** (re-scrape com a
-  flag = créditos): `SCRAPE_DEEP_EVIDENCE=true ... python -m packages.agents.cohort --seed --db
-  sqlite:///data/cohort.db`, depois re-seedar e conferir Gupy/Idwall/Hand Talk em `alvo_graduacao ★`.
+  → **CAUSA-RAIZ CORRIGIDA (2026-06-18): era ANCORAGEM DO PROMPT, não falta de evidência.** A
+  hipótese "mais evidência" foi **testada e falsificada**: a flag `scrape_deep_evidence` (consultas
+  por pilar + mais fontes/docs) rodou ao vivo (`cohort_deep.db`) e os pilares **não se moveram** —
+  Gupy ganhou 0→11 clientes citados e seguiu `12/9/6/15`; o `max_docs=9` ainda **estourou o teto F7.6**
+  e derrubou Hand Talk/Idwall por timeout. O `12/9/6/15` plano vinha do **exemplo JSON do
+  `classifier.md`**, que trazia literalmente `data_moat:12, workflow:9, tech:6, dist:15` — o Super
+  (reasoning) escrevia justificativa diferenciada mas **copiava os números do exemplo** (few-shot
+  anchoring), e o prompt **não tinha âncoras de banda** p/ mapear evidência→score. **Fix (`classifier@v3`):**
+  âncoras de banda (0–6 ausente · 7–12 emergente · 13–18 estabelecido · 19–25 forte+≥2 fontes) +
+  nota "não copie os números do exemplo" + exemplo diferenciado. **Validado A/B ao vivo** (mesma
+  fixture rica): `eval-alvo-01` data_moat **12→16** (rótulo humano 20), workflow 9→10; o wrapper raso
+  **fica em 6** (sem inflar — o gate §0 segura). **Resta:** re-rodar a coorte com v3 (scrape **raso**,
+  o `scrape_deep_evidence` é dead-end) p/ Idwall/Gupy/Hand Talk cruzarem o ★ — *gated: créditos*.
 - **(d) Nome do cluster por setor dominante** (`label = setor_dom`) — ✅ **feito.** `_cluster_label`
   só usa o setor quando ele domina (≥60% dos membros, `_LABEL_DOMINANT_SHARE`); abaixo disso nomeia
   pela **mistura** (top-2 setores, ex.: `fintech · healthtech`) em vez de mentir com um só. Empate
@@ -273,9 +275,10 @@ rastreável, com a limitação anotada.
 - [x] Stack sobe com `run.ps1`, coorte real seedada, `/radar` + `/coorte` + detalhe AIMI navegáveis ✅ 2026-06-16
 - [x] Consulta resiliente: o run sobrevive a sair/voltar da tela (F5.3+) ✅ 2026-06-16
 - [x] Radar de coorte coerente ao vivo: descrição + `nv-embedqa` + nomes honestos + k default (C-a/b/d) ✅ 2026-06-16
-- [~] **C-c:** lever de evidência construído (`scrape_deep_evidence`: consultas por pilar + mais
-  fontes/docs, offline-testado) ✅ 2026-06-18. **Falta a calibração ao vivo** (re-scrape com a flag =
-  créditos) p/ Gupy/Idwall/Hand Talk caírem em `alvo_graduacao ★` — **gated: créditos de scrape**
+- [~] **C-c:** causa-raiz do ★=0% **corrigida** — não era evidência (hipótese falsificada ao vivo),
+  era **ancoragem do prompt** (exemplo `12/9/6/15` no `classifier.md`). Fix `classifier@v3` (âncoras de
+  banda + anti-cópia), **validado A/B ao vivo** (data_moat 12→16 em fixture rica, wrapper fica em 6)
+  ✅ 2026-06-18. **Falta** re-rodar a coorte com v3 (scrape raso) p/ os alvos cruzarem o ★ — **gated: créditos**
 - [x] **Frente de profundidade — B (chat premium / cohort-RAG):** busca semântica de texto livre +
   citação de evidência por empresa no `/discover` (numpy em memória, offline determinístico + nv-embed
   atrás de flag), com a UI mostrando relevância + fonte citada ✅ 2026-06-17 (SSE adiado; ver §B).
