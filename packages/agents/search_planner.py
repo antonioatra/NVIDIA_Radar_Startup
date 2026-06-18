@@ -181,7 +181,42 @@ def _discovery_sources(limit: int = 6) -> list[PrioritizedSource]:
     return out[:limit]
 
 
-def _single_company_plan(query: str) -> SearchPlan:
+def _pillar_sources(name: str) -> list[PrioritizedSource]:
+    """Consultas por pilar (C-c, opt-in via `scrape_deep_evidence`): buscam a evidência que os
+    pilares **P1/P2/P4** do AIMI precisam p/ subir **com fonte** (RUBRICA §0).
+
+    O plano enxuto raspa só site/LinkedIn/base/notícia → num perfil de ~1 linha o data_moat
+    fica no platô de "2 sinais" (12) e o workflow no de "1 sinal" (9), e os alvos de graduação
+    travam ~2,5 pts abaixo do limiar de prontidão ★ (diagnóstico §C-c). Cada termo é ancorado no
+    **léxico que a heurística/Super varrem** (`classifier`: DATA/WORKFLOW/DIST_TERMS), p/ a coleta
+    render o 3º sinal de dado / 2º de workflow / a tração — **e a fonte que os corrobora**. Não
+    inventa nada: se a evidência pública não existir, o pilar (corretamente) não sobe.
+    """
+    return [
+        PrioritizedSource(
+            kind="search",
+            query_or_url=f"{name} dados proprietários modelo de IA treinado",
+            rationale="Data Moat (P1): dado proprietário / feedback loop / modelo próprio.",
+        ),
+        PrioritizedSource(
+            kind="search",
+            query_or_url=f"{name} plataforma automação fluxo de trabalho integração",
+            rationale="Workflow Depth (P2): automação multi-passo / integração / agentes.",
+        ),
+        PrioritizedSource(
+            kind="search",
+            query_or_url=f"{name} clientes enterprise casos de uso",
+            rationale="Distribution & Moat (P4) + dado de uso (P1): clientes/enterprise.",
+        ),
+        PrioritizedSource(
+            kind="search",
+            query_or_url=f"{name} investimento rodada captação parceria",
+            rationale="Distribution & Moat (P4): captação/parceria divulgada (tração).",
+        ),
+    ]
+
+
+def _single_company_plan(query: str, *, deep: bool = False) -> SearchPlan:
     name = _company_name(query)
     terms = _dedup([query, f"{name} startup Brasil", f"{name} site oficial"])
     sources: list[PrioritizedSource] = [
@@ -193,12 +228,22 @@ def _single_company_plan(query: str) -> SearchPlan:
         PrioritizedSource(kind="linkedin", query_or_url=f"{name} LinkedIn empresa"),
         PrioritizedSource(kind="database", query_or_url=f"{name} Crunchbase"),
     ]
+    # As consultas por pilar entram **antes** das notícias: seus docs têm prioridade no
+    # orçamento do extractor (`max_docs`), que preserva a ordem das fontes (C-c).
+    if deep:
+        sources += _pillar_sources(name)
     sources += _news_sources()
+    notes = (
+        "single-company APROFUNDADO: site + LinkedIn + base + consultas por pilar "
+        "(P1/P2/P4) + notícias (§9.2) — calibração do ★ (C-c)."
+        if deep
+        else "single-company: site oficial + LinkedIn + base + notícias (§9.2)."
+    )
     return SearchPlan(
         mode=ExecutionMode.SINGLE_COMPANY,
         search_terms=terms,
         sources=sources,
-        notes="single-company: site oficial + LinkedIn + base + notícias (§9.2).",
+        notes=notes,
     )
 
 
@@ -214,13 +259,17 @@ def _discovery_plan(query: str) -> SearchPlan:
     )
 
 
-def deterministic_plan(query: str, mode: ExecutionMode) -> SearchPlan:
-    """Plano de coleta puro/offline (default do nó) — sem rede/LLM, reprodutível."""
+def deterministic_plan(query: str, mode: ExecutionMode, *, deep: bool = False) -> SearchPlan:
+    """Plano de coleta puro/offline (default do nó) — sem rede/LLM, reprodutível.
+
+    `deep` (C-c, vem de `scrape_deep_evidence` no nó) aprofunda o plano single-company com as
+    consultas por pilar (`_pillar_sources`); discovery já lança rede ampla via `bias_query`.
+    """
     if not query.strip():
         raise ValueError("query vazia")
     if mode is ExecutionMode.DISCOVERY:
         return _discovery_plan(query)
-    return _single_company_plan(query)
+    return _single_company_plan(query, deep=deep)
 
 
 # ------------------------------------------------------------------ refinamento LLM (opt-in)
@@ -307,8 +356,8 @@ def _merge(base: SearchPlan, llm: SearchPlan) -> SearchPlan:
 
 def make_plan(query: str, mode: ExecutionMode, *, run_id: str | None = None) -> SearchPlan:
     """Plano final: determinista por padrão; refina com o Nano se ligado (F2.3)."""
-    base = deterministic_plan(query, mode)
     settings = get_settings()
+    base = deterministic_plan(query, mode, deep=settings.scrape_deep_evidence)
     if not (settings.planner_use_llm and settings.nvidia_api_key):
         return base
     llm = _llm_plan(query, mode, run_id=run_id)

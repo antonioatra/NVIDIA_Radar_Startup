@@ -15,7 +15,7 @@
 |---|---|---|---|---|---|
 | A | **Validar a stack + chat ao vivo** | ✅ **validado ao vivo** (coorte real + radar coerente + consulta resiliente) | — | feito | ✅ |
 | B | **Chat "premium" (F3.10/F5.12)** | ✅ **busca semântica + citação entregues** (SSE adiado) | Volume amplia o ganho | feito (core) | Média |
-| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)(b)(d) ✅ ao vivo; falta só **(c) ★** | AIMI gated por evidência (créditos) | ~créditos | **Alta (demo)** |
+| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)(b)(d) ✅ ao vivo; **(c) ★ lever construído**, falta o re-scrape ao vivo | calibração ao vivo (créditos) | ~créditos | **Alta (demo)** |
 | D | **GPU Graduation Engine (F6.8–F6.12)** | Engine + ROI no produto (UI + **texto do briefing**) ✅; falta só medição real | Endpoint NIM grátis congestionado (ver §D) | ~medição | Média/Baixa |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
 
@@ -133,6 +133,17 @@ Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (crédito
   por-empresa é raso → o Nemotron (corretamente) não sobe P1/P4 sem fonte. **Fix honesto:** coletar
   **mais evidência por empresa** (mais fontes Tavily/Firecrawl) e re-pontuar — **não** afrouxar a
   rubrica (isso alucina). Conferir Gupy/Idwall/Unico caindo em `alvo_graduacao ★` depois. *(gated: créditos)*
+  → **Lever de evidência construído (flag `scrape_deep_evidence`, off por default = espinha verde).**
+  Diagnóstico medido na `cohort.db`: os 4 AI-native mais fortes (Hand Talk/Gupy/Idwall/Semantix)
+  travam em `data_moat=12, workflow_depth=9 → média 10,5`, **2,5 pts** abaixo do limiar de prontidão
+  (≥13), com P3 **já** baixo (6) — alvos de graduação de manual, só sem evidência citável p/ os
+  pilares subirem. A flag aprofunda **3 nós**: `search_planner` acrescenta 4 consultas por pilar
+  (data moat / workflow / clientes enterprise / funding, ancoradas no léxico do `classifier`),
+  `scraper` coleta 3 resultados/consulta (era 2) e `extractor` admite 9 docs (era 6, `doc_chars`
+  intacto p/ o teto F7.6). **Não** mexe na rubrica nem no limiar — só busca a evidência que falta.
+  Testável offline (plano determinístico) + verde. **Resta a calibração ao vivo** (re-scrape com a
+  flag = créditos): `SCRAPE_DEEP_EVIDENCE=true ... python -m packages.agents.cohort --seed --db
+  sqlite:///data/cohort.db`, depois re-seedar e conferir Gupy/Idwall/Hand Talk em `alvo_graduacao ★`.
 - **(d) Nome do cluster por setor dominante** (`label = setor_dom`) — ✅ **feito.** `_cluster_label`
   só usa o setor quando ele domina (≥60% dos membros, `_LABEL_DOMINANT_SHARE`); abaixo disso nomeia
   pela **mistura** (top-2 setores, ex.: `fintech · healthtech`) em vez de mentir com um só. Empate
@@ -262,7 +273,9 @@ rastreável, com a limitação anotada.
 - [x] Stack sobe com `run.ps1`, coorte real seedada, `/radar` + `/coorte` + detalhe AIMI navegáveis ✅ 2026-06-16
 - [x] Consulta resiliente: o run sobrevive a sair/voltar da tela (F5.3+) ✅ 2026-06-16
 - [x] Radar de coorte coerente ao vivo: descrição + `nv-embedqa` + nomes honestos + k default (C-a/b/d) ✅ 2026-06-16
-- [ ] **C-c:** ★ calibrado (Gupy/Idwall/Unico em `alvo_graduacao`) — **gated: mais evidência por empresa (créditos)**
+- [~] **C-c:** lever de evidência construído (`scrape_deep_evidence`: consultas por pilar + mais
+  fontes/docs, offline-testado) ✅ 2026-06-18. **Falta a calibração ao vivo** (re-scrape com a flag =
+  créditos) p/ Gupy/Idwall/Hand Talk caírem em `alvo_graduacao ★` — **gated: créditos de scrape**
 - [x] **Frente de profundidade — B (chat premium / cohort-RAG):** busca semântica de texto livre +
   citação de evidência por empresa no `/discover` (numpy em memória, offline determinístico + nv-embed
   atrás de flag), com a UI mostrando relevância + fonte citada ✅ 2026-06-17 (SSE adiado; ver §B).
