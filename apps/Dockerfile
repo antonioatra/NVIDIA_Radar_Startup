@@ -28,6 +28,12 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 COPY apps/worker ./apps/worker
 
+# Dados estáticos que o runtime lê: seeds §9 (`load_sources`, F1.15), knowledge base NVIDIA
+# (RAG/recommender, F3/F4) e a matriz de benchmark (ROI, F6). Sem isto o search_planner
+# estoura `nenhuma fonte carregada de /app/data/seeds` no 1º run. Os bancos/logs locais
+# (cohort*.db, *.bak, *.log) e o cache ficam de fora pelo .dockerignore — imagem reprodutível.
+COPY data ./data
+
 # Default: API (o serviço `worker` sobrescreve o command no compose).
 # Obs.: scraping JS-pesado (Playwright, F1.3) precisa de uma camada extra de browser
 # (`playwright install --with-deps chromium`); fora desta imagem base de propósito —

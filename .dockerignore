@@ -16,5 +16,9 @@ apps/frontend/.next
 # Segredos entram em runtime via `env_file`/`environment` no compose, não na imagem.
 .env
 
-# Saídas locais que não pertencem à imagem.
+# Saídas locais que não pertencem à imagem (os dados estáticos seeds/kb/benchmark
+# entram via `COPY data` no Dockerfile; bancos/backups/logs são regeneráveis e locais).
 data/cache
+data/*.db
+data/*.bak
+data/*.log
