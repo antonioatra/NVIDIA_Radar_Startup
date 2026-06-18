@@ -233,7 +233,7 @@ def test_resume_run_enqueues_resume_job(client: TestClient, queue: _RecordingQue
     call = queue.calls[0]
     assert call["func"] is resume_graph_job
     assert call["args"] == ("r1", {"approved": True, "nota": "ok"})
-    assert call["kwargs"]["job_id"] == "r1:resume"
+    assert call["kwargs"]["job_id"] == "r1-resume"  # dash, não `:` (RQ valida o job_id)
 
 
 def test_stream_run_emits_sse_frames(client: TestClient) -> None:

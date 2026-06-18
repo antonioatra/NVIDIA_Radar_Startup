@@ -175,4 +175,10 @@ def test_enqueue_resume_uses_distinct_resume_job_id() -> None:
     call = queue.calls[0]
     assert call["func"] is resume_graph_job
     assert call["args"] == ("r1", {"approved": True})
-    assert call["kwargs"]["job_id"] == "r1:resume"  # distinto do job original (job_id=run_id)
+    job_id = call["kwargs"]["job_id"]
+    assert job_id == "r1-resume"  # distinto do job original (job_id=run_id)
+    # RQ valida o job_id (só letras/números/_/-): `:` estourava ValueError no resume ao vivo.
+    assert ":" not in job_id
+    import re
+
+    assert re.fullmatch(r"[A-Za-z0-9_-]+", job_id)

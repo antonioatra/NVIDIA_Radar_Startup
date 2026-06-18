@@ -11,6 +11,7 @@ from .jobs import (
     enqueue_resume,
     enqueue_run,
     resume_graph_job,
+    resume_job_id,
     run_graph_job,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "resume_graph_job",
     "enqueue_run",
     "enqueue_resume",
+    "resume_job_id",
     "default_queue",
 ]

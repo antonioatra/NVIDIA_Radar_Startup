@@ -59,7 +59,7 @@ def get_job_phase() -> Callable[[str], str]:
     """Fase do job RQ de um run (F2.10): `running` | `failed` | `finished` | `absent`.
 
     Sinal **autoritativo** de "ainda rodando" que o checkpoint sozinho não dá — pausado no HITL
-    (F2.8) e mid-flight têm ambos `next` não-vazio no snapshot. `job_id=run_id` (e `{run_id}:resume`
+    (F2.8) e mid-flight têm ambos `next` não-vazio no snapshot. `job_id=run_id` (e `resume_job_id`
     no resume) casa o job RQ com o run (`apps/worker/jobs.py`), então olhar os dois cobre o ciclo:
     qualquer um na fila/executando ⇒ `running`; algum falhou ⇒ `failed`; concluídos ⇒ `finished`;
     nenhum encontrado (job expirou do RQ ou run inexistente) ⇒ `absent`. Em teste, sobrescreve-se.
@@ -71,9 +71,11 @@ def get_job_phase() -> Callable[[str], str]:
         from rq.exceptions import NoSuchJobError
         from rq.job import Job
 
+        from apps.worker import resume_job_id
+
         conn = Redis.from_url(get_settings().redis_url)
         statuses: list[str] = []
-        for jid in (run_id, f"{run_id}:resume"):
+        for jid in (run_id, resume_job_id(run_id)):
             try:
                 statuses.append(str(Job.fetch(jid, connection=conn).get_status(refresh=True)))
             except NoSuchJobError:

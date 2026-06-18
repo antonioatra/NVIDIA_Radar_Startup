@@ -202,12 +202,23 @@ def enqueue_run(
     return run_id
 
 
+def resume_job_id(run_id: str) -> str:
+    """ID do job RQ de resume (F2.8) — fonte única do formato (usado no enqueue e no `/status`).
+
+    Sufixo com **dash**, não `:`: o RQ valida o `job_id` (`validate_job_id`) e **rejeita** dois-
+    pontos — só aceita letras/números/`_`/`-`. Um `f"{run_id}:resume"` estourava `ValueError`
+    no primeiro resume ao vivo (os testes usam fila fake que não valida). O `run_id` é um uuid4
+    hex (sem dash), então `{run_id}-resume` é inequívoco e distingue do original (`job_id=run_id`).
+    """
+    return f"{run_id}-resume"
+
+
 def enqueue_resume(run_id: str, decision: Any, *, queue: Queue) -> str:
     """Enfileira a retomada de um run pausado no HITL (F2.8) e devolve o `run_id` (F5.2).
 
-    `job_id=f"{run_id}:resume"` distingue o job de resume do job original (`job_id=run_id`),
+    `job_id=resume_job_id(run_id)` distingue o job de resume do job original (`job_id=run_id`),
     que pode seguir no registro do RQ — mesmo `run_id` (= thread/canal de progresso), job RQ
     distinto. Só argumentos planos viajam na fila; o job abre Redis/Postgres ao rodar.
     """
-    queue.enqueue(resume_graph_job, run_id, decision, job_id=f"{run_id}:resume")
+    queue.enqueue(resume_graph_job, run_id, decision, job_id=resume_job_id(run_id))
     return run_id
