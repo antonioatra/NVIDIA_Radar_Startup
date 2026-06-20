@@ -154,8 +154,14 @@ Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (crédito
   do ★ (alvo de graduação = P3 baixo). **Fix (`classifier@v4`):** trava de P3 no prompt — fica em 0–6 a
   menos que haja evidência citada **explícita** de stack de inferência própria (self-host/serving p.ex.
   Triton/TensorRT/vLLM/NIM, fine-tuning, quantização/batching em produção); consumir API externa crua
-  mantém P3 baixo de propósito (espelha `RUBRICA-AIMI.md §4`). **Resta:** re-rodar a coorte com v4 p/ o
-  P3 assentar — *gated: créditos*.
+  mantém P3 baixo de propósito (espelha `RUBRICA-AIMI.md §4`). **Coorte re-rodada com v4 e ADOTADA ao
+  vivo (2026-06-20):** P3 caiu p/ a banda Ausente em toda a coorte (Idwall 15→5, Gupy 16→5, Kunumi
+  18→0, Pareto 18→0), **0 timeouts** (scrape raso não estoura o teto F7.6) e o **★ passou a Idwall +
+  Neurotech + Semantix** — o Idwall (que o P3=15 disqualificava) graduou, exatamente o alvo do fix.
+  Postgres reseed + api/worker rebuild, confirmado em `/cohort/clusters`. **Caveat do draw:** este
+  scrape regrediu por ruído de evidência (não P3) Pareto (60→0, ev=4, gate §0 segurou), Unico
+  (AI-native→AI-enabled) e Aquarela (data_moat 13→8, perdeu ★) — variância inerente do scrape raso, não
+  do prompt; uma re-rodada futura pode recuperá-los (créditos).
 - **(d) Nome do cluster por setor dominante** (`label = setor_dom`) — ✅ **feito.** `_cluster_label`
   só usa o setor quando ele domina (≥60% dos membros, `_LABEL_DOMINANT_SHARE`); abaixo disso nomeia
   pela **mistura** (top-2 setores, ex.: `fintech · healthtech`) em vez de mentir com um só. Empate
@@ -290,7 +296,9 @@ rastreável, com a limitação anotada.
   `classifier@v3` (âncoras de banda + anti-cópia); coorte re-rodada e **★ adotado (0→3:
   Semantix/Unico/Aquarela)**, Postgres reseed + rebuild ✅ 2026-06-20. **Polish 2026-06-20:** dead-end
   `scrape_deep_evidence` revertido + trava de P3 no prompt (`classifier@v4`, P3 fica baixo sem evidência
-  de inferência própria) — *resta re-rodar a coorte com v4 p/ o P3 assentar (gated: créditos)*
+  de inferência própria); coorte re-rodada com v4 e **adotada ao vivo** (P3 0–5 em toda a coorte, ★ →
+  Idwall/Neurotech/Semantix, Idwall graduou), reseed + rebuild ✅ 2026-06-20 *(draw regrediu Pareto/Unico/
+  Aquarela por ruído de evidência — não P3)*
 - [x] **Frente de profundidade — B (chat premium / cohort-RAG):** busca semântica de texto livre +
   citação de evidência por empresa no `/discover` (numpy em memória, offline determinístico + nv-embed
   atrás de flag), com a UI mostrando relevância + fonte citada ✅ 2026-06-17 (SSE adiado; ver §B).
