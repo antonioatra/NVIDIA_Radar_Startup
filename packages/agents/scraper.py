@@ -68,10 +68,6 @@ SearchFn = Callable[[str], "Sequence[SearchResult]"]
 # Concorrência do map e quantas candidatas coletar por termo de busca (free tier F1.8).
 DEFAULT_MAX_WORKERS = 8
 DEFAULT_RESULTS_PER_QUERY = 2
-# C-c: no re-scrape aprofundado (`scrape_deep_evidence`) coleta-se mais resultados por consulta —
-# fontes **independentes** a mais corroboram os pilares (a faixa "Forte" exige ≥2 fontes, RUBRICA
-# §1) sem explodir os créditos do free tier. Bump medido (×1,5), não dobra.
-DEEP_RESULTS_PER_QUERY = 3
 
 # Tipo da fonte §9 → intent do roteador (F1.7). Fonte não-listada (site oficial/empresa)
 # cai no default "clean" (Firecrawl → conteúdo principal limpo, bom p/ o RAG/extração).
@@ -246,7 +242,7 @@ def scraper(
     fetch: FetchFn | None = None,
     search: SearchFn | None = None,
     max_workers: int = DEFAULT_MAX_WORKERS,
-    results_per_query: int | None = None,
+    results_per_query: int = DEFAULT_RESULTS_PER_QUERY,
 ) -> dict:
     """F2.4 — coleta paralela das fontes priorizadas; devolve update parcial do estado.
 
@@ -255,30 +251,19 @@ def scraper(
     ponta a ponta sem rede. Liga a coleta real injetando `fetch`/`search` (testes/worker)
     ou com a flag de rede (caminho de produção via grafo). Erros de coleta são
     **acumulados** em `state.errors` (rastreável), sem derrubar o run.
-
-    `results_per_query=None` (default) deriva a profundidade da config: `DEEP_RESULTS_PER_QUERY`
-    sob `scrape_deep_evidence` (C-c), senão `DEFAULT_RESULTS_PER_QUERY`; um valor explícito
-    (testes) sempre vence.
     """
     sources = [s for s in state.sources if s and s.strip()]
     if not sources:
         return {}
-    settings = get_settings()
-    if fetch is None and not settings.scraper_use_network:
+    if fetch is None and not get_settings().scraper_use_network:
         return {}  # default offline: sem rede, sem erros — mantém a espinha verde (M2)
 
-    if results_per_query is not None:
-        rpq = results_per_query  # valor explícito (testes) sempre vence
-    elif settings.scrape_deep_evidence:
-        rpq = DEEP_RESULTS_PER_QUERY  # C-c: re-scrape aprofundado
-    else:
-        rpq = DEFAULT_RESULTS_PER_QUERY
     raw_docs, errors = scrape_sources(
         sources,
         fetch=fetch or _default_fetch,
         search=search or _default_search,
         max_workers=max_workers,
-        results_per_query=rpq,
+        results_per_query=results_per_query,
     )
     update: dict = {"raw_docs": raw_docs}
     if errors:

@@ -147,18 +147,6 @@ class Settings(BaseSettings):
         default=False, description="scraper (F2.4) coleta as fontes de verdade (rede/F1)."
     )
 
-    # Calibração do ★ (C-c / radar de coorte F6.7): por padrão off (espinha verde — plano enxuto,
-    # barato no free tier). Ligue p/ um re-scrape **aprofundado por empresa**: o search_planner
-    # acrescenta consultas por pilar (data moat / workflow / clientes enterprise / funding), o
-    # scraper coleta mais resultados por consulta e o extractor admite mais docs — p/ os pilares
-    # P1/P2 ganharem sinais **citados** e os alvos de graduação cruzarem o limiar de prontidão.
-    # NÃO afrouxa a rubrica (RUBRICA §0: nada sobe sem evidência) — só busca a evidência que falta.
-    # Custa mais créditos Tavily/Firecrawl/LLM por empresa (use no re-scrape de calibração).
-    scrape_deep_evidence: bool = Field(
-        default=False,
-        description="Re-scrape aprofundado por empresa (consultas por pilar + mais fontes) — C-c.",
-    )
-
     # --- HITL (F2.8) ------------------------------------------------------------
     # Por padrão o grafo roda **sem** pausa humana (espinha verde, M2/DoD). Ligue p/ o nó
     # human_review pausar antes do briefing: bloqueante no modo sync (single-company, exige

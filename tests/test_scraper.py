@@ -163,34 +163,6 @@ def test_node_with_injected_fetch_returns_docs() -> None:
     assert "errors" not in update  # sem erros → não polui o estado
 
 
-def test_node_deep_evidence_collects_more_per_query(monkeypatch) -> None:
-    # C-c: sob `scrape_deep_evidence` o nó coleta DEEP_RESULTS_PER_QUERY (3) por termo, não 2 —
-    # mais fontes independentes corroboram os pilares (faixa "Forte" exige ≥2 fontes).
-    monkeypatch.setattr(sc, "get_settings", lambda: _FakeSettings(use_network=True, deep=True))
-
-    def fake_search(query: str) -> list[SearchResult]:
-        return [
-            SearchResult(url=f"https://r{i}.com", title="", snippet="", score=0.9) for i in range(5)
-        ]
-
-    state = GraphState(run_id="r1", query="Acme", sources=["Acme dados proprietários"])
-    update = scraper(state, fetch=_fetch_ok, search=fake_search)
-    assert len(update["raw_docs"]) == sc.DEEP_RESULTS_PER_QUERY  # 3, não o default 2
-
-
-def test_node_shallow_keeps_default_results_per_query(monkeypatch) -> None:
-    monkeypatch.setattr(sc, "get_settings", lambda: _FakeSettings(use_network=True, deep=False))
-
-    def fake_search(query: str) -> list[SearchResult]:
-        return [
-            SearchResult(url=f"https://r{i}.com", title="", snippet="", score=0.9) for i in range(5)
-        ]
-
-    state = GraphState(run_id="r1", query="Acme", sources=["Acme inteligência artificial"])
-    update = scraper(state, fetch=_fetch_ok, search=fake_search)
-    assert len(update["raw_docs"]) == sc.DEFAULT_RESULTS_PER_QUERY  # 2 (default raso)
-
-
 def test_node_accumulates_errors_onto_state() -> None:
     state = GraphState(
         run_id="r1",
@@ -205,6 +177,5 @@ def test_node_accumulates_errors_onto_state() -> None:
 
 
 class _FakeSettings:
-    def __init__(self, *, use_network: bool, deep: bool = False) -> None:
+    def __init__(self, *, use_network: bool) -> None:
         self.scraper_use_network = use_network
-        self.scrape_deep_evidence = deep

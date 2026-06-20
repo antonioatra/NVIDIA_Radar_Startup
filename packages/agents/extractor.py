@@ -67,11 +67,6 @@ ExtractFn = Callable[[str, "Sequence[RawDocument]"], str]
 # agregadores. 6 docs × 4000 ≈ 24k no pior caso.
 DEFAULT_DOC_CHARS = 4000
 DEFAULT_MAX_DOCS = 6
-# C-c: no re-scrape aprofundado (`scrape_deep_evidence`) o plano traz consultas por pilar (mais
-# docs relevantes); admite-se mais docs p/ que essas páginas (P1/P2/P4) **cheguem** ao Super em
-# vez de serem podadas pelo teto. `doc_chars` **não** cresce (4000) — o teto de 120s do Super
-# (F7.6) é dominado pelo tamanho de cada doc × reasoning; mais docs curtos cabe, doc gigante não.
-DEEP_MAX_DOCS = 9
 
 # Validador de URL reutilizável (não constrói modelo por chamada).
 _URL_ADAPTER: TypeAdapter[_HttpUrl] = TypeAdapter(_HttpUrl)
@@ -394,14 +389,11 @@ def _default_extract(
 
     prompt = get_prompt("extractor")
     config = traced_config(node="extractor", prompt_version=prompt.version_tag, run_id=run_id)
-    # C-c: sob `scrape_deep_evidence` admite mais docs (pillar pages cabem no orçamento do Super).
-    max_docs = DEEP_MAX_DOCS if get_settings().scrape_deep_evidence else DEFAULT_MAX_DOCS
     messages: list = []
     if prompt.reasoning:
         messages.append(reasoning_system_message(True))
     messages.append(SystemMessage(content=prompt.template))
-    payload = _user_payload(query, docs, doc_chars=DEFAULT_DOC_CHARS, max_docs=max_docs)
-    messages.append(HumanMessage(content=payload))
+    messages.append(HumanMessage(content=_user_payload(query, docs, doc_chars=DEFAULT_DOC_CHARS)))
     return cached_completion(prompt, messages, config=config)  # cache F2.14
 
 

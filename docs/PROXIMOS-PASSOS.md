@@ -15,7 +15,7 @@
 |---|---|---|---|---|---|
 | A | **Validar a stack + chat ao vivo** | ✅ **validado ao vivo** (coorte real + radar coerente + consulta resiliente) | — | feito | ✅ |
 | B | **Chat "premium" (F3.10/F5.12)** | ✅ **busca semântica + citação entregues** (SSE adiado) | Volume amplia o ganho | feito (core) | Média |
-| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)(b)(d) ✅ ao vivo; **(c) ★ lever construído**, falta o re-scrape ao vivo | calibração ao vivo (créditos) | ~créditos | **Alta (demo)** |
+| C | **Radar de coorte — qualidade p/ demo (F6.7+)** | (a)(b)(d) ✅ ao vivo; falta só **(c) ★** | AIMI gated por evidência (créditos) | ~créditos | **Alta (demo)** |
 | D | **GPU Graduation Engine (F6.8–F6.12)** | Engine + ROI no produto (UI + **texto do briefing**) ✅; falta só medição real | Endpoint NIM grátis congestionado (ver §D) | ~medição | Média/Baixa |
 | F | **Recursos externos (F7.3, F7.4)** | Degradam limpo | Chave / dep | ~1–2 h cada | Baixa |
 
@@ -144,8 +144,12 @@ Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (crédito
   âncoras de banda (0–6 ausente · 7–12 emergente · 13–18 estabelecido · 19–25 forte+≥2 fontes) +
   nota "não copie os números do exemplo" + exemplo diferenciado. **Validado A/B ao vivo** (mesma
   fixture rica): `eval-alvo-01` data_moat **12→16** (rótulo humano 20), workflow 9→10; o wrapper raso
-  **fica em 6** (sem inflar — o gate §0 segura). **Resta:** re-rodar a coorte com v3 (scrape **raso**,
-  o `scrape_deep_evidence` é dead-end) p/ Idwall/Gupy/Hand Talk cruzarem o ★ — *gated: créditos*.
+  **fica em 6** (sem inflar — o gate §0 segura). **C-c FECHADA (2026-06-20):** coorte re-rodada com v3
+  (scrape raso) e **★ adotado (0→3: Semantix/Unico/Aquarela)**, Postgres reseed + api/worker rebuild,
+  confirmado ao vivo.
+  → **Polish (2026-06-20):** o **dead-end `scrape_deep_evidence` foi revertido** (revert de `9498a93`) —
+  ele não movia os pilares e carregava a regressão latente de timeout `max_docs=9`; a coorte roda **raso**
+  por padrão.
 - **(d) Nome do cluster por setor dominante** (`label = setor_dom`) — ✅ **feito.** `_cluster_label`
   só usa o setor quando ele domina (≥60% dos membros, `_LABEL_DOMINANT_SHARE`); abaixo disso nomeia
   pela **mistura** (top-2 setores, ex.: `fintech · healthtech`) em vez de mentir com um só. Empate
@@ -275,10 +279,11 @@ rastreável, com a limitação anotada.
 - [x] Stack sobe com `run.ps1`, coorte real seedada, `/radar` + `/coorte` + detalhe AIMI navegáveis ✅ 2026-06-16
 - [x] Consulta resiliente: o run sobrevive a sair/voltar da tela (F5.3+) ✅ 2026-06-16
 - [x] Radar de coorte coerente ao vivo: descrição + `nv-embedqa` + nomes honestos + k default (C-a/b/d) ✅ 2026-06-16
-- [~] **C-c:** causa-raiz do ★=0% **corrigida** — não era evidência (hipótese falsificada ao vivo),
-  era **ancoragem do prompt** (exemplo `12/9/6/15` no `classifier.md`). Fix `classifier@v3` (âncoras de
-  banda + anti-cópia), **validado A/B ao vivo** (data_moat 12→16 em fixture rica, wrapper fica em 6)
-  ✅ 2026-06-18. **Falta** re-rodar a coorte com v3 (scrape raso) p/ os alvos cruzarem o ★ — **gated: créditos**
+- [x] **C-c:** causa-raiz do ★=0% **corrigida** — não era evidência (hipótese `scrape_deep_evidence`
+  falsificada ao vivo), era **ancoragem do prompt** (exemplo `12/9/6/15` no `classifier.md`). Fix
+  `classifier@v3` (âncoras de banda + anti-cópia); coorte re-rodada e **★ adotado (0→3:
+  Semantix/Unico/Aquarela)**, Postgres reseed + rebuild ✅ 2026-06-20. **Polish 2026-06-20:** dead-end
+  `scrape_deep_evidence` revertido
 - [x] **Frente de profundidade — B (chat premium / cohort-RAG):** busca semântica de texto livre +
   citação de evidência por empresa no `/discover` (numpy em memória, offline determinístico + nv-embed
   atrás de flag), com a UI mostrando relevância + fonte citada ✅ 2026-06-17 (SSE adiado; ver §B).

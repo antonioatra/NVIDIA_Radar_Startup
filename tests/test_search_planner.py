@@ -63,38 +63,6 @@ def test_single_company_plan_has_query_first_and_sources() -> None:
     assert any(s.kind == "news" and s.query_or_url.startswith("http") for s in plan.sources)
 
 
-def test_single_company_plan_shallow_has_no_pillar_queries() -> None:
-    # default (raso): só site/LinkedIn/base/notícia — sem as consultas por pilar (C-c off).
-    plan = deterministic_plan("Acme AI", ExecutionMode.SINGLE_COMPANY)
-    assert not any("dados proprietários" in s.query_or_url for s in plan.sources)
-    assert all(s.kind != "search" for s in plan.sources)
-
-
-def test_single_company_deep_plan_adds_pillar_queries() -> None:
-    # C-c: o plano aprofundado acrescenta as consultas por pilar (P1/P2/P4) ancoradas no léxico
-    # do classifier — é o que alimenta os pilares com sinais CITADOS p/ cruzar o limiar do ★.
-    plan = deterministic_plan("Acme AI", ExecutionMode.SINGLE_COMPANY, deep=True)
-    queries = [s.query_or_url for s in plan.sources]
-    assert any("dados proprietários" in q for q in queries)  # P1 data moat
-    assert any("automação" in q for q in queries)  # P2 workflow
-    assert any("clientes enterprise" in q for q in queries)  # P4 + dado de uso
-    assert any("captação" in q or "investimento" in q for q in queries)  # P4 tração
-    # as consultas por pilar vêm ANTES das notícias (prioridade no orçamento do extractor).
-    pillar_idx = next(
-        i for i, s in enumerate(plan.sources) if "dados proprietários" in s.query_or_url
-    )
-    news_idx = next(i for i, s in enumerate(plan.sources) if s.kind == "news")
-    assert pillar_idx < news_idx
-    assert plan.search_terms[0] == "Acme AI"  # a query crua segue 1ª (inalterado)
-
-
-def test_make_plan_deep_flag_drives_pillar_queries(monkeypatch) -> None:
-    # o nó deriva a profundidade da config (`scrape_deep_evidence`), não de um parâmetro.
-    monkeypatch.setattr(sp, "get_settings", lambda: _FakeSettings(use_llm=False, key="", deep=True))
-    plan = make_plan("Acme AI", ExecutionMode.SINGLE_COMPANY)
-    assert any("dados proprietários" in s.query_or_url for s in plan.sources)
-
-
 def test_domain_query_derives_company_label() -> None:
     plan = deterministic_plan("acme.ai", ExecutionMode.SINGLE_COMPANY)
     assert plan.search_terms[0] == "acme.ai"  # query crua continua 1ª
@@ -168,7 +136,6 @@ def test_node_returns_partial_update(monkeypatch) -> None:
 
 
 class _FakeSettings:
-    def __init__(self, *, use_llm: bool, key: str, deep: bool = False) -> None:
+    def __init__(self, *, use_llm: bool, key: str) -> None:
         self.planner_use_llm = use_llm
         self.nvidia_api_key = key
-        self.scrape_deep_evidence = deep
