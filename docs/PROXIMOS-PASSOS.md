@@ -147,9 +147,15 @@ Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (crédito
   **fica em 6** (sem inflar — o gate §0 segura). **C-c FECHADA (2026-06-20):** coorte re-rodada com v3
   (scrape raso) e **★ adotado (0→3: Semantix/Unico/Aquarela)**, Postgres reseed + api/worker rebuild,
   confirmado ao vivo.
-  → **Polish (2026-06-20):** o **dead-end `scrape_deep_evidence` foi revertido** (revert de `9498a93`) —
-  ele não movia os pilares e carregava a regressão latente de timeout `max_docs=9`; a coorte roda **raso**
-  por padrão.
+  → **Polish (2026-06-20):** (1) o **dead-end `scrape_deep_evidence` foi revertido** (revert de
+  `9498a93`) — ele não movia os pilares e carregava a regressão latente de timeout `max_docs=9`; a coorte
+  roda **raso** por padrão. (2) As âncoras de banda v3 também levantaram o **P3 (`technical_optimization`)**,
+  que ficou ruidoso (swings por run: Idwall 6→15, Aquarela 15→7) e disqualificava alvos AI-native fortes
+  do ★ (alvo de graduação = P3 baixo). **Fix (`classifier@v4`):** trava de P3 no prompt — fica em 0–6 a
+  menos que haja evidência citada **explícita** de stack de inferência própria (self-host/serving p.ex.
+  Triton/TensorRT/vLLM/NIM, fine-tuning, quantização/batching em produção); consumir API externa crua
+  mantém P3 baixo de propósito (espelha `RUBRICA-AIMI.md §4`). **Resta:** re-rodar a coorte com v4 p/ o
+  P3 assentar — *gated: créditos*.
 - **(d) Nome do cluster por setor dominante** (`label = setor_dom`) — ✅ **feito.** `_cluster_label`
   só usa o setor quando ele domina (≥60% dos membros, `_LABEL_DOMINANT_SHARE`); abaixo disso nomeia
   pela **mistura** (top-2 setores, ex.: `fintech · healthtech`) em vez de mentir com um só. Empate
@@ -283,7 +289,8 @@ rastreável, com a limitação anotada.
   falsificada ao vivo), era **ancoragem do prompt** (exemplo `12/9/6/15` no `classifier.md`). Fix
   `classifier@v3` (âncoras de banda + anti-cópia); coorte re-rodada e **★ adotado (0→3:
   Semantix/Unico/Aquarela)**, Postgres reseed + rebuild ✅ 2026-06-20. **Polish 2026-06-20:** dead-end
-  `scrape_deep_evidence` revertido
+  `scrape_deep_evidence` revertido + trava de P3 no prompt (`classifier@v4`, P3 fica baixo sem evidência
+  de inferência própria) — *resta re-rodar a coorte com v4 p/ o P3 assentar (gated: créditos)*
 - [x] **Frente de profundidade — B (chat premium / cohort-RAG):** busca semântica de texto livre +
   citação de evidência por empresa no `/discover` (numpy em memória, offline determinístico + nv-embed
   atrás de flag), com a UI mostrando relevância + fonte citada ✅ 2026-06-17 (SSE adiado; ver §B).
