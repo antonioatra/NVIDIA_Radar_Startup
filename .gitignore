@@ -25,7 +25,11 @@ data/cache/
 *.duckdb
 *.sqlite
 *.db
+*.bak
 benchmark_results/
+
+# Logs (runtime: api/worker/frontend + run logs da coorte)
+*.log
 
 # OS / IDE
 .DS_Store
