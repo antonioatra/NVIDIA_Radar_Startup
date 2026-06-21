@@ -172,10 +172,14 @@ Cortex+Aquarela). Resta **só (c)** — o ★ — gated por evidência (crédito
 empresa p/ calibrar o ★ (AIMI gated por evidência, RUBRICA §0). **Esforço restante.** ~créditos da coorte.
 
 **Itens abertos descobertos na validação ao vivo (2026-06-16):**
-- **Re-indexar a KB do RAG em 2048 dims** (coleção Qdrant atual = 256, do hashing). Só assim dá p/
-  ligar `INDEX_USE_QDRANT=true` e ter o **recommender RAG ao vivo com citação** (hoje as recs vêm
-  **persistidas** do build, o que basta p/ a demo). Sem isso, ligar Qdrant + nv-embed dá
-  `Vector dimension error 256≠2048`. *(gated: re-index, ~30 min de máquina.)*
+- ~~**Re-indexar a KB do RAG em 2048 dims**~~ ✅ **feito (2026-06-21)** — `scripts/reindex_kb.py`
+  dropa a coleção `tapi_kb` (256, hashing) e a reconstrói em **2048** embedando a KB com o
+  `nv-embedqa` real (75 pontos). Smoke ao vivo: `EMBEDDINGS_USE_NV=true INDEX_USE_QDRANT=true` →
+  `build_retriever().search(...)` recupera com **citação** (TensorRT-LLM score 1.0, URLs reais),
+  sem o antigo `Vector dimension error 256≠2048`. **Agora dá p/ ligar `INDEX_USE_QDRANT=true`** e ter
+  o recommender RAG ao vivo com citação (as recs servidas hoje seguem **persistidas** do build, o que
+  basta p/ a demo; o caminho ao vivo fica destravado). *Caveat de custo:* `build_retriever()` re-embeda
+  a KB no nv-embedqa a cada chamada — com Qdrant ligado, cada run gasta ~créditos (75 chunks); ok p/ demo.
 - ~~**Cosmético (1 linha):** `_dominant` desempata classe por ordem de inserção~~ ✅ **feito
   (2026-06-16)** — num cluster 1×1 (ex.: Unico non-AI + Idwall AI-native) o `classe_dominante`
   desempata agora pela classe **mais madura** (AI-native > AI-enabled > non-AI, `_CLASSE_MATURITY`),
@@ -307,7 +311,8 @@ rastreável, com a limitação anotada.
   ✅ 2026-06-16. **Falta só a medição real** (`bench_nim.py`) — *gated: GPU local 4 GB + endpoint NIM
   grátis congestionado* (ver §D).
 - [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (**F**)
-- [ ] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)
+- [x] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)
+  ✅ 2026-06-21 — `scripts/reindex_kb.py`; `tapi_kb` 256→2048, 75 pts, smoke de retrieve com citação ok
 - [ ] (Opcional) **Suíte offline hermética contra a `.env` de dev.** Hoje só `test_classifier` e
   `test_ragas` se blindam dos flags `*_use_*` (fixture autouse que crava o flag off). Rodar `pytest`
   local com a `.env` real (flags do caminho ao vivo + serviços ligados, §A) faz ~6 testes "offline"
