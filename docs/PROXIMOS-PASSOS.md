@@ -308,3 +308,11 @@ rastreável, com a limitação anotada.
   grátis congestionado* (ver §D).
 - [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (**F**)
 - [ ] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)
+- [ ] (Opcional) **Suíte offline hermética contra a `.env` de dev.** Hoje só `test_classifier` e
+  `test_ragas` se blindam dos flags `*_use_*` (fixture autouse que crava o flag off). Rodar `pytest`
+  local com a `.env` real (flags do caminho ao vivo + serviços ligados, §A) faz ~6 testes "offline"
+  baterem na rede (scraper/qdrant/ragas/HITL) + 4 ambientais (Postgres/Qdrant/NIM, = os "4 skipped"
+  do CI). **Não bloqueia nada** — a CI roda sem flags e fica verde (~747 passed). Opção de robustez:
+  `tests/conftest.py` que pina o conjunto completo de flags off, cuidando da ordem de fixtures vs a
+  guarda local do `test_ragas` (o `get_settings.cache_clear()` per-teste atropela o `setattr` da
+  instância; pinar via env contorna). *(descoberto 2026-06-21, ao corrigir o flaky do `test_classifier`)*
