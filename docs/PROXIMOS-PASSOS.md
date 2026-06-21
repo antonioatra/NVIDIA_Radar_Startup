@@ -260,10 +260,12 @@ rastreável, com a limitação anotada.
 
 ## F. Recursos externos (degradam limpo — baixa prioridade)
 
-- **F7.4 — Cohere Reranker.** O comparativo `packages/eval/reranker_comparison.py` já liga o
-  `CohereReranker` (`packages/rag/rerank.py`), mas falta a **trial key** + o SDK para gerar o número
-  Cohere. NeMo já foi medido ao vivo (0,823). **Passo:** obter trial key, `pip install cohere`,
-  rodar `python -m packages.eval.reranker_comparison --cohere`. **Esforço.** ~1 h.
+- **F7.4 — Cohere Reranker.** ✅ **fechado (Cohere medido 2026-06-16; head-to-head nv-embed
+  2026-06-21).** O comparativo `packages/eval/reranker_comparison.py` mede NeMo×Cohere×léxico nos
+  **dois substratos**: offline (NeMo 0,823 > Cohere 0,816) e **nv-embed ao vivo** (Cohere 0,864 ≳
+  NeMo 0,859, cr idêntico 0,88) — qualidade **empatada no ruído de n=7** nos dois; a decisão **NeMo
+  (grátis)** fica justificada com dados. Rodar: `EMBEDDINGS_USE_NV=true INDEX_USE_QDRANT=true python -m
+  packages.eval.reranker_comparison --nv --cohere`. Detalhe em [AVALIACAO.md §6](AVALIACAO.md).
 - **F7.3 — Juiz LLM da RAGAS.** ✅ **import destravado (2026-06-16).** A causa era o `ragas 0.4.3`
   importar `langchain_community.chat_models.vertexai.ChatVertexAI`, caminho **removido** no
   `langchain-community 0.4.x` (o `ChatVertexAI` migrou p/ `langchain-google-vertexai`). Como o `ragas`
@@ -310,7 +312,9 @@ rastreável, com a limitação anotada.
   (matriz/engine → `gpu_benchmark` → persist → API → **UI `RoiStrip` + texto do briefing Markdown/PDF**)
   ✅ 2026-06-16. **Falta só a medição real** (`bench_nim.py`) — *gated: GPU local 4 GB + endpoint NIM
   grátis congestionado* (ver §D).
-- [ ] (Opcional) Cohere e juiz RAGAS ao vivo, ou ambos documentados como limitação (**F**)
+- [x] (Opcional) **Cohere reranker ao vivo** ✅ 2026-06-21 — head-to-head nos dois substratos
+  (offline + nv-embed), qualidade empatada no ruído, decisão NeMo (grátis) com dados (§6 AVALIACAO)
+- [ ] (Opcional) **Juiz LLM da RAGAS ao vivo** (consolidado vs limiares) — gated pelo endpoint (**F7.3**)
 - [x] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)
   ✅ 2026-06-21 — `scripts/reindex_kb.py`; `tapi_kb` 256→2048, 75 pts, smoke de retrieve com citação ok
 - [ ] (Opcional) **Suíte offline hermética contra a `.env` de dev.** Hoje só `test_classifier` e

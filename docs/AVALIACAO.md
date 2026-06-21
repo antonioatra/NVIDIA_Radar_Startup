@@ -36,7 +36,7 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 | RAG (F7.3) | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
 | RAG (F7.3 / F7.4) | context recall | ≥ 0,70 | 0,69 (proxy léxico) → **0,74** (reranker NeMo real) | ✅ com NeMo |
 | Briefing (F7.2c) | faithfulness do texto final | ≥ 0,80 | **0,870** (espinha; min 0,786) | ✅ |
-| Reranker (F7.4) | qualidade (NeMo × Cohere) | decisão com dados | NeMo **0,823** > Cohere **0,816** > léxico 0,802 (ao vivo) | ✅ |
+| Reranker (F7.4) | qualidade (NeMo × Cohere) | decisão com dados | NeMo **0,823**>Cohere **0,816** (offline) · Cohere **0,864**≳NeMo **0,859** (nv-embed) — empate no ruído n=7, NeMo grátis | ✅ |
 
 ## Detalhe por entregável
 
@@ -152,24 +152,41 @@ fiel a preserva. Juiz LLM sobre o briefing fica reservado (mesmo backend da F7.3
 
 ### 6. Reranker — NeMo Retriever × Cohere Rerank (F7.4)
 
-Três dimensões, mesmo conjunto (n=7), mesmo scorer (comparação justa):
+Três dimensões, mesmo conjunto (n=7), mesmo scorer (comparação justa). Medido em **dois substratos
+de recuperação** — o vencedor de qualidade troca entre eles, então ambos ficam registrados:
+
+**(a) Substrato offline (hashing, CI/reprodutível) — 2026-06-16:**
 
 | Reranker | qualidade (RAGAS) | context recall | latência | custo/1k |
 |---|---|---|---|---|
 | lexical-offline (piso) | 0,802 | 0,69 | 0,21 ms/q | $0 |
 | **nv-rerankqa (NeMo, ao vivo)** | **0,823** | **0,74** | ~1002 ms/q | $0 (catálogo) |
-| cohere-rerank (ao vivo, 2026-06-16) | 0,816 | 0,69 | ~388 ms/q | $2,00 |
+| cohere-rerank (ao vivo) | 0,816 | 0,69 | ~388 ms/q | $2,00 |
 
-> **Comparação justa:** as três linhas reranqueiam o **mesmo conjunto recuperado** (recuperação
-> offline compartilhada — só o **reranker** varia); o piso léxico idêntico (0,802 / cr 0,69) nas duas
-> medições confirma o mesmo substrato. A trial key Cohere é 10 req/min, então o run se auto-regula no
-> 429 (retry com backoff; ver `CohereReranker`). O número é o lado Cohere medido com `--cohere`.
+**(b) Substrato nv-embed ao vivo (Qdrant 2048, recuperação real) — 2026-06-21:**
 
-**Decisão (F7.5) — com dados:** **NeMo 0,823 > Cohere 0,816 > léxico 0,802.** O **NeMo vence em
-qualidade _e_ é grátis** (catálogo build.nvidia.com); seu custo é **latência** (~1 s/consulta). O
-Cohere é **~2,6× mais rápido** (~388 ms) mas **pago** ($2/1k) e levemente abaixo na qualidade — não
-compensa trocar a escolha do build. A escolha do **NeMo** fica justificada **com dados**, não por
-omissão. *(Falta só o head-to-head com a recuperação nv-embed ao vivo — gated pelo endpoint.)*
+| Reranker | qualidade (RAGAS) | context recall | latência | custo/1k |
+|---|---|---|---|---|
+| lexical-offline (piso) | 0,819 | 0,74 | 0,33 ms/q | $0 |
+| nv-rerankqa (NeMo, ao vivo) | 0,859 | **0,88** | ~574 ms/q | $0 (catálogo) |
+| **cohere-rerank (ao vivo)** | **0,864** | **0,88** | ~291 ms/q | $2,00 |
+
+> **Comparação justa:** as três linhas reranqueiam o **mesmo conjunto recuperado** (a recuperação é
+> compartilhada — só o **reranker** varia). A trial key Cohere é 10 req/min, então o run se auto-regula
+> no 429 (retry com backoff; ver `CohereReranker`).
+> **Leitura honesta (n=7):** com a recuperação **nv-embed real** (b) os dois rerankers reais sobem
+> (NeMo 0,823→0,859; Cohere 0,816→0,864) e o **context recall salta** (NeMo 0,74→0,88) — candidatos
+> melhores dão mais o que reordenar. O ranking de qualidade **inverte** vs (a): Cohere **0,864 ≳ NeMo
+> 0,859**, mas o gap (0,005) é **ruído em n=7** — o context recall é idêntico (0,88) e a diferença mora
+> só no context precision (1,00 vs 0,99). Topo em **empate técnico**, ambos bem acima do piso léxico.
+
+**Decisão (F7.5) — com dados, agora nos dois substratos:** a qualidade NeMo×Cohere fica
+**estatisticamente empatada** (offline NeMo +0,007; nv-embed Cohere +0,005 — ambos dentro do ruído de
+n=7). O desempate é **custo + narrativa**: **NeMo é grátis** (catálogo build.nvidia.com / dogfood),
+**Cohere é pago** ($2/1k). Cohere é consistentemente **mais rápido** (~291–388 ms vs ~574–1002 ms). 
+**Conclusão:** a escolha do **NeMo** no build segue justificada **com dados** — paridade de qualidade a
+custo zero; trocar para o Cohere compraria latência menor por $2/1k **sem ganho de qualidade fora do
+ruído**.
 
 ## Limitações honestas (o que ainda não é real / não bate a meta)
 
@@ -191,9 +208,10 @@ omissão. *(Falta só o head-to-head com a recuperação nv-embed ao vivo — ga
    próxima curadoria do eval de recomendação.
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
-4. ~~**Coluna Cohere do comparativo pendente** da trial key + SDK.~~ ✅ **medida (2026-06-16)** —
-   Cohere 0,816 (vs NeMo 0,823, léxico 0,802); resta só o head-to-head com a recuperação nv-embed ao
-   vivo (gated pelo endpoint). Ver §6.
+4. ~~**Coluna Cohere do comparativo pendente** da trial key + SDK.~~ ✅ **medida (2026-06-16)** +
+   ~~head-to-head com a recuperação nv-embed ao vivo~~ ✅ **feito (2026-06-21)**: nos **dois**
+   substratos a qualidade NeMo×Cohere fica **empatada no ruído** (offline NeMo 0,823 vs 0,816;
+   nv-embed Cohere 0,864 vs 0,859, cr idêntico 0,88). Decisão NeMo (grátis) intacta. Ver §6.
 5. **ROI/GPU (F6.8–F6.12) não construído como medição ao vivo** — depende de serving GPU; o briefing sai
    sem linha de ROI por padrão (engine atrás de flag — ver PROXIMOS-PASSOS §D). A **camada de coorte
    (F6.5–F6.7) está entregue em CPU** (clustering + radar), mas a **qualidade do radar é limitada para
