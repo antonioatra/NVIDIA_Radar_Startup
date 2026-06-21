@@ -18,6 +18,8 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
+import pytest
+
 import packages.agents.classifier as cl
 from packages.agents.classifier import (
     classifier,
@@ -41,6 +43,17 @@ from packages.schemas import (
 )
 
 _FETCHED = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _offline_classifier_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Crava este módulo offline: um `.env` de dev com `CLASSIFIER_USE_LLM=true` faria
+    `make_aimi`/`classifier` (sem `classify=` injetado) chamar o Super **ao vivo** — passaria
+    na CI (sem flags) e falharia *flaky* local (a LLM é não-determinística; mede-se 4/6 rodadas
+    divergindo da heurística). Mesmo padrão da guarda de `test_ragas` p/ `EMBEDDINGS_USE_NV`.
+    Os testes que querem o LLM ligam o flag (`use_llm=True`) ou injetam o adapter; ambos são
+    function-scoped e sobrepõem este default depois daqui."""
+    monkeypatch.setattr(cl, "get_settings", lambda: _FakeSettings(use_llm=False))
 
 
 def _ev(url: str = "https://acme.ai", snippet: str = "trecho de suporte") -> Evidence:
