@@ -3,6 +3,11 @@
 # revisadas contra a evidência pública (2026-06-15): 8 entradas promovidas a
 # label_source: human (entram no headline de load_eval_set por padrão). A Semantix
 # permanece label_source: model (revisão pendente — fora do headline, só com include_model=True).
+# DE-CIRCULARIZAÇÃO DOS TECH-LABELS (2026-06-21): o `expected_nvidia_techs` original era a SAÍDA
+# do próprio recommender (cohort_to_eval lê a tabela `recommendation`) — baseline CIRCULAR para a
+# precision (F7.2b). Re-curados por julgamento §5.5 + perfil real, INDEPENDENTE da regra: BotCity
+# (AI-enabled/RPA) -> [] (IA periférica, não é alvo); Unico/Aquarela maduros -> domínio + AI
+# Enterprise (não graduação, P3 já alto); alvos reais confirmam o bundle de graduação (genuíno).
 # ATENÇÃO: arquivo curado à mão. Re-rodar `python -m packages.eval.cohort_to_eval` com o
 # --out padrão SOBRESCREVE esta curadoria — use outro --out ou faça backup antes.
 entries:
@@ -27,10 +32,9 @@ entries:
   expected_nvidia_techs:
   - NVIDIA NIM
   - TensorRT-LLM
-  - NeMo Retriever (RAG)
-  - NeMo (customização + Curator)
-  - NVIDIA Riva (ASR/TTS)
   - NVIDIA Triton Inference Server
+  - NVIDIA Riva (ASR/TTS)
+  - NeMo (customização + Curator)
   rationale: 'Revisão humana (F7.1): a IA traduz texto/áudio para Libras entendendo contexto e gramática
     própria; corpus proprietário de Libras + comunidade surda no loop = data moat estabelecido (P1 13+).
     Serving via API externa (sem stack própria) mantém P3 baixo = upside de graduação. Ampla distribuição
@@ -63,9 +67,8 @@ entries:
   expected_nvidia_techs:
   - NVIDIA NIM
   - TensorRT-LLM
-  - NeMo (customização + Curator)
-  - NeMo Evaluator (avaliação)
   - NVIDIA Triton Inference Server
+  - NeMo (customização + Curator)
   rationale: 'Revisão humana (F7.1): spin-off da UFMG, deep learning/ML/NLP com plataforma auto-ML própria
     — IA é o núcleo (AI-native confirmado). O 6/6/6/6 do pipeline subavaliou (extração de descrição genérica).
     Sem dado único público claramente defensável (P1 emergente) e serving em cloud (P3 baixo); adquirida
@@ -94,12 +97,7 @@ entries:
     workflow_depth: 9
     technical_optimization: 6
     distribution_moat: 15
-  expected_nvidia_techs:
-  - NVIDIA NIM
-  - TensorRT-LLM
-  - NeMo (customização + Curator)
-  - NeMo Retriever (RAG)
-  - NVIDIA Triton Inference Server
+  expected_nvidia_techs: []
   rationale: 'Revisão humana (F7.1): o núcleo é RPA (automação por regras em Python); a IA é combinada
     perifericamente (automação inteligente/agêntica), não o núcleo do produto => AI-enabled. Orquestração
     enterprise sustenta a distribuição (P4).'
@@ -129,9 +127,8 @@ entries:
     technical_optimization: 3
     distribution_moat: 9
   expected_nvidia_techs:
-  - NVIDIA TensorRT
-  - Triton Inference Server
   - NVIDIA Morpheus
+  - NVIDIA AI Enterprise
   rationale: 'Revisão humana (F7.1) — CORREÇÃO: biometria facial = visão computacional no núcleo do produto,
     logo AI-native (o rótulo non-AI do pipeline foi erro de extração só-de-descrição). Base de faces+CPF
     de ~90% da população BR = data moat forte (P1); algoritmos próprios + detecção de deepfake em tempo
@@ -274,10 +271,9 @@ entries:
   expected_nvidia_techs:
   - NVIDIA NIM
   - TensorRT-LLM
-  - NeMo Retriever (RAG)
+  - NVIDIA Triton Inference Server
   - NeMo (customização + Curator)
   - NVIDIA Morpheus
-  - NVIDIA Triton Inference Server
   rationale: 'Revisão humana (F7.1): algoritmos confidenciais próprios + biometria treinada em faces brasileiras
     + lab interno de fraude realimentando a plataforma = data moat forte com feedback loop (P1 16). Infra
     em cloud externa (Google) sem serving próprio => P3 baixo = upside de graduação => alvo de graduação.
@@ -309,11 +305,10 @@ entries:
     technical_optimization: 15
     distribution_moat: 18
   expected_nvidia_techs:
-  - NeMo Retriever (RAG)
-  - NeMo (customização + Curator)
   - NVIDIA RAPIDS
   - cuDF
   - cuML
+  - NVIDIA AI Enterprise
   rationale: 'Revisão humana (F7.1): desenvolve algoritmos-base próprios (raro no Brasil) e roda a plataforma
     Vorteris self-hosted (10+ anos de P&D) => stack de inferência própria madura (P3 15 => maduro). A
     IA é o núcleo (AI-native). Clientes enterprise diversos e prêmio CNI de inovação sustentam P4.'

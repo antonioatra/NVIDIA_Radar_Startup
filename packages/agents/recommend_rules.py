@@ -501,18 +501,19 @@ def match_techs(
         elif trigger not in order[pos][2]:
             order[pos][2].append(trigger)
 
-    # Gate "wrapper frágil" (DSS §5 / ALINHAMENTO, "potencial ainda não comprovado"): um AI-native
-    # com **ambos os pilares de core ausentes** (P1 Data Moat e P2 Workflow Depth ≤
-    # `MAX_SCORE_WITHOUT_EVIDENCE`) é um *wrapper puro* — não se prescreve graduação de infra
-    # (pilares NVIDIA) a quem ainda não provou o moat; a recomendação honesta é provar o core antes.
-    # A tech de **setor** (domínio declarado) segue valendo. Não afeta `alvo_graduacao`/`maduro`
-    # (P1/P2 altos), os 7 casos §5.5 (P1=P2=20) nem `AI-enabled` (recebe setor por design, F4.8).
+    # Gate de prioridade (DSS §5 / ALINHAMENTO): a **graduação de infra** (pilares NVIDIA) só vale
+    # p/ quem tem **core de IA provado** — um AI-native com moat. Não se prescreve a:
+    #   • um *periférico* (`AI-enabled`): a IA não é o núcleo do produto (baixa prioridade);
+    #   • um *wrapper frágil* (`AI-native` com P1 Data Moat **e** P2 Workflow Depth ausentes,
+    #     ≤ `MAX_SCORE_WITHOUT_EVIDENCE`): "potencial ainda não comprovado" — prove o core antes.
+    # A tech de **setor** (domínio declarado) segue valendo p/ ambos (AI-enabled recebe setor por
+    # design, F4.8). Não afeta `alvo`/`maduro` (P1/P2 altos) nem os 7 casos §5.5 (P1=P2=20).
     unproven_wrapper = (
-        aimi.classificacao is Classification.AI_NATIVE
-        and aimi.data_moat.score <= MAX_SCORE_WITHOUT_EVIDENCE
+        aimi.data_moat.score <= MAX_SCORE_WITHOUT_EVIDENCE
         and aimi.workflow_depth.score <= MAX_SCORE_WITHOUT_EVIDENCE
     )
-    if not unproven_wrapper:
+    emit_graduation = aimi.classificacao is Classification.AI_NATIVE and not unproven_wrapper
+    if emit_graduation:
         for ps in gap_pillars(aimi):
             for rule in techs_for_pillar(ps.pilar):
                 _add(rule, ps.pilar, ps.pilar.value)

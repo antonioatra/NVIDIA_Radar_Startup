@@ -59,13 +59,15 @@ def _pillar(pilar: AIMIPillar, score: int) -> PillarScore:
     return PillarScore(pilar=pilar, score=score, justificativa="teste", evidencia=ev)
 
 
-def _aimi(p1: int, p2: int, p3: int, p4: int) -> AIMIScore:
+def _aimi(
+    p1: int, p2: int, p3: int, p4: int, *, classe: Classification = Classification.AI_NATIVE
+) -> AIMIScore:
     return AIMIScore(
         data_moat=_pillar(AIMIPillar.DATA_MOAT, p1),
         workflow_depth=_pillar(AIMIPillar.WORKFLOW_DEPTH, p2),
         technical_optimization=_pillar(AIMIPillar.TECHNICAL_OPTIMIZATION, p3),
         distribution_moat=_pillar(AIMIPillar.DISTRIBUTION_MOAT, p4),
-        classificacao=Classification.AI_NATIVE,
+        classificacao=classe,
     )
 
 
@@ -136,6 +138,17 @@ def test_unproven_wrapper_suppresses_graduation_keeps_sector() -> None:
     cand = match_techs(_aimi(2, 3, 4, 5), _profile(setor="Healthtech / saúde digital"))
     assert {c.rule.tech for c in cand} == {"NVIDIA Clara", "MONAI"}  # só setor
     assert all(c.pilar_origem is None for c in cand)  # nenhuma graduação de pilar
+
+
+def test_ai_enabled_periferico_suppresses_graduation_keeps_sector() -> None:
+    # Gate DSS §5 (periférico): num `AI-enabled` a IA não é o núcleo (baixa prioridade) — mesmo com
+    # gaps de pilar **e core não-ausente** (P1/P2 > 6), a graduação de infra não dispara; só a tech
+    # de setor (recebe setor por design, F4.8). Diferente do wrapper, aqui o gate é pela classe.
+    aimi = _aimi(7, 9, 4, 12, classe=Classification.AI_ENABLED)  # P1/P2 > 6, P3 gap
+    assert match_techs(aimi) == ()  # sem domínio → nada (graduação suprimida pela classe)
+    cand = match_techs(aimi, _profile(setor="Healthtech / saúde digital"))
+    assert {c.rule.tech for c in cand} == {"NVIDIA Clara", "MONAI"}
+    assert all(c.pilar_origem is None for c in cand)
 
 
 def test_sector_techs_are_appended_with_no_pillar_origin() -> None:
