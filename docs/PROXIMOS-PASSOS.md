@@ -317,11 +317,12 @@ rastreável, com a limitação anotada.
 - [ ] (Opcional) **Juiz LLM da RAGAS ao vivo** (consolidado vs limiares) — gated pelo endpoint (**F7.3**)
 - [x] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)
   ✅ 2026-06-21 — `scripts/reindex_kb.py`; `tapi_kb` 256→2048, 75 pts, smoke de retrieve com citação ok
-- [ ] (Opcional) **Suíte offline hermética contra a `.env` de dev.** Hoje só `test_classifier` e
-  `test_ragas` se blindam dos flags `*_use_*` (fixture autouse que crava o flag off). Rodar `pytest`
-  local com a `.env` real (flags do caminho ao vivo + serviços ligados, §A) faz ~6 testes "offline"
-  baterem na rede (scraper/qdrant/ragas/HITL) + 4 ambientais (Postgres/Qdrant/NIM, = os "4 skipped"
-  do CI). **Não bloqueia nada** — a CI roda sem flags e fica verde (~747 passed). Opção de robustez:
-  `tests/conftest.py` que pina o conjunto completo de flags off, cuidando da ordem de fixtures vs a
-  guarda local do `test_ragas` (o `get_settings.cache_clear()` per-teste atropela o `setattr` da
-  instância; pinar via env contorna). *(descoberto 2026-06-21, ao corrigir o flaky do `test_classifier`)*
+- [x] (Opcional) **Suíte offline hermética contra a `.env` de dev** ✅ **feito (2026-06-21)** —
+  `tests/conftest.py` com `pytest_configure` (roda **antes da coleta**, logo antes de qualquer
+  fixture) pina os 11 flags de caminho-ao-vivo (`*_USE_LLM`, `EMBEDDINGS_USE_NV`, `INDEX_USE_QDRANT`,
+  `RERANKER_USE_NV`, `SCRAPER_USE_NETWORK`, `RAGAS_USE_LLM`, `BRIEFING_USE_GUARDRAILS`) em `false`
+  via **env** (precede o `.env` e sobrevive ao `get_settings.cache_clear()` — pinar o `setattr` da
+  instância não sobreviveria). `GPU_BENCHMARK_USE_MATRIX` fica de fora (caminho local + teste que o
+  liga via env). **Verificado:** `pytest` local com a `.env` real (flags ligados) caiu de **~52
+  falhas → 0** (suíte verde, exit 0; só 3 skips). Os testes de rede opt-in (gated por chave/
+  `TAPI_NETWORK_TESTS`) e os toggles intencionais (override no corpo do teste) seguem intactos.
