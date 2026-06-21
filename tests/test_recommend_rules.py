@@ -120,11 +120,22 @@ def test_mature_startup_still_gets_a_recommendation() -> None:
 
 def test_low_technical_optimization_triggers_graduation_even_when_not_lowest() -> None:
     # Acoplamento F6.3: P3 baixo DISPARA a recomendação de graduação (NIM/TensorRT-LLM/Triton),
-    # mesmo quando P1/P2/P4 (2/3/5) estão ainda mais baixos — pela severidade pura P3=12 cairia
-    # fora do corte MAX_GAPS=3 e a graduação não dispararia. A F6.3 garante que dispara e lidera.
-    cand = match_techs(_aimi(2, 3, 12, 5))
+    # mesmo quando P2/P4 (3/5) estão ainda mais baixos — pela severidade pura P3=12 cairia fora do
+    # corte MAX_GAPS=3 e a graduação não dispararia. A F6.3 garante que dispara e lidera. P1=20 dá
+    # core provado (não é wrapper puro), p/ o gate de wrapper frágil não suprimir a graduação.
+    cand = match_techs(_aimi(20, 3, 12, 5))
     assert cand[0].pilar_origem is AIMIPillar.TECHNICAL_OPTIMIZATION  # P3 encabeça a prescrição
     assert "NVIDIA NIM" in _techs(cand)  # gatilho de graduação API→stack disparado
+
+
+def test_unproven_wrapper_suppresses_graduation_keeps_sector() -> None:
+    # Gate DSS §5 (wrapper frágil): AI-native com core ausente (P1≤6 E P2≤6) não recebe graduação
+    # de infra (potencial não comprovado) — sem setor, nada a prescrever; com setor, só a tech de
+    # domínio (a graduação segue suprimida). Distingue um wrapper puro de um alvo de graduação.
+    assert match_techs(_aimi(2, 3, 4, 5)) == ()  # wrapper puro sem domínio → nada
+    cand = match_techs(_aimi(2, 3, 4, 5), _profile(setor="Healthtech / saúde digital"))
+    assert {c.rule.tech for c in cand} == {"NVIDIA Clara", "MONAI"}  # só setor
+    assert all(c.pilar_origem is None for c in cand)  # nenhuma graduação de pilar
 
 
 def test_sector_techs_are_appended_with_no_pillar_origin() -> None:

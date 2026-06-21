@@ -181,7 +181,7 @@ entries:
     region: alvo_graduacao
     aimi: { data_moat: 17, workflow_depth: 16, technical_optimization: 8, distribution_moat: 14 }
     rationale: Fine-tuning com dado próprio (P1) e automação multi-passo (P2); P3 ainda baixo (API) — graduação de ASR/serving.
-    expected_nvidia_techs: ["NVIDIA NIM", "NVIDIA Riva (ASR)", "TensorRT-LLM", "NeMo Guardrails"]
+    expected_nvidia_techs: ["NVIDIA NIM", "NVIDIA Riva (ASR)", "TensorRT-LLM", "Triton", "NeMo Guardrails"]
     synthetic: true
   - id: eval-alvo-05
     nome: LogiRoute

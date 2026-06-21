@@ -32,7 +32,7 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 | Classificação (F7.2) | macro-F1 | ≥ 0,75 | **0,875** (24 fixtures) · **0,720** (n=32 c/ reais) · 0,314 piso offline | ⚠️ ✅ fixtures · reais ↓ (AI-enabled n=6) |
 | AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,705** (n=32, reais sobre evidência completa) · 0,815 (24 fixtures) | ✅ |
 | Recomendação (F7.2b) | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro F4.5) | ✅ |
-| Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,79** geral / **0,865** nos alvos · precision 0,37 | ✅ recall / ⚠️ precision |
+| Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,82** geral / **0,88** nos alvos · precision **0,50** (era 0,37; alvo 0,71) | ✅ recall / ⚠️ precision |
 | RAG (F7.3) | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
 | RAG (F7.3 / F7.4) | context recall | ≥ 0,70 | 0,69 (proxy léxico) → **0,74** (reranker NeMo real) | ✅ com NeMo |
 | Briefing (F7.2c) | faithfulness do texto final | ≥ 0,80 | **0,870** (espinha; min 0,786) | ✅ |
@@ -96,23 +96,33 @@ as 8 reais curadas.
 
 | Recorte | precision | recall | F1 |
 |---|---|---|---|
-| **alvo_graduacao** (a coorte que importa, F6.13) | 0,63 | **0,865** ✅ | 0,73 |
-| wrapper (AIMI baixo) | 0,28 | 1,00 | 0,44 |
-| periférico | 0,19 | 1,00 | 0,32 |
-| maduro | 0,16 | 0,27 | 0,20 |
-| **geral** | 0,37 | **0,79** ✅ | 0,51 |
+| **alvo_graduacao** (a coorte que importa, F6.13) | **0,71** | **0,88** ✅ | 0,78 |
+| wrapper (AIMI baixo) | 0,65 | 1,00 | 0,79 |
+| periférico | 0,22 | 1,00 | 0,36 |
+| maduro | 0,32 | 0,43 | 0,36 |
+| **geral** | **0,50** | **0,82** ✅ | 0,63 |
 
-**Leitura honesta:** **evidência dos dois lados = 1,00** (invariante duro do Guardrails F4.5) ✅. As
-reais curadas **melhoraram o recall onde importa** — alvos de graduação **0,865** (era 0,78) e geral
-**0,79** (era 0,69, agora ≥ 0,70) — porque os alvos reais (Hand Talk/Gupy/Idwall) têm techs de graduação
-claras (NIM/TensorRT/Triton) que a regra dispara. O recall geral segue puxado pelo **maduro 0,27** (o
-rótulo espera `AI Enterprise`, mas a regra só dispara isso em gap de P4, e madura tem P4 forte). A
-**precision 0,37 (super-recomendação)** — a regra dispara em todo gap (~5 techs/empresa; rótulos esperam
-0–4) — melhorou (era 0,23) mas segue como limitação conhecida, concentrada nas regiões de AIMI baixo.
-**Capar a regra não é o conserto** (os 7 casos do §5.5/F4.8 — gate 7/7 — *exigem* o leque, ex.: `saude`
-requer 5 techs incl. MONAI/AI Enterprise de prioridade média): a precision baixa é majoritariamente
-**rótulo esparso**, não regra errada — onde o rótulo é completo (§5.5) ela é ~1,0. Lever honesto na
-Limitação nº2.
+**Leitura honesta:** **evidência dos dois lados = 1,00** (invariante duro do Guardrails F4.5) ✅. A
+**curadoria de 2026-06-21** subiu a **precision 0,37 → 0,50** e o **recall 0,79 → 0,82**, sem capar a
+regra nem alinhar rótulo à saída (o que zeraria a métrica). Dois movimentos honestos: **(1) relabel
+Type-1** — completar o **bundle de graduação §5.5** onde o rótulo o omitia (Triton ao lado de
+NIM/TensorRT-LLM nas reais + `eval-alvo-04`; RAPIDS/cuDF/cuML na Aquarela, empresa de dados); **(2) gate
+de wrapper frágil** (DSS §5, `recommend_rules`) — um AI-native com **core ausente** (P1≤6 E P2≤6) não
+recebe graduação de infra (potencial não comprovado), só a tech de setor. Resultado: **alvo 0,71 /
+wrapper 0,65** sobem; o gate fechou os FPs dos wrappers puros (mantendo §5.5 **7/7**).
+
+**O que NÃO dá p/ corrigir honestamente** (por isso a precision **não cruza 0,70** — e forçar seria
+desonesto):
+- **periférico 0,22** — os AI-enabled sintéticos (esperam `[]`) e a **BotCity real** (AI-enabled que o
+  humano curou esperando o bundle) têm **classe+AIMI quase idênticos**: a regra não distingue um *feature*
+  periférico de uma IA material-mas-periférica. Gatear `AI-enabled` mislabelaria a BotCity (−4 TP) e
+  quebraria o design F4.8 (AI-enabled recebe setor — `test_node_end_to_end_over_real_rag`). É **ambiguidade
+  de granularidade de rótulo**, não regra errada.
+- **maduro 0,32** — a regra prescreve `NeMo Retriever` (gap de P2) onde o rótulo espera `AI Enterprise`
+  (P4 forte = não-gap, a regra não dispara). Baixo por **escopo de rótulo** (o humano focou o que falta).
+
+**Capar a regra não é o conserto** (os 7 casos do §5.5/F4.8 — gate **7/7** — *exigem* o leque). Lever
+detalhado na Limitação nº2.
 
 ### 4. RAG — RAGAS sobre as perguntas NVIDIA (F7.3)
 
@@ -197,15 +207,17 @@ ruído**.
    **não** rotulagem independente do zero. Para as 3 entradas onde o rótulo humano **não** mudou o score
    do modelo (BotCity, Aquarela, Take Blip), a correlação AIMI dessas linhas conserva resíduo circular. A
    9ª real (Semantix) segue fora do headline (região pendente). Ampliar a coorte curada é o próximo ganho.
-2. **Recomendação: precision 0,37 (super-recomendação), maduro recall 0,27** — investigado a fundo:
-   **capar/podar a regra não é opção** porque o gate de aderência ao §5.5 (F4.8, hoje 7/7) *exige* o
-   leque de techs — o caso `saude` requer 5 (incl. MONAI/AI Enterprise de prioridade média), `governanca`
-   exige NeMo Evaluator, etc.; qualquer corte por prioridade derruba techs obrigatórias. Logo a precision
-   baixa é, em sua maior parte, **rótulo esparso** nas regiões de AIMI baixo (não regra errada): onde o
-   rótulo é completo — os 7 casos do §5.5 — a precision é ~1,0. **Lever honesto:** reconciliar os
-   `expected_nvidia_techs` do eval com **julgamento humano independente** (coerente com o §5.5), não capar
-   a regra nem alinhar rótulo à saída da regra (isso zeraria a informatividade da métrica). Pendente —
-   próxima curadoria do eval de recomendação.
+2. **Recomendação: precision 0,50 (era 0,37), maduro recall baixo** — **lever parcialmente aplicado
+   (2026-06-21):** reconciliou-se `expected_nvidia_techs` por **julgamento §5.5** (relabel Type-1: Triton
+   no bundle de graduação + RAPIDS/cuDF/cuML na Aquarela) **e** gateou-se a regra (wrapper frágil AI-native
+   com core ausente não recebe graduação de infra) — precision **0,37 → 0,50**, recall **0,79 → 0,82**,
+   §5.5 mantido **7/7**, **sem** alinhar rótulo à saída da regra (o que zeraria a métrica). **Não cruza
+   0,70 — e forçar seria desonesto:** o resíduo é (a) **periférico** — AI-enabled sintéticos (esperam
+   `[]`) vs **BotCity real** (AI-enabled, humano espera o bundle) têm classe+AIMI quase idênticos; gatear
+   AI-enabled mislabelaria a BotCity e quebraria o design F4.8 (AI-enabled recebe setor) → **ambiguidade
+   de granularidade de rótulo**; (b) **maduro** — a regra cobre o gap mais severo (P2→NeMo Retriever) e o
+   rótulo foca o que falta (P4→AI Enterprise, não-gap). **Capar a regra segue fora** (§5.5/F4.8 *exige* o
+   leque). Próximo passo possível: rótulos com granularidade de prioridade (não só presença) — fora do escopo atual.
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
 4. ~~**Coluna Cohere do comparativo pendente** da trial key + SDK.~~ ✅ **medida (2026-06-16)** +

@@ -33,7 +33,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from packages.agents.nvidia_rag import gap_pillars
-from packages.schemas import AIMIPillar, AIMIScore, Complexity, Priority, StartupProfile
+from packages.schemas import (
+    MAX_SCORE_WITHOUT_EVIDENCE,
+    AIMIPillar,
+    AIMIScore,
+    Classification,
+    Complexity,
+    Priority,
+    StartupProfile,
+)
 
 
 @dataclass(frozen=True)
@@ -493,9 +501,21 @@ def match_techs(
         elif trigger not in order[pos][2]:
             order[pos][2].append(trigger)
 
-    for ps in gap_pillars(aimi):
-        for rule in techs_for_pillar(ps.pilar):
-            _add(rule, ps.pilar, ps.pilar.value)
+    # Gate "wrapper frágil" (DSS §5 / ALINHAMENTO, "potencial ainda não comprovado"): um AI-native
+    # com **ambos os pilares de core ausentes** (P1 Data Moat e P2 Workflow Depth ≤
+    # `MAX_SCORE_WITHOUT_EVIDENCE`) é um *wrapper puro* — não se prescreve graduação de infra
+    # (pilares NVIDIA) a quem ainda não provou o moat; a recomendação honesta é provar o core antes.
+    # A tech de **setor** (domínio declarado) segue valendo. Não afeta `alvo_graduacao`/`maduro`
+    # (P1/P2 altos), os 7 casos §5.5 (P1=P2=20) nem `AI-enabled` (recebe setor por design, F4.8).
+    unproven_wrapper = (
+        aimi.classificacao is Classification.AI_NATIVE
+        and aimi.data_moat.score <= MAX_SCORE_WITHOUT_EVIDENCE
+        and aimi.workflow_depth.score <= MAX_SCORE_WITHOUT_EVIDENCE
+    )
+    if not unproven_wrapper:
+        for ps in gap_pillars(aimi):
+            for rule in techs_for_pillar(ps.pilar):
+                _add(rule, ps.pilar, ps.pilar.value)
 
     sector = match_sector(profile)
     if sector is not None:

@@ -30,6 +30,7 @@ entries:
   - NeMo Retriever (RAG)
   - NeMo (customização + Curator)
   - NVIDIA Riva (ASR/TTS)
+  - NVIDIA Triton Inference Server
   rationale: 'Revisão humana (F7.1): a IA traduz texto/áudio para Libras entendendo contexto e gramática
     própria; corpus proprietário de Libras + comunidade surda no loop = data moat estabelecido (P1 13+).
     Serving via API externa (sem stack própria) mantém P3 baixo = upside de graduação. Ampla distribuição
@@ -64,6 +65,7 @@ entries:
   - TensorRT-LLM
   - NeMo (customização + Curator)
   - NeMo Evaluator (avaliação)
+  - NVIDIA Triton Inference Server
   rationale: 'Revisão humana (F7.1): spin-off da UFMG, deep learning/ML/NLP com plataforma auto-ML própria
     — IA é o núcleo (AI-native confirmado). O 6/6/6/6 do pipeline subavaliou (extração de descrição genérica).
     Sem dado único público claramente defensável (P1 emergente) e serving em cloud (P3 baixo); adquirida
@@ -97,6 +99,7 @@ entries:
   - TensorRT-LLM
   - NeMo (customização + Curator)
   - NeMo Retriever (RAG)
+  - NVIDIA Triton Inference Server
   rationale: 'Revisão humana (F7.1): o núcleo é RPA (automação por regras em Python); a IA é combinada
     perifericamente (automação inteligente/agêntica), não o núcleo do produto => AI-enabled. Orquestração
     enterprise sustenta a distribuição (P4).'
@@ -165,6 +168,7 @@ entries:
   - TensorRT-LLM
   - NeMo Retriever (RAG)
   - NeMo (customização + Curator)
+  - NVIDIA Triton Inference Server
   rationale: 'Revisão humana (F7.1): ML/deep learning para recrutamento é o núcleo => AI-native. Vasto
     banco proprietário de descrições de vagas + feedback de sucesso = data moat estabelecido (P1 13+).
     Tem otimização pontual (modelo próprio de validação documental), mas o serving do core roda em cloud
@@ -200,6 +204,7 @@ entries:
   - TensorRT-LLM
   - NeMo (customização + Curator)
   - NeMo Retriever (RAG)
+  - NVIDIA Triton Inference Server
   rationale: 'Revisão humana (F7.1): plataforma conversacional que orquestra NLP de TERCEIROS (IBM Watson,
     Microsoft LUIS, Google Dialogflow) e cujo dado é do cliente — sem moat próprio (P1 baixo) e sem stack
     própria (P3 baixo). Wrapper legítimo, apesar do posicionamento AI-native. Forte distribuição enterprise
@@ -272,6 +277,7 @@ entries:
   - NeMo Retriever (RAG)
   - NeMo (customização + Curator)
   - NVIDIA Morpheus
+  - NVIDIA Triton Inference Server
   rationale: 'Revisão humana (F7.1): algoritmos confidenciais próprios + biometria treinada em faces brasileiras
     + lab interno de fraude realimentando a plataforma = data moat forte com feedback loop (P1 16). Infra
     em cloud externa (Google) sem serving próprio => P3 baixo = upside de graduação => alvo de graduação.
@@ -305,6 +311,9 @@ entries:
   expected_nvidia_techs:
   - NeMo Retriever (RAG)
   - NeMo (customização + Curator)
+  - NVIDIA RAPIDS
+  - cuDF
+  - cuML
   rationale: 'Revisão humana (F7.1): desenvolve algoritmos-base próprios (raro no Brasil) e roda a plataforma
     Vorteris self-hosted (10+ anos de P&D) => stack de inferência própria madura (P3 15 => maduro). A
     IA é o núcleo (AI-native). Clientes enterprise diversos e prêmio CNI de inovação sustentam P4.'
