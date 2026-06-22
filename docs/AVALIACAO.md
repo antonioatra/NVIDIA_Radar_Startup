@@ -32,8 +32,8 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 | Classificação (F7.2) | macro-F1 | ≥ 0,75 | **0,875** (24 fixtures) · **0,720** (n=32 c/ reais) · 0,314 piso offline | ⚠️ ✅ fixtures · reais ↓ (AI-enabled n=6) |
 | AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,705** (n=32, reais sobre evidência completa) · 0,815 (24 fixtures) | ✅ |
 | Recomendação (F7.2b) | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro F4.5) | ✅ |
-| Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,76** geral / **0,87** alvos · precision **0,56** de-circularizada (era 0,37 inflada; sintética 0,375 × real 0,90) | ✅ recall / ⚠️ precision |
-| Recomendação (F7.7) | **recall@ALTA** (a alavanca) | ≥ 0,70 | **0,72** geral · **1,00** alvo+wrapper · maduro 0,22 / periférico 0,00 (gap-driven) · precision tolerante 0,56 | ✅ headline / ⚠️ maduro-periférico |
+| Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,89** geral / **0,87** alvos · precision **0,60** (0,37 inflada → 0,56 de-circularizada → 0,60 c/ levers F7.7) | ✅ recall / ⚠️ precision |
+| Recomendação (F7.7) | **recall@ALTA** (a alavanca) | ≥ 0,70 | **0,97** geral · **1,00** alvo+wrapper+periférico · **0,89** maduro (levers de recommender) · precision tolerante 0,60 | ✅ |
 | RAG (F7.3) | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
 | RAG (F7.3 / F7.4) | context recall | ≥ 0,70 | 0,69 (proxy léxico) → **0,74** (reranker NeMo real) | ✅ com NeMo |
 | Briefing (F7.2c) | faithfulness do texto final | ≥ 0,80 | **0,870** (espinha; min 0,786) | ✅ |
@@ -99,13 +99,15 @@ as 8 reais curadas.
 |---|---|---|---|---|
 | **alvo_graduacao** (a coorte que importa, F6.13) | **1,00** ✅ | **0,69** | **0,87** | 0,77 |
 | wrapper (AIMI baixo) | **1,00** ✅ | 0,62 | 1,00 | 0,77 |
-| periférico (AI-enabled) | 0,00 | 0,00 | 0,00 | 0,00 |
-| maduro | 0,22 | 0,21 | 0,33 | 0,26 |
-| **geral** | **0,72** ✅ | **0,56** | **0,76** | 0,64 |
+| periférico (AI-enabled) | **1,00** ✅ | 0,50 | 1,00 | 0,67 |
+| maduro | **0,89** ✅ | 0,40 | 0,83 | 0,54 |
+| **geral** | **0,97** ✅ | **0,60** | **0,89** | 0,71 |
 
 > **Headline F7.7 = `recall@ALTA`** (das techs que o rótulo marca **ALTA**, a alavanca, quantas a regra
-> produz — *knob-free*, sem peso/limiar). **precision tolerante 0,56 ≈ presença** (a regra emite o leque
-> como ALTA/MÉDIA, quase nunca BAIXA → não há "leque a perdoar"). Dois lados **1,00** ✅.
+> produz — *knob-free*, sem peso/limiar). **0,97 geral**, ≥ 0,70 em **toda** região (os levers de
+> recommender abaixo levantaram maduro 0,22→0,89 e periférico 0,00→1,00). **precision tolerante 0,60 ≈
+> presença** (a regra emite o leque como ALTA/MÉDIA, quase nunca BAIXA → não há "leque a perdoar"). Dois
+> lados **1,00** ✅.
 
 > **Cisão honesta sintética × real (2026-06-21):** precision **sintética 0,375** (rótulo §5.5 escrito à
 > mão = sinal genuíno) × **real 0,900** (rótulo re-curado, ver abaixo). A geral 0,56 é a mistura;
@@ -125,32 +127,29 @@ dispara p/ **core de IA provado**: suprimida em **periférico** (`AI-enabled`, a
 **wrapper frágil** (`AI-native` com P1 **e** P2 ausentes ≤6); a tech de **setor** segue p/ ambos
 (AI-enabled recebe setor por design, F4.8 — `test_node_end_to_end_over_real_rag` verde). §5.5 **7/7**.
 
-**Trajetória honesta:** precision **0,37 (inflada por circularidade) → 0,56 (de-circularizada)**, recall
-0,79 → 0,76 (≥ 0,70). **O resíduo é genuíno, não overfitável:**
-- **periférico 0,00** (n=6, TP=0): a regra **não serve o periférico** — e isso é **desejável** (baixa
-  prioridade). Os 2 FP vêm do **matching de setor grosseiro** (AgendaJá, agendamento, casa "health" →
-  Clara/MONAI errado); os 2 FN são `NeMo Guardrails` p/ chats AI-enabled (debatível).
-- **maduro 0,21** — a regra cobre o **gap mais severo** (P2 → NeMo Retriever); o rótulo de uma madura
-  foca governança/enterprise (AI Enterprise) + domínio, que a regra não prioriza.
+**Trajetória honesta:** precision **0,37 (inflada por circularidade) → 0,56 (de-circularizada) → 0,60
+(levers de recommender F7.7)**, recall **0,79 → 0,76 → 0,89**. **Capar a regra não é o conserto** (os 7
+casos do §5.5/F4.8 — gate **7/7** — *exigem* o leque); o conserto foi **prescrever o que faltava**.
 
-**Capar a regra não é o conserto** (os 7 casos do §5.5/F4.8 — gate **7/7** — *exigem* o leque).
-
-**recall@ALTA (F7.7) — a granularidade de prioridade, feita (2026-06-22).** O rótulo ganhou **prioridade
-por tech** (ALTA/MÉDIA/BAIXA), ancorada no **gap do perfil**, não na saída da regra (anti-circular;
-**revisão humana confirmada** — ver `REVISAO-ROTULOS.md`). A métrica nova fica **ao lado** da presença,
-nunca no lugar:
-- **recall@ALTA = 1,00 em alvo_graduacao e wrapper** — a regra surfa a **alavanca nº1** (NIM/TensorRT p/
-  graduação; NeMo customização p/ wrapper) em **100%** dos casos onde o produto existe pra agir (F6.13).
-  É o sinal que importa: *acertamos o lever, não só "alguma tech"*. Global **0,72 ≥ 0,70** ✅.
-- **maduro 0,22 / periférico 0,00** — baixos **por design gap-driven**: a regra prescreve p/ fechar pilar
-  baixo, e maduro (sem gap) não recebe a venda enterprise (AI Enterprise) que o rótulo espera; periférico
-  AI-enabled recebe só setor (F4.8), não o Guardrails do copiloto. Não é overfit nem bug — **espelha a
-  presença R já baixa lá**. O conserto agora é **lever de *recommender*** (prescrever AI Enterprise a
-  maduro / Guardrails a AI-enabled com superfície conversacional), **não** de métrica.
-- **precision tolerante 0,56 ≈ presença** — a regra emite o leque quase todo como **ALTA/MÉDIA, quase
-  nunca BAIXA**, então não há "leque de baixa prioridade a perdoar". O resíduo de precision é **breadth
-  genuína** (largura p/ cobrir o §5.5 7/7), não ruído de baixa confiança — a tolerância confirmou que não
-  há o que esconder. Dois lados **1,00** ✅.
+**recall@ALTA (F7.7) — a granularidade de prioridade + os levers que ela revelou (2026-06-22).** O rótulo
+ganhou **prioridade por tech** (ALTA/MÉDIA/BAIXA), ancorada no **gap do perfil**, não na saída da regra
+(anti-circular; **revisão humana confirmada** — ver `REVISAO-ROTULOS.md`). A métrica `recall@ALTA` fica
+**ao lado** da presença, nunca no lugar — e foi ela que **expôs e guiou** dois consertos de *recommender*:
+- **recall@ALTA = 1,00 em alvo+wrapper+periférico, 0,89 maduro, 0,97 global** ✅ — a regra surfa a
+  **alavanca nº1** (NIM/TensorRT p/ graduação; NeMo customização p/ wrapper) em **100%** dos casos onde o
+  produto existe pra agir (F6.13). *Acertamos o lever, não só "alguma tech".*
+- **Os dois levers (descobertos pela própria métrica, em `recommend_rules`):** (1) **maduro → AI
+  Enterprise** — um AI-native que **já graduou** (P3 estabelecido ≥13) não precisa de graduação; a jogada
+  NVIDIA é a escala enterprise (*maturity-driven*, não gap-driven). (2) **AI-enabled com chat → NeMo
+  Guardrails** — uma superfície generativa/conversacional pede governança de comportamento, mesmo com a
+  graduação suprimida pela classe. Levantaram **maduro 0,22→0,89 e periférico 0,00→1,00**.
+- **O lever certo levantou recall@ALTA _e_ presença (não inflou):** como as techs adicionadas são
+  **esperadas** (TP, não FP), a presença subiu junto — precision **0,56→0,60**, recall **0,76→0,89**, F1
+  **0,64→0,71**, dois lados **1,00** ✅. O resíduo (maduro 0,89, não 1,0) é a **Aquarela**, cujo domínio
+  (RAPIDS/tabular) o matching de setor grosseiro não pega — genuíno, não overfit.
+- **precision tolerante 0,60 ≈ presença** — a regra emite o leque como **ALTA/MÉDIA, quase nunca BAIXA**,
+  então não há "leque de baixa prioridade a perdoar"; o resíduo de precision é **breadth genuína** (largura
+  p/ cobrir o §5.5 7/7), confirmado pela tolerância.
 
 ### 4. RAG — RAGAS sobre as perguntas NVIDIA (F7.3)
 
@@ -246,12 +245,14 @@ ruído**.
    (≥0,70), §5.5 **7/7**, suíte verde, **sem** alinhar rótulo à saída. **Resíduo genuíno** (não overfitável):
    `periférico 0,00` (a regra **não serve** o periférico, e isso é o desejado — baixa prioridade; FP = setor
    grosseiro na AgendaJá) e `maduro 0,21` (regra cobre o gap; rótulo de madura foca enterprise/domínio).
-   **Capar a regra segue fora** (§5.5/F4.8 *exige* o leque). **Lever da granularidade de prioridade FEITO
-   (F7.7, 2026-06-22):** rótulo priorizado (revisão humana confirmada) + `recall@ALTA` knob-free →
-   **1,00 em alvo+wrapper** (a regra surfa a alavanca onde importa), maduro/periférico baixos **por design
-   gap-driven**, precision tolerante 0,56 ≈ presença (a regra não emite BAIXA → nada a perdoar). Detalhe
-   em §3. O resíduo de maduro/periférico vira **lever de *recommender*** (prescrever enterprise a maduro /
-   Guardrails a AI-enabled com chat), **não** de métrica — registrado em PROXIMOS-PASSOS.
+   **Capar a regra segue fora** (§5.5/F4.8 *exige* o leque). **Granularidade de prioridade + levers de
+   recommender FEITOS (F7.7, 2026-06-22):** o rótulo priorizado (revisão humana confirmada) + `recall@ALTA`
+   knob-free **expôs** que a regra gap-driven não servia maduro (sem gap → sem AI Enterprise) nem
+   periférico-com-chat (sem Guardrails). Os **dois levers** (maduro→AI Enterprise por maturidade; AI-enabled-
+   chat→Guardrails por superfície conversacional) levantaram **recall@ALTA 0,72→0,97** (1,00 em
+   alvo+wrapper+periférico, 0,89 maduro) **e a presença junto** (precision 0,56→0,60, recall 0,76→0,89) —
+   as techs eram esperadas (TP). Dois lados 1,00, §5.5 7/7, suíte verde. Resíduo (maduro 0,89) = domínio
+   tabular da Aquarela que o matching de setor não pega. Detalhe em §3. **Limitação essencialmente fechada.**
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
 4. ~~**Coluna Cohere do comparativo pendente** da trial key + SDK.~~ ✅ **medida (2026-06-16)** +

@@ -379,12 +379,15 @@ Documentar por entrada no `notes`, igual à de-circularização. Sem isso, o lev
   alvo+wrapper** (a regra surfa a alavanca onde importa, F6.13), global 0,72 ≥ 0,70; maduro 0,22/periférico
   0,00 baixos **por design gap-driven**; precision tolerante 0,56 ≈ presença (a regra não emite BAIXA →
   nada a perdoar). Limitação nº2 do `AVALIACAO.md` fechada. Commits 8681ee7→c6341d0.
-- [ ] (Opcional) **Lever de *recommender* — servir maduro/periférico (descoberto pela F7.7)** — o
-  `recall@ALTA` revelou que a regra *gap-driven* não prescreve a **venda enterprise** (AI Enterprise) a um
-  maduro (sem gap) nem **Guardrails** a um AI-enabled com superfície conversacional (recebe só setor, F4.8).
-  Não é bug de métrica nem de rótulo — é o leque da regra. Lever: estender `recommend_rules` p/ prescrever
-  AI Enterprise/governança a maduro e Guardrails a periférico-com-chat. *Aberto 2026-06-22; mexe na regra,
-  não no eval — revalidar §5.5 7/7 e o recall@ALTA depois.*
+- [x] (Opcional) **Lever de *recommender* — servir maduro/periférico (descoberto pela F7.7)** ✅ **feito
+  (2026-06-22):** dois levers em `recommend_rules.match_techs` (aditivos, depois do gap/setor): (1)
+  **maduro→AI Enterprise** se AI-native e P3≥13 (já graduou → jogada enterprise, *maturity-driven*); (2)
+  **AI-enabled-chat→NeMo Guardrails** se superfície conversacional/generativa (`_has_conversational_surface`).
+  Reusam as TechRules de P4 (uma fonte de verdade). **Resultado:** recall@ALTA **0,72→0,97** (maduro
+  0,22→0,89, periférico 0,00→1,00) **e presença junto** (precision 0,56→0,60, recall 0,76→0,89 — as techs
+  eram TP). §5.5 **7/7** intacto (teste é subconjunto), dois lados 1,00, suíte verde (testes novos
+  `test_graduated_ai_native_gets_enterprise_not_alvo` + `test_ai_enabled_chat_surface_gets_guardrails`).
+  Resíduo: maduro 0,89 = domínio tabular da Aquarela que o setor não pega.
 - [x] (Opcional) **Suíte offline hermética contra a `.env` de dev** ✅ **feito (2026-06-21)** —
   `tests/conftest.py` com `pytest_configure` (roda **antes da coleta**, logo antes de qualquer
   fixture) pina os 11 flags de caminho-ao-vivo (`*_USE_LLM`, `EMBEDDINGS_USE_NV`, `INDEX_USE_QDRANT`,
