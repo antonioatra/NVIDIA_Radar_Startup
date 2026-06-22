@@ -45,6 +45,7 @@ custo por run (F2.11) e cache de inferência (F2.14) ficam fora do scraping (fre
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -89,6 +90,27 @@ class _Target:
 def _is_url(source: str) -> bool:
     """True se a fonte é uma URL concreta (coleta direta) vs. um termo de busca."""
     return source.strip().lower().startswith(("http://", "https://"))
+
+
+#: Query que JÁ é um domínio nu (single-company por domínio, ex.: "rivio.ai"): ≥1 ponto, sem
+#: espaço/esquema. Habilita o fetch direto do site oficial (ver `_query_site_url`).
+_BARE_DOMAIN_RE = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+$", re.IGNORECASE)
+
+
+def _query_site_url(query: str) -> str | None:
+    """`https://<domínio>` quando a query é um domínio (rivio.ai); senão `None`.
+
+    Sem isto, uma query single-company por domínio entra no search_planner só como **termo de
+    busca** — o site oficial pode nunca ser coletado e a coleta cai em diretórios genéricos →
+    perfil vazio → classe/AIMI falsos (bug real: `rivio.ai` virou non-AI/0 porque o site dele
+    nunca foi fetchado, 2026-06-22). Nome com espaço ("Hand Talk") e query de descoberta não casam.
+    """
+    q = query.strip()
+    if not q or " " in q:
+        return None
+    if _is_url(q):
+        return q
+    return f"https://{q}" if _BARE_DOMAIN_RE.match(q) else None
 
 
 def _intent_for(source_type: str | None) -> ContentKind:
@@ -253,6 +275,12 @@ def scraper(
     **acumulados** em `state.errors` (rastreável), sem derrubar o run.
     """
     sources = [s for s in state.sources if s and s.strip()]
+    # Garante o site da própria empresa quando a query é um domínio (rivio.ai): o search_planner
+    # pode listá-lo só como termo de busca, e sem o fetch direto a coleta cai em diretórios
+    # genéricos → perfil vazio. Prepende como fonte direta (ToS/F1.15 e o dedup do scrape governam).
+    site = _query_site_url(state.query)
+    if site is not None and site not in sources:
+        sources = [site, *sources]
     if not sources:
         return {}
     if fetch is None and not get_settings().scraper_use_network:

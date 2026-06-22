@@ -176,6 +176,35 @@ def test_node_accumulates_errors_onto_state() -> None:
     assert any("startse" in e for e in update["errors"][1:])  # + os novos
 
 
+# ------------------------------------------------- query-domínio → fetch direto do site (F2.4)
+
+
+def test_query_site_url_recognizes_bare_domain() -> None:
+    assert sc._query_site_url("rivio.ai") == "https://rivio.ai"
+    assert sc._query_site_url("https://rivio.ai/about") == "https://rivio.ai/about"  # já é URL
+    assert sc._query_site_url("Hand Talk") is None  # nome com espaço
+    assert sc._query_site_url("rivio") is None  # sem ponto/TLD
+    assert sc._query_site_url("fintechs de fraude") is None  # query de descoberta
+
+
+def test_node_fetches_query_domain_even_when_planner_omits_it() -> None:
+    # Bug real (rivio.ai → non-AI/0, 2026-06-22): o search_planner listou o domínio só como termo,
+    # o site oficial nunca foi coletado → perfil vazio → classe/AIMI falsos. Uma query-domínio agora
+    # vira fetch DIRETO do site, mesmo que o planner não o liste como URL.
+    fetched: list[str] = []
+
+    def capture(url: str, intent: ContentKind) -> FetchResult:
+        fetched.append(url)
+        return _page(url)
+
+    state = GraphState(
+        run_id="r1", query="rivio.ai", sources=["rivio site oficial", "https://braziljournal.com"]
+    )
+    update = scraper(state, fetch=capture, search=lambda q: [])
+    assert "https://rivio.ai" in fetched  # o site da própria empresa entrou na coleta
+    assert any(str(d.url).startswith("https://rivio.ai") for d in update["raw_docs"])
+
+
 class _FakeSettings:
     def __init__(self, *, use_network: bool) -> None:
         self.scraper_use_network = use_network
