@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from packages.eval import (
     ExpectedPillars,
+    ExpectedTech,
     LabeledStartup,
     by_classification,
     by_region,
@@ -20,7 +21,7 @@ from packages.eval import (
     load_eval_set,
 )
 from packages.schemas.aimi import band_for
-from packages.schemas.enums import AIMIBand, AIMIPillar, Classification, PlaneRegion
+from packages.schemas.enums import AIMIBand, AIMIPillar, Classification, PlaneRegion, Priority
 
 _MIN_ENTRIES = 20  # DoD F1.12: conjunto inicial ≥20 startups.
 
@@ -97,6 +98,57 @@ def test_non_ai_has_no_expected_techs() -> None:
     for e in by_classification(Classification.NON_AI):
         assert e.region is PlaneRegion.FORA_ESCOPO
         assert e.expected_nvidia_techs == []
+
+
+# --- expected_techs: forma chapada x rica + view de nomes (F7.7, Passo 1) -----
+
+
+def test_expected_techs_flat_form_parses_without_priority() -> None:
+    """A forma chapada legada ('NVIDIA NIM') segue válida → ExpectedTech com prioridade None."""
+    e = _entry(expected_nvidia_techs=["NVIDIA NIM", "TensorRT-LLM"])
+    assert [t.tech for t in e.expected_techs] == ["NVIDIA NIM", "TensorRT-LLM"]
+    assert all(t.prioridade is None for t in e.expected_techs)
+    # view de nomes idêntica → a métrica de presença (F7.2b) não muda
+    assert e.expected_nvidia_techs == ["NVIDIA NIM", "TensorRT-LLM"]
+
+
+def test_expected_techs_rich_form_carries_priority() -> None:
+    """A forma rica ({tech, prioridade}) carrega o rank; a view de nomes ignora a prioridade."""
+    e = _entry(
+        expected_nvidia_techs=[
+            {"tech": "NVIDIA NIM", "prioridade": "alta"},
+            {"tech": "NVIDIA Triton Inference Server", "prioridade": "media"},
+        ]
+    )
+    assert e.expected_techs[0].prioridade is Priority.ALTA
+    assert e.expected_techs[1].prioridade is Priority.MEDIA
+    assert e.expected_nvidia_techs == ["NVIDIA NIM", "NVIDIA Triton Inference Server"]
+
+
+def test_expected_techs_mixed_flat_and_rich() -> None:
+    """Chapada e rica convivem na mesma lista (migração incremental do rótulo)."""
+    e = _entry(expected_nvidia_techs=[{"tech": "NVIDIA NIM", "prioridade": "alta"}, "TensorRT-LLM"])
+    assert e.expected_techs[0].prioridade is Priority.ALTA
+    assert e.expected_techs[1].prioridade is None
+    assert e.expected_nvidia_techs == ["NVIDIA NIM", "TensorRT-LLM"]
+
+
+def test_expected_nvidia_techs_property_matches_names_in_loaded_set() -> None:
+    """Em todo o eval set carregado, a view de nomes == os techs dos itens ricos (retrocompat)."""
+    for e in load_eval_set():
+        assert e.expected_nvidia_techs == [t.tech for t in e.expected_techs]
+
+
+def test_expected_tech_rejects_unknown_priority() -> None:
+    """Prioridade fora do enum §5.5 é rejeitada — sanidade do rótulo priorizado."""
+    with pytest.raises(ValidationError):
+        _entry(expected_nvidia_techs=[{"tech": "NVIDIA NIM", "prioridade": "altissima"}])
+
+
+def test_expected_tech_construct_direct() -> None:
+    """ExpectedTech isolado: prioridade default None; aceita o enum Priority."""
+    assert ExpectedTech(tech="NVIDIA NIM").prioridade is None
+    assert ExpectedTech(tech="NVIDIA NIM", prioridade=Priority.ALTA).prioridade is Priority.ALTA
 
 
 # --- ExpectedPillars: total e faixa ------------------------------------------

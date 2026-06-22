@@ -51,6 +51,7 @@ from .classification_metrics import (
 from .dataset import (
     EVAL_DIR,
     ExpectedPillars,
+    ExpectedTech,
     LabeledStartup,
     by_classification,
     by_region,
@@ -118,6 +119,7 @@ from .reranker_comparison import (
 __all__ = [
     "EVAL_DIR",
     "ExpectedPillars",
+    "ExpectedTech",
     "LabeledStartup",
     "load_eval_set",
     "by_classification",

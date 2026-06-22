@@ -10,8 +10,11 @@ heurística não invalida o ground-truth.
 A anotação carrega também a **região do plano `classe × AIMI`** (`PlaneRegion`, o "Mapa
 de decisão" da RUBRICA §6 / ALINHAMENTO) — separa explicitamente *wrapper* (região,
 não classe) do *alvo de graduação* ★ (AI-native, P1/P2 alto, **P3 baixo** = maior
-upside NVIDIA, F6.13). `expected_nvidia_techs` é opcional e antecipa o contrato do eval
-de recomendação (F7.2b: techs esperadas por empresa).
+upside NVIDIA, F6.13). `expected_techs` é opcional e antecipa o contrato do eval de
+recomendação (F7.2b: techs esperadas por empresa), cada uma com **prioridade** opcional
+(F7.7: ALTA = a alavanca que importa, base do `recall@ALTA`; MÉDIA/BAIXA = leque). O YAML
+aceita a forma chapada (`"NVIDIA NIM"`) e a rica (`{tech: ..., prioridade: alta}`); a view
+só-nomes fica em `expected_nvidia_techs` (retrocompat + métrica de presença).
 
 Os dados vivem em `data/eval/*.yaml` (versionados, human-reviewed). O loader valida a
 **coerência direcional** da anotação (ex.: um `non-AI` não pode ter Workflow Depth alto
@@ -26,10 +29,10 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from packages.schemas.aimi import band_for
-from packages.schemas.enums import AIMIBand, AIMIPillar, Classification, PlaneRegion
+from packages.schemas.enums import AIMIBand, AIMIPillar, Classification, PlaneRegion, Priority
 
 # data/eval/ na raiz do repo (packages/eval/dataset.py -> parents[2] == raiz).
 EVAL_DIR = Path(__file__).resolve().parents[2] / "data" / "eval"
@@ -74,10 +77,35 @@ class ExpectedPillars(BaseModel):
         return band_for(getattr(self, pillar.value))
 
 
-class LabeledStartup(BaseModel):
-    """Uma startup rotulada por revisão humana (ground-truth do eval set)."""
+class ExpectedTech(BaseModel):
+    """Uma tech NVIDIA esperada no rótulo (F7.2b) com **prioridade** opcional (F7.7).
 
-    model_config = ConfigDict(extra="forbid")
+    `prioridade=None` é a forma chapada legada (só presença, sem rank). Quando presente, ALTA marca a
+    **alavanca que importa** (entra no `recall@ALTA`, o headline knob-free) e MÉDIA/BAIXA o leque que o
+    §5.5/F4.8 obriga a regra a emitir — distinção que a métrica priority-aware (F7.7) usa para parar de
+    penalizar o leque BAIXA como FP. A prioridade do rótulo vem do **gap do perfil**, nunca da saída da
+    regra (anti-circularidade, a lição de 2026-06-21).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    tech: str = Field(description="Nome do produto/tech NVIDIA (casa o rótulo F7.2b por substring).")
+    prioridade: Priority | None = Field(
+        default=None,
+        description="ALTA/MÉDIA/BAIXA do rótulo (F7.7); None = forma chapada (sem rank).",
+    )
+
+
+class LabeledStartup(BaseModel):
+    """Uma startup rotulada do eval set (ground-truth).
+
+    `label_source` distingue a origem do rótulo: **human** = revisado por humano (headline, default do
+    `load_eval_set`) — as reais curadas contra evidência pública (F7.1) e as fixtures sintéticas
+    escritas à mão sobre a `RUBRICA-AIMI.md`; **model** = auto-rotulada pelo pipeline (F7.1), baseline
+    **circular**, fora do headline (só com `include_model=True`). Nem toda entrada é human-reviewed.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     id: str
     nome: str
@@ -95,10 +123,30 @@ class LabeledStartup(BaseModel):
         "heurística afundar no piso e falsear a correlação). Ausente nas fixtures sintéticas "
         "(prosa rica = a descrição já É o sinal). Distinto do `aimi` (rótulo/ground-truth).",
     )
-    expected_nvidia_techs: list[str] = Field(
+    expected_techs: list[ExpectedTech] = Field(
         default_factory=list,
-        description="Techs NVIDIA esperadas por empresa (eval de recomendação, F7.2b).",
+        validation_alias="expected_nvidia_techs",
+        description=(
+            "Techs NVIDIA esperadas por empresa (eval de recomendação, F7.2b), cada uma com "
+            "`prioridade` opcional (F7.7). No YAML aceita a forma chapada ('NVIDIA NIM') e a rica "
+            "({tech: 'NVIDIA NIM', prioridade: alta}); o validator normaliza as duas. A view "
+            "só-nomes fica em `expected_nvidia_techs` (retrocompat + métrica de presença)."
+        ),
     )
+
+    @field_validator("expected_techs", mode="before")
+    @classmethod
+    def _normalize_expected_techs(cls, raw: object) -> object:
+        """Forma chapada ('NVIDIA NIM') e rica ({tech, prioridade}) → dicts normalizados (F7.7).
+
+        Mantém o YAML legado válido (string = tech sem rank) e habilita o rótulo priorizado sem uma
+        segunda chave que pudesse dessincronizar — tech e prioridade vivem no mesmo item.
+        """
+        if raw is None:
+            return []
+        if isinstance(raw, (list, tuple)):
+            return [{"tech": item} if isinstance(item, str) else item for item in raw]
+        return raw  # tipo inesperado: deixa o erro p/ a validação do campo
     rationale: str = Field(description="Justificativa do rótulo, ancorada na RUBRICA.")
     evidence_urls: list[str] = Field(
         default_factory=list, description="Fontes públicas que sustentam o rótulo (rastreável)."
@@ -114,6 +162,16 @@ class LabeledStartup(BaseModel):
         "pipeline sobre empresa real (F7.1) — baseline **circular**, reportado à parte.",
     )
     notes: str = ""
+
+    @property
+    def expected_nvidia_techs(self) -> list[str]:
+        """Nomes das techs esperadas (view chapada) — retrocompat + métrica de presença (F7.2b).
+
+        O rótulo rico (com `prioridade`, F7.7) vive em `expected_techs`; este atalho devolve só os
+        nomes, que é o que a métrica de presença (`recommendation_metrics`) e o serializer do
+        `cohort_to_eval` consomem — assim introduzir a prioridade não muda nenhum número.
+        """
+        return [t.tech for t in self.expected_techs]
 
     @model_validator(mode="after")
     def _check_coherence(self) -> LabeledStartup:
@@ -203,6 +261,7 @@ def class_distribution() -> dict[Classification, int]:
 __all__ = [
     "EVAL_DIR",
     "ExpectedPillars",
+    "ExpectedTech",
     "LabeledStartup",
     "load_eval_set",
     "by_classification",
