@@ -3,6 +3,8 @@
 > Gerado por `scripts/gen_label_review.py` em 2026-06-22. **Objetivo:** você (revisor humano) confere CADA rótulo e marca concordo/ajustar. Até esta revisão, `label_source: human` é **aspiracional** para as reais — completá-la torna a proveniência honesta.
 >
 > **Prioridade das techs (F7.7):** 🔴 ALTA = a alavanca NVIDIA da empresa (entra no `recall@ALTA`) · 🟡 MÉDIA = complemento · ⚪ BAIXA = leque que o §5.5 emite por completude. Ancorada no **gap do perfil**, não na saída da regra (anti-circularidade).
+>
+> **Definições que resolvem tensões aparentes** (aplique-as ao revisar — evitam falso-positivo de inconsistência): **AI-native** (`classifier.md`) = IA é o *núcleo do valor/produto*, **não** 'IA própria' → uma plataforma que orquestra NLP de terceiros mas cuja conversa **é** o produto é AI-native **e** wrapper (a região captura a falta de moat). **P3 / Technical Optimization** (`RUBRICA-AIMI.md §4`) = *serving/otimização de inferência próprios* (self-host/Triton/TensorRT/quantização), **não** posse de modelos → quem tem modelo próprio mas serve em cloud fica **P3 baixo** (o moat de modelo é P1, não P3). **NeMo Guardrails** entra quando há *superfície generativa/conversacional* ao usuário (copiloto/chat/gerador = risco de comportamento); features **discriminativas** (classificação/recomendação/predição) **não** recebem; *wrapper frágil* (P1 **e** P2 ≤ 6) recebe só setor (gate de prioridade).
 
 ## A. Empresas REAIS (headline) — 9 entradas
 
@@ -85,7 +87,7 @@ Estas afirmam empresas reais; é aqui que a revisão importa.
 - **Techs (prioridade):** · NVIDIA NIM · · TensorRT-LLM · · NeMo Retriever (RAG) · · NeMo (customização + Curator)
 - **Por quê (rationale):** Proprietária em transformação de dados e fundações de dados modernas, mas sem evidência explícita de dados exclusivos ou loops de feedback. Orquestração multi-passo via plataforma e automação de pipelines (Cloudbees), mas sem detalhes de agentes ou orquestração complexa. Arquitetura proprietária, mas dependência de serviços externos (AWS, Databricks) sem evidência de fine-tuning ou self-host. Presença global via Nasdaq, liderança em deep tech no LATAM e soluções enterprise, com alta defensabilidade.
 - **Evidência:** https://semantix.ai/ · https://semantix.ai/sobre-nos
-- **Notas:** PENDENTE de revisão (fora do headline). Evidência (Exame) mostra LLM próprio "Lloro" + suíte de governança própria (Safetix) => o rótulo wrapper/P3=6 do pipeline está SUBavaliado (provável maduro). Promoção a human aguarda decisão humana sobre a região.
+- **Notas:** PENDENTE de revisão (fora do headline). Evidência (Exame) mostra LLM próprio "Lloro" + suíte de governança própria (Safetix). CORREÇÃO da leitura anterior (2026-06-22) — LLM próprio é sinal de P1 (moat de modelo), NÃO de P3; a rationale registra "sem evidência de self-host", então P3=6 se sustenta (RUBRICA §4 — P3 mede serving próprio, não posse de modelo; mesmo caso da Kunumi). Logo NÃO é maduro. Se o Lloro elevar P1 a estabelecido (13+), a região correta vira alvo_graduacao (P1 alto + P3 baixo); senão, wrapper. Região pendente de evidência de P1 — segue fora do headline.
 - **Sua revisão:** ☐ concordo  ☐ ajustar → _______________________
 
 ### Take Blip · `wrapper` · AI-native

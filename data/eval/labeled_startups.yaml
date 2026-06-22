@@ -49,6 +49,13 @@ entries:
     synthetic: true
 
   # ── periferico (AI-enabled): IA é feature sobre produto não-IA → baixa prioridade ──
+  # REGRA DE NeMo Guardrails (periferico + wrapper, F7.7): recebe quem tem SUPERFÍCIE GENERATIVA/
+  # CONVERSACIONAL ao usuário (copiloto/chat/gerador de texto = risco de comportamento a governar);
+  # features DISCRIMINATIVAS (triagem/classificação, recomendação, predição de no-show) NÃO recebem —
+  # não geram texto livre. Por isso enabled-03 (copiloto fiscal) e enabled-05 (gerador de plano de aula)
+  # recebem, mas enabled-01/02/04 (triagem/recomendação/previsor) = []. Em wrapper, o gate de prioridade
+  # ainda manda: wrapper FRÁGIL (P1 E P2 ≤ 6) recebe só setor → wrapper-01/02/03 = []; wrapper-04 (chat,
+  # P2=8 não-frágil) recebe Guardrails. Prioridade da tech única = ALTA (é a alavanca daquela empresa).
   - id: eval-enabled-01
     nome: GestRH
     setor: HRTech

@@ -78,6 +78,19 @@ def main() -> int:
         "`recall@ALTA`) · 🟡 MÉDIA = complemento · ⚪ BAIXA = leque que o §5.5 emite por completude. "
         "Ancorada no **gap do perfil**, não na saída da regra (anti-circularidade)."
     )
+    out.append(">")
+    out.append(
+        "> **Definições que resolvem tensões aparentes** (aplique-as ao revisar — evitam falso-positivo "
+        "de inconsistência): **AI-native** (`classifier.md`) = IA é o *núcleo do valor/produto*, **não** "
+        "'IA própria' → uma plataforma que orquestra NLP de terceiros mas cuja conversa **é** o produto "
+        "é AI-native **e** wrapper (a região captura a falta de moat). **P3 / Technical Optimization** "
+        "(`RUBRICA-AIMI.md §4`) = *serving/otimização de inferência próprios* (self-host/Triton/"
+        "TensorRT/quantização), **não** posse de modelos → quem tem modelo próprio mas serve em cloud "
+        "fica **P3 baixo** (o moat de modelo é P1, não P3). **NeMo Guardrails** entra quando há "
+        "*superfície generativa/conversacional* ao usuário (copiloto/chat/gerador = risco de "
+        "comportamento); features **discriminativas** (classificação/recomendação/predição) **não** "
+        "recebem; *wrapper frágil* (P1 **e** P2 ≤ 6) recebe só setor (gate de prioridade)."
+    )
     out.append("")
     out.append(f"## A. Empresas REAIS (headline) — {len(reais)} entradas")
     out.append("")

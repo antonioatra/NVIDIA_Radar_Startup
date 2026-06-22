@@ -279,8 +279,11 @@ entries:
   synthetic: false
   label_source: model
   notes: PENDENTE de revisão (fora do headline). Evidência (Exame) mostra LLM próprio "Lloro" + suíte
-    de governança própria (Safetix) => o rótulo wrapper/P3=6 do pipeline está SUBavaliado (provável maduro).
-    Promoção a human aguarda decisão humana sobre a região.
+    de governança própria (Safetix). CORREÇÃO da leitura anterior (2026-06-22) — LLM próprio é sinal de
+    P1 (moat de modelo), NÃO de P3; a rationale registra "sem evidência de self-host", então P3=6 se
+    sustenta (RUBRICA §4 — P3 mede serving próprio, não posse de modelo; mesmo caso da Kunumi). Logo
+    NÃO é maduro. Se o Lloro elevar P1 a estabelecido (13+), a região correta vira alvo_graduacao (P1
+    alto + P3 baixo); senão, wrapper. Região pendente de evidência de P1 — segue fora do headline.
 - id: real-idwall.co
   nome: Idwall
   setor: Validação de Identidade e Prevenção de Fraudes
