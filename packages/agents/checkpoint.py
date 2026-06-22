@@ -47,8 +47,18 @@ def state_serde() -> JsonPlusSerializer:
     viraria *strict* — bloquearia qualquer submodelo ainda não enumerado, frágil enquanto
     o grafo cresce. O checkpoint é dado nosso e confiável (nosso Postgres), então allow-all
     é a semântica correta.
+
+    **`pickle_fallback=True` (2026-06-22, conserto do "não salva"):** o msgpack do serde
+    **não** serializa o `HttpUrl` do pydantic (tipo `Url` do pydantic-core) — e ele aparece
+    em `RawDocument.url` (scraper, F2.4), `RetrievedChunk.source_url` (RAG) **e** `Evidence.url`
+    (toda evidência). Sem o fallback, o checkpoint do 1º super-step (scraper → `raw_docs`)
+    estoura `TypeError: Type is not msgpack serializable: RawDocument` → o run **não salva** e o
+    stream pra UI quebra (trava no 1º nó). O `pickle_fallback` (de)serializa esses poucos tipos
+    não-msgpack via pickle — aceitável porque o checkpoint é interno, confiável e de vida curta
+    (resume/retry do mesmo deploy). Conserta os três modelos de uma vez, sem mexer no schema
+    da API/DB (trocar `HttpUrl`→`str` em `Evidence` teria ripple largo).
     """
-    return JsonPlusSerializer(allowed_msgpack_modules=True)
+    return JsonPlusSerializer(allowed_msgpack_modules=True, pickle_fallback=True)
 
 
 def checkpointer_conn_string(url: str | None = None) -> str:

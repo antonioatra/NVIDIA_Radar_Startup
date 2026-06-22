@@ -60,6 +60,35 @@ def test_state_serde_roundtrips_enums_and_submodels() -> None:
     assert restored.profile is not None and restored.profile.nome == "Acme AI"
 
 
+def test_state_serde_roundtrips_httpurl_models() -> None:
+    # Regressão (2026-06-22): RawDocument.url / RetrievedChunk.source_url são HttpUrl (tipo `Url` do
+    # pydantic-core), que o msgpack do serde NÃO serializa. Sem o `pickle_fallback` o checkpoint do
+    # 1º super-step (scraper → raw_docs) estoura `TypeError: ... not msgpack serializable:
+    # RawDocument` e o run "não salva". Os testes offline não pegavam (scraper no-op → raw_docs []).
+    from datetime import UTC, datetime
+
+    from packages.schemas import RawDocument, RetrievedChunk
+
+    serde = state_serde()
+    state = GraphState(
+        run_id="r-url",
+        query="rivio.ai",
+        raw_docs=[
+            RawDocument(
+                url="https://rivio.ai",
+                content="conteúdo bruto",
+                fetched_at=datetime(2026, 1, 2, tzinfo=UTC),
+                source_type="firecrawl",
+            )
+        ],
+        retrieved=[RetrievedChunk(text="trecho NVIDIA", source_url="https://build.nvidia.com/nim")],
+    )
+    restored = serde.loads_typed(serde.dumps_typed(state))
+    assert restored == state  # roundtrip exato (HttpUrl inclusive)
+    assert str(restored.raw_docs[0].url) == "https://rivio.ai/"
+    assert str(restored.retrieved[0].source_url) == "https://build.nvidia.com/nim"
+
+
 # --- wiring com run_pipeline --------------------------------------------------
 
 
