@@ -387,7 +387,8 @@ Documentar por entrada no `notes`, igual à de-circularização. Sem isso, o lev
   0,22→0,89, periférico 0,00→1,00) **e presença junto** (precision 0,56→0,60, recall 0,76→0,89 — as techs
   eram TP). §5.5 **7/7** intacto (teste é subconjunto), dois lados 1,00, suíte verde (testes novos
   `test_graduated_ai_native_gets_enterprise_not_alvo` + `test_ai_enabled_chat_surface_gets_guardrails`).
-  Resíduo: maduro 0,89 = domínio tabular da Aquarela que o setor não pega.
+  Resíduo: maduro 0,89 = Morpheus da Unico (setor cyber não pega "identidade/biometria" da descrição; o
+  ângulo fraude está no rationale, não na descrição — não overfitável sem esticar stem ao eval).
 - [x] (Opcional) **Suíte offline hermética contra a `.env` de dev** ✅ **feito (2026-06-21)** —
   `tests/conftest.py` com `pytest_configure` (roda **antes da coleta**, logo antes de qualquer
   fixture) pina os 11 flags de caminho-ao-vivo (`*_USE_LLM`, `EMBEDDINGS_USE_NV`, `INDEX_USE_QDRANT`,

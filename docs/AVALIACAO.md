@@ -145,8 +145,10 @@ ganhou **prioridade por tech** (ALTA/MÉDIA/BAIXA), ancorada no **gap do perfil*
   graduação suprimida pela classe. Levantaram **maduro 0,22→0,89 e periférico 0,00→1,00**.
 - **O lever certo levantou recall@ALTA _e_ presença (não inflou):** como as techs adicionadas são
   **esperadas** (TP, não FP), a presença subiu junto — precision **0,56→0,60**, recall **0,76→0,89**, F1
-  **0,64→0,71**, dois lados **1,00** ✅. O resíduo (maduro 0,89, não 1,0) é a **Aquarela**, cujo domínio
-  (RAPIDS/tabular) o matching de setor grosseiro não pega — genuíno, não overfit.
+  **0,64→0,71**, dois lados **1,00** ✅. O resíduo (maduro 0,89, não 1,0) é a **Unico** — o Morpheus
+  (antifraude) não sai porque a descrição **pública** dela ("identidade/biometria/autenticação") não traz
+  stem cyber; o ângulo fraude/deepfake mora no rationale, não na descrição que a regra vê. Limite genuíno
+  de matching **só-descrição** — forçar um stem "biometria→Morpheus" p/ zerar seria **overfit ao eval**.
 - **precision tolerante 0,60 ≈ presença** — a regra emite o leque como **ALTA/MÉDIA, quase nunca BAIXA**,
   então não há "leque de baixa prioridade a perdoar"; o resíduo de precision é **breadth genuína** (largura
   p/ cobrir o §5.5 7/7), confirmado pela tolerância.
@@ -251,8 +253,9 @@ ruído**.
    periférico-com-chat (sem Guardrails). Os **dois levers** (maduro→AI Enterprise por maturidade; AI-enabled-
    chat→Guardrails por superfície conversacional) levantaram **recall@ALTA 0,72→0,97** (1,00 em
    alvo+wrapper+periférico, 0,89 maduro) **e a presença junto** (precision 0,56→0,60, recall 0,76→0,89) —
-   as techs eram esperadas (TP). Dois lados 1,00, §5.5 7/7, suíte verde. Resíduo (maduro 0,89) = domínio
-   tabular da Aquarela que o matching de setor não pega. Detalhe em §3. **Limitação essencialmente fechada.**
+   as techs eram esperadas (TP). Dois lados 1,00, §5.5 7/7, suíte verde. Resíduo (maduro 0,89) = Morpheus
+   da Unico, que o setor cyber não infere da descrição "identidade/biometria" (limite de matching
+   só-descrição, **não overfitável** sem esticar stem). Detalhe em §3. **Limitação essencialmente fechada.**
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
 4. ~~**Coluna Cohere do comparativo pendente** da trial key + SDK.~~ ✅ **medida (2026-06-16)** +
