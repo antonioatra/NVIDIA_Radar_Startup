@@ -3,6 +3,11 @@
 # revisadas contra a evidência pública (2026-06-15): 8 entradas promovidas a
 # label_source: human (entram no headline de load_eval_set por padrão). A Semantix
 # permanece label_source: model (revisão pendente — fora do headline, só com include_model=True).
+# REVISÃO HUMANA CONFIRMADA (2026-06-22): o revisor (antonioatra) auditou os 8 rótulos `human` linha a
+# linha (classe × região × AIMI × prioridade F7.7) contra a evidência — consistência confirmada; o
+# `label_source: human` deixa de ser aspiracional. Tensões aparentes (Kunumi P3, Take Blip AI-native)
+# resolvidas por DEFINIÇÃO (P3 = serving próprio, não posse de modelo; AI-native = IA-núcleo, não IA
+# própria), não por mudança de rótulo. Semantix segue `model`/pendente. Trilha: docs/REVISAO-ROTULOS.md.
 # DE-CIRCULARIZAÇÃO DOS TECH-LABELS (2026-06-21): o `expected_nvidia_techs` original era a SAÍDA
 # do próprio recommender (cohort_to_eval lê a tabela `recommendation`) — baseline CIRCULAR para a
 # precision (F7.2b). Re-curados por julgamento §5.5 + perfil real, INDEPENDENTE da regra: BotCity
