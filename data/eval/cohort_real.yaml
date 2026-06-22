@@ -30,11 +30,16 @@ entries:
     technical_optimization: 6
     distribution_moat: 15
   expected_nvidia_techs:
-  - NVIDIA NIM
-  - TensorRT-LLM
-  - NVIDIA Triton Inference Server
-  - NVIDIA Riva (ASR/TTS)
-  - NeMo (customização + Curator)
+  - tech: NVIDIA NIM
+    prioridade: alta
+  - tech: TensorRT-LLM
+    prioridade: alta
+  - tech: NVIDIA Triton Inference Server
+    prioridade: media
+  - tech: NVIDIA Riva (ASR/TTS)
+    prioridade: media
+  - tech: NeMo (customização + Curator)
+    prioridade: baixa
   rationale: 'Revisão humana (F7.1): a IA traduz texto/áudio para Libras entendendo contexto e gramática
     própria; corpus proprietário de Libras + comunidade surda no loop = data moat estabelecido (P1 13+).
     Serving via API externa (sem stack própria) mantém P3 baixo = upside de graduação. Ampla distribuição
@@ -45,7 +50,9 @@ entries:
   synthetic: false
   label_source: human
   notes: Revisado por humano (2026-06-15) vs evidência pública (handtalk.me, AIoT Brasil); promovido model->human.
-    data_moat 12->14 (corpus Libras + experts no loop) => wrapper vira alvo de graduação.
+    data_moat 12->14 (corpus Libras + experts no loop) => wrapper vira alvo de graduação. Prioridade
+    (F7.7, 2026-06-22) ancorada no gap, não na regra; ALTA = graduação de inferência (NIM/TensorRT-LLM,
+    gap P3); Riva MÉDIA (áudio é core do produto, não a alavanca de graduação); NeMo BAIXA (P1 já estabelecido).
 - id: real-kunumi.com
   nome: Kunumi
   setor: Inteligência Artificial / Deep Tech
@@ -65,10 +72,14 @@ entries:
     technical_optimization: 3
     distribution_moat: 3
   expected_nvidia_techs:
-  - NVIDIA NIM
-  - TensorRT-LLM
-  - NVIDIA Triton Inference Server
-  - NeMo (customização + Curator)
+  - tech: NeMo (customização + Curator)
+    prioridade: alta
+  - tech: NVIDIA NIM
+    prioridade: baixa
+  - tech: TensorRT-LLM
+    prioridade: baixa
+  - tech: NVIDIA Triton Inference Server
+    prioridade: baixa
   rationale: 'Revisão humana (F7.1): spin-off da UFMG, deep learning/ML/NLP com plataforma auto-ML própria
     — IA é o núcleo (AI-native confirmado). O 6/6/6/6 do pipeline subavaliou (extração de descrição genérica).
     Sem dado único público claramente defensável (P1 emergente) e serving em cloud (P3 baixo); adquirida
@@ -80,6 +91,8 @@ entries:
   label_source: human
   notes: Revisado por humano (2026-06-15) vs evidência (Projeto Draft, Fundepar/Bradesco). Re-score do
     flat 6/6/6/6 subavaliado; classe AI-native confirmada (você sinalizou). Permanece wrapper (P3 baixo).
+    Prioridade (F7.7, 2026-06-22) gap-anchored — wrapper => ALTA = NeMo customização (provar core/P1=9
+    emergente); graduação (NIM/TensorRT/Triton) BAIXA = prematura sem core provado.
 - id: real-botcity.dev
   nome: BotCity
   setor: Utilidades
@@ -127,8 +140,10 @@ entries:
     technical_optimization: 3
     distribution_moat: 9
   expected_nvidia_techs:
-  - NVIDIA Morpheus
-  - NVIDIA AI Enterprise
+  - tech: NVIDIA AI Enterprise
+    prioridade: alta
+  - tech: NVIDIA Morpheus
+    prioridade: alta
   rationale: 'Revisão humana (F7.1) — CORREÇÃO: biometria facial = visão computacional no núcleo do produto,
     logo AI-native (o rótulo non-AI do pipeline foi erro de extração só-de-descrição). Base de faces+CPF
     de ~90% da população BR = data moat forte (P1); algoritmos próprios + detecção de deepfake em tempo
@@ -142,6 +157,8 @@ entries:
   label_source: human
   notes: Revisado por humano (2026-06-15) vs evidência (Times Brasil, Biometric Update). CORREÇÃO grave
     do pipeline - non-AI/fora_escopo vira AI-native/maduro (biometria facial é IA no núcleo).
+    Prioridade (F7.7, 2026-06-22) gap-anchored — maduro (já graduou, P3=15) => ALTA = AI Enterprise
+    (governança) + Morpheus (fraude/deepfake é o domínio-core do produto).
 - id: real-gupy.io
   nome: Gupy
   setor: HRTech (Recursos Humanos)
@@ -161,11 +178,16 @@ entries:
     technical_optimization: 6
     distribution_moat: 15
   expected_nvidia_techs:
-  - NVIDIA NIM
-  - TensorRT-LLM
-  - NeMo Retriever (RAG)
-  - NeMo (customização + Curator)
-  - NVIDIA Triton Inference Server
+  - tech: NVIDIA NIM
+    prioridade: alta
+  - tech: TensorRT-LLM
+    prioridade: alta
+  - tech: NVIDIA Triton Inference Server
+    prioridade: media
+  - tech: NeMo Retriever (RAG)
+    prioridade: baixa
+  - tech: NeMo (customização + Curator)
+    prioridade: baixa
   rationale: 'Revisão humana (F7.1): ML/deep learning para recrutamento é o núcleo => AI-native. Vasto
     banco proprietário de descrições de vagas + feedback de sucesso = data moat estabelecido (P1 13+).
     Tem otimização pontual (modelo próprio de validação documental), mas o serving do core roda em cloud
@@ -178,6 +200,8 @@ entries:
   label_source: human
   notes: Revisado por humano (2026-06-15) vs evidência (gupy.io, Google for Startups). data_moat 12->14
     => wrapper vira alvo. Ressalva - já tem otimização pontual (modelo próprio de imagem, -98,7% custo).
+    Prioridade (F7.7, 2026-06-22) gap-anchored — alvo => ALTA = graduação (NIM/TensorRT, gap P3); Triton
+    MÉDIA; NeMo Retriever/customização BAIXA (leque, P1 já estabelecido dm14).
 - id: real-blip.ai
   nome: Take Blip
   setor: Tecnologia de Conversação e AI
@@ -197,11 +221,16 @@ entries:
     technical_optimization: 6
     distribution_moat: 15
   expected_nvidia_techs:
-  - NVIDIA NIM
-  - TensorRT-LLM
-  - NeMo (customização + Curator)
-  - NeMo Retriever (RAG)
-  - NVIDIA Triton Inference Server
+  - tech: NeMo (customização + Curator)
+    prioridade: alta
+  - tech: NeMo Retriever (RAG)
+    prioridade: media
+  - tech: NVIDIA NIM
+    prioridade: baixa
+  - tech: TensorRT-LLM
+    prioridade: baixa
+  - tech: NVIDIA Triton Inference Server
+    prioridade: baixa
   rationale: 'Revisão humana (F7.1): plataforma conversacional que orquestra NLP de TERCEIROS (IBM Watson,
     Microsoft LUIS, Google Dialogflow) e cujo dado é do cliente — sem moat próprio (P1 baixo) e sem stack
     própria (P3 baixo). Wrapper legítimo, apesar do posicionamento AI-native. Forte distribuição enterprise
@@ -213,7 +242,9 @@ entries:
   synthetic: false
   label_source: human
   notes: Revisado por humano (2026-06-15) vs evidência (learn.take.net, blip.ai); rótulo do pipeline (wrapper)
-    confirmado — é um caso de wrapper verdadeiro (orquestra NLP de terceiros).
+    confirmado — é um caso de wrapper verdadeiro (orquestra NLP de terceiros). Prioridade (F7.7, 2026-06-22)
+    ancorada no gap, não na regra; ALTA = NeMo customização (construir moat próprio, gap P1=6 "prove o core");
+    NeMo Retriever MÉDIA (orquestração/P2); graduação (NIM/TensorRT/Triton) BAIXA = prematura sem core provado.
 - id: real-semantix.ai
   nome: Semantix
   setor: Inteligência Artificial e Dados
@@ -269,11 +300,16 @@ entries:
     technical_optimization: 6
     distribution_moat: 15
   expected_nvidia_techs:
-  - NVIDIA NIM
-  - TensorRT-LLM
-  - NVIDIA Triton Inference Server
-  - NeMo (customização + Curator)
-  - NVIDIA Morpheus
+  - tech: NVIDIA NIM
+    prioridade: alta
+  - tech: TensorRT-LLM
+    prioridade: alta
+  - tech: NVIDIA Triton Inference Server
+    prioridade: media
+  - tech: NVIDIA Morpheus
+    prioridade: media
+  - tech: NeMo (customização + Curator)
+    prioridade: baixa
   rationale: 'Revisão humana (F7.1): algoritmos confidenciais próprios + biometria treinada em faces brasileiras
     + lab interno de fraude realimentando a plataforma = data moat forte com feedback loop (P1 16). Infra
     em cloud externa (Google) sem serving próprio => P3 baixo = upside de graduação => alvo de graduação.
@@ -286,6 +322,8 @@ entries:
   label_source: human
   notes: Revisado por humano (2026-06-15) vs evidência (blog.idwall.co, Brazil Journal, Startups). data_moat
     12->16 (moat de documentos BR + lab de fraude com feedback) => wrapper vira alvo de graduação.
+    Prioridade (F7.7, 2026-06-22) gap-anchored — alvo => ALTA = graduação (NIM/TensorRT, gap P3); Triton +
+    Morpheus (domínio fraude) MÉDIA; NeMo customização BAIXA (P1 já forte dm16).
 - id: real-aquare.la
   nome: Aquarela Analytics
   setor: Tecnologia/Inteligência Artificial
@@ -305,10 +343,14 @@ entries:
     technical_optimization: 15
     distribution_moat: 18
   expected_nvidia_techs:
-  - NVIDIA RAPIDS
-  - cuDF
-  - cuML
-  - NVIDIA AI Enterprise
+  - tech: NVIDIA RAPIDS
+    prioridade: alta
+  - tech: NVIDIA AI Enterprise
+    prioridade: alta
+  - tech: cuDF
+    prioridade: media
+  - tech: cuML
+    prioridade: media
   rationale: 'Revisão humana (F7.1): desenvolve algoritmos-base próprios (raro no Brasil) e roda a plataforma
     Vorteris self-hosted (10+ anos de P&D) => stack de inferência própria madura (P3 15 => maduro). A
     IA é o núcleo (AI-native). Clientes enterprise diversos e prêmio CNI de inovação sustentam P4.'
@@ -319,4 +361,6 @@ entries:
   synthetic: false
   label_source: human
   notes: Revisado por humano (2026-06-15) vs evidência (aquare.la/vorteris); rótulo do pipeline (maduro,
-    P3=15) confirmado — algoritmos-base próprios sustentam o P3 alto.
+    P3=15) confirmado — algoritmos-base próprios sustentam o P3 alto. Prioridade (F7.7, 2026-06-22)
+    ancorada no gap, não na regra; já graduou (P3 alto), então ALTA = domínio-core (RAPIDS, analytics
+    tabular) + AI Enterprise (governança/enterprise, tese de maduro); cuDF/cuML MÉDIA (componentes sob RAPIDS).
