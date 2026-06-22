@@ -113,11 +113,31 @@ def test_gap_severity_orders_pillar_techs_with_origin() -> None:
     assert "NVIDIA NIM" in _techs(cand)  # P3 → graduação
 
 
-def test_mature_startup_still_gets_a_recommendation() -> None:
-    # Nenhum pilar ≤12: ainda há prescrição, guiada pelo pilar mais baixo (fallback de gap_pillars).
+def test_mature_startup_gets_fallback_graduation_plus_enterprise() -> None:
+    # Nenhum pilar ≤12: o fallback de gap_pillars guia pelo pilar mais baixo (P3=18 → graduação) E o
+    # lever de maturidade (F7.7) acrescenta AI Enterprise — já graduou, a jogada é escala enterprise.
     cand = match_techs(_aimi(20, 22, 18, 24))
-    assert cand
-    assert all(c.pilar_origem is AIMIPillar.TECHNICAL_OPTIMIZATION for c in cand)
+    techs = _techs(cand)
+    assert "NVIDIA AI Enterprise" in techs  # lever de maturidade (AI-native, P3≥13)
+    assert any(c.pilar_origem is AIMIPillar.TECHNICAL_OPTIMIZATION for c in cand)  # fallback de pilar
+
+
+def test_graduated_ai_native_gets_enterprise_not_alvo() -> None:
+    # F7.7 lever de maturidade: AI-native que já graduou (P3 estabelecido ≥13) recebe AI Enterprise
+    # mesmo sem P4 ser gap. Um alvo de graduação (P3 baixo, P4 não-gap) NÃO recebe — ele grada.
+    assert "NVIDIA AI Enterprise" in _techs(match_techs(_aimi(20, 18, 15, 20)))  # maduro
+    assert "NVIDIA AI Enterprise" not in _techs(match_techs(_aimi(20, 18, 5, 20)))  # alvo
+
+
+def test_ai_enabled_chat_surface_gets_guardrails() -> None:
+    # F7.7 lever de governança: AI-enabled com superfície conversacional/generativa recebe NeMo
+    # Guardrails (a feature gera texto livre), mesmo com a graduação suprimida pela classe. Uma
+    # feature discriminativa (triagem/classificação) não pede governança de chat → segue sem nada.
+    enabled = _aimi(7, 9, 4, 12, classe=Classification.AI_ENABLED)
+    com_chat = match_techs(enabled, _profile(descricao="copiloto de dúvidas fiscais via chat LLM"))
+    assert "NeMo Guardrails" in _techs(com_chat)
+    sem_chat = match_techs(enabled, _profile(descricao="triagem de currículo via API de LLM"))
+    assert "NeMo Guardrails" not in _techs(sem_chat)
 
 
 def test_low_technical_optimization_triggers_graduation_even_when_not_lowest() -> None:

@@ -478,6 +478,48 @@ def match_sector(profile: StartupProfile | None) -> SectorRule | None:
     return None
 
 
+#: P3 "graduado" — stack de inferência própria estabelecida (RUBRICA §4, banda ≥13). Acima disso a
+#: jogada NVIDIA não é graduação (já graduou) e sim a **escala enterprise**: AI Enterprise (SLA/
+#: suporte de produção). Espelha a região `maduro` do plano classe×AIMI (AI-native + P3 alto).
+_P3_GRADUATED_MIN = 13
+
+#: Superfície generativa/conversacional ao usuário (copiloto/chat/gerador) — gera texto livre, logo
+#: risco de comportamento que pede governança (NeMo Guardrails). Espelha a regra de rótulo §5.5/F7.7.
+_CONVERSATIONAL_STEMS = (
+    "chat",
+    "copilot",
+    "assistente",
+    "conversa",
+    "chatbot",
+    "gerador de",
+    "gera texto",
+    "diálogo",
+    "dialogo",
+)
+
+#: As TechRules de governança/enterprise (sob P4) reusadas pelos levers F7.7 — referenciadas do
+#: PILLAR_RULES p/ não duplicar o esqueleto §5.5 (uma fonte de verdade).
+_AI_ENTERPRISE_RULE = next(
+    r for r in PILLAR_RULES[AIMIPillar.DISTRIBUTION_MOAT] if r.kb_tech == "NVIDIA AI Enterprise"
+)
+_GUARDRAILS_RULE = next(
+    r for r in PILLAR_RULES[AIMIPillar.DISTRIBUTION_MOAT] if r.kb_tech == "NeMo Guardrails"
+)
+
+
+def _has_conversational_surface(profile: StartupProfile | None) -> bool:
+    """True se setor+descrição revelam superfície generativa/conversacional ao usuário (§5.5/F7.7)."""
+    if profile is None:
+        return False
+    parts: list[str] = []
+    if profile.setor is not None:
+        parts.append(str(profile.setor.value))
+    if profile.descricao is not None:
+        parts.append(str(profile.descricao.value))
+    text = " ".join(parts).lower()
+    return any(stem in text for stem in _CONVERSATIONAL_STEMS)
+
+
 def match_techs(
     aimi: AIMIScore, profile: StartupProfile | None = None
 ) -> tuple[TechCandidate, ...]:
@@ -522,6 +564,23 @@ def match_techs(
     if sector is not None:
         for rule in sector.techs:
             _add(rule, None, f"setor:{sector.key}")
+
+    # Levers de maturidade/governança (F7.7) — aditivos, **depois** do gap/setor (o dedup preserva a
+    # origem do gap quando há sobreposição, ex.: P4 já era gap). Cobrem o que o eval priority-aware
+    # (recall@ALTA) expôs que a regra gap-driven não servia:
+    #   • maduro: um AI-native que **já graduou** (P3 estabelecido ≥13) não precisa de graduação — a
+    #     jogada NVIDIA é a **escala enterprise** → AI Enterprise (governança/SLA de produção). A
+    #     evidência do lado-startup é o próprio P4 alto (origem DISTRIBUTION_MOAT, sempre citado >6).
+    #   • periférico com chat: um AI-enabled com **superfície generativa/conversacional** precisa de
+    #     **NeMo Guardrails** (governar comportamento) mesmo com a graduação suprimida pela classe —
+    #     a IA não é o núcleo, mas a feature gera texto livre. Ancorado no perfil (origem de setor).
+    if (
+        aimi.classificacao is Classification.AI_NATIVE
+        and aimi.technical_optimization.score >= _P3_GRADUATED_MIN
+    ):
+        _add(_AI_ENTERPRISE_RULE, AIMIPillar.DISTRIBUTION_MOAT, "maturidade")
+    if aimi.classificacao is Classification.AI_ENABLED and _has_conversational_surface(profile):
+        _add(_GUARDRAILS_RULE, None, "governanca:chat")
 
     return tuple(
         TechCandidate(rule=rule, pilar_origem=pilar, triggers=tuple(triggers))
