@@ -277,7 +277,7 @@ Defaults offline (CI); flags fazem rede/créditos.
 ```bash
 python -m packages.eval.classification_metrics [--llm]      # classe (F7.2)
 python -m packages.eval.aimi_correlation                    # AIMI Spearman (F6.4)
-python -m packages.eval.recommendation_metrics              # techs precision/recall (F7.2b)
+python -m packages.eval.recommendation_metrics              # recall@ALTA + precision/recall (F7.2b/F7.7)
 python -m packages.eval.briefing_faithfulness [--llm]       # faithfulness do briefing (F7.2c)
 python -m packages.eval.ragas [--gate] [--llm]              # RAGAS consolidado (F7.3)
 python -m packages.eval.reranker_comparison [--nv] [--cohere]  # NeMo × Cohere (F7.4)
