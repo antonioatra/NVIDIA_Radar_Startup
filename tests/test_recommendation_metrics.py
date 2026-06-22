@@ -21,6 +21,7 @@ import json
 from packages.eval import load_eval_set
 from packages.eval.recommendation_metrics import (
     PRF_THRESHOLD,
+    RECALL_ALTA_THRESHOLD,
     _matches,
     _prf,
     evaluate_recommendation_metrics,
@@ -86,3 +87,58 @@ def test_llm_refinement_preserves_tech_verdict() -> None:
     refined = evaluate_recommendation_metrics(recommend=_refine)
     assert (refined.tp, refined.fp, refined.fn) == (base.tp, base.fp, base.fn)
     assert (refined.precision, refined.recall) == (base.precision, base.recall)
+
+
+# --- priority-aware (F7.7): recall@ALTA + precision tolerante ----------------
+
+
+def test_recall_alta_in_range_and_gate_consistent() -> None:
+    report = evaluate_recommendation_metrics()
+    assert 0.0 <= report.recall_alta <= 1.0
+    # headline knob-free: gate = recall@ALTA ≥ limiar E dois lados = 1,0
+    assert report.meets_alta_gate == (
+        report.recall_alta >= RECALL_ALTA_THRESHOLD and report.both_sided_rate == 1.0
+    )
+
+
+def test_alvo_and_wrapper_nail_the_alta_lever() -> None:
+    # O coração do produto (F6.13): nos alvos de graduação E nos wrappers, a regra surfa a alavanca
+    # que o rótulo marca ALTA → recall@ALTA = 1,0. (maduro/periférico são gap-driven baixos por
+    # design — a regra não prescreve enterprise/governança a quem não tem gap.)
+    report = evaluate_recommendation_metrics()
+    by_region = {m.region: m for m in report.per_region}
+    assert by_region["alvo_graduacao"].recall_alta == 1.0
+    assert by_region["wrapper"].recall_alta == 1.0
+
+
+def test_recall_alta_aggregates_and_counts_only_alta_labels() -> None:
+    report = evaluate_recommendation_metrics()
+    # agregação global == soma das regiões
+    assert report.tp_alta == sum(m.tp_alta for m in report.per_region)
+    assert report.fn_alta == sum(m.fn_alta for m in report.per_region)
+    # TP@ALTA + FN@ALTA = total de techs marcadas ALTA no rótulo das in-scope (nada mais entra)
+    expected_alta_total = sum(len(e.expected_alta) for e in report.per_entry)
+    assert report.tp_alta + report.fn_alta == expected_alta_total
+
+
+def test_tolerant_precision_never_penalizes_more_than_presence() -> None:
+    # A precision tolerante ignora produzidas BAIXA → o FP tolerante nunca excede o FP de presença
+    # (as não-BAIXA são subconjunto das produzidas), e fica em [0,1].
+    report = evaluate_recommendation_metrics()
+    for e in report.per_entry:
+        assert e.fp_tolerant <= e.fp
+    assert 0.0 <= report.precision_tolerant <= 1.0
+
+
+def test_llm_refinement_preserves_priority_verdict() -> None:
+    # O refino LLM (F4.2) não muda quais techs nem a prioridade (vêm da regra) → recall@ALTA e
+    # precision tolerante idênticos com ou sem ele.
+    def _refine(skeletons):
+        return json.dumps([{"tech": s.tech, "proxima_acao": "REFINADO"} for s in skeletons])
+
+    base = evaluate_recommendation_metrics()
+    refined = evaluate_recommendation_metrics(recommend=_refine)
+    assert (refined.recall_alta, refined.precision_tolerant) == (
+        base.recall_alta,
+        base.precision_tolerant,
+    )

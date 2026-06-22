@@ -98,6 +98,7 @@ from .recommend_cases import (
 )
 from .recommendation_metrics import (
     PRF_THRESHOLD,
+    RECALL_ALTA_THRESHOLD,
     EntryRecResult,
     RecommendationMetricsReport,
     RegionMetrics,
@@ -181,8 +182,9 @@ __all__ = [
     "EntryPrediction",
     "ClassificationReport",
     "evaluate_classification",
-    # métricas de recomendação: precision/recall de techs NVIDIA vs rótulos (F7.2b)
+    # métricas de recomendação: precision/recall de techs NVIDIA vs rótulos (F7.2b) + recall@ALTA (F7.7)
     "PRF_THRESHOLD",
+    "RECALL_ALTA_THRESHOLD",
     "aimi_from_labels",
     "recommended_for",
     "is_in_scope",

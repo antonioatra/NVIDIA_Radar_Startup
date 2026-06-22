@@ -25,6 +25,14 @@ recomendadas, quantas eram esperadas — pega *super-recomendação*), **F1**, a
 **recorte por região** do plano `classe × AIMI` (RUBRICA §6) p/ ver *onde* acerta. Gate §7:
 precision/recall ≥ **0,70**; dois lados = **1,0** (metas declaradas, reportadas com honestidade).
 
+**Priority-aware (F7.7) — reportadas AO LADO da presença, nunca no lugar:** o rótulo passou a marcar
+cada tech esperada com **prioridade** (ALTA/MÉDIA/BAIXA, ancorada no gap). Daí: **recall@ALTA**
+(headline *knob-free* — das techs ALTA, a alavanca que importa, quantas a regra produz; sem peso nem
+limiar de rank) e a **precision tolerante** (diagnóstico — ignora como FP o que a *regra* emitiu como
+BAIXA, um "considere também"). A precisão de presença (0,56) **fica visível**: ganha-se leitura, não
+se apaga o número honesto. A prioridade do lado produzido vem do `rec` (regra), não do rótulo — a
+tolerante **não** é circular.
+
 **Determinístico/offline (sem rede):** a **seleção** de techs do recommender é a espinha de regras
 (F4.1); o Nemotron-Super (F4.2) só **refina a redação**, não muda *quais* techs entram. Logo a
 precision/recall é a **mesma** online e offline e roda 100% no CI — não há `--llm` a medir aqui (ao
@@ -51,6 +59,7 @@ from packages.schemas import (
     Classification,
     Evidence,
     PillarScore,
+    Priority,
     Recommendation,
 )
 
@@ -60,6 +69,10 @@ from .recommend_cases import full_recall_retrieval
 
 #: Gate da recomendação (§7 / F7.2b): precision **e** recall de techs ≥ 0,70 no eval set (F1.12).
 PRF_THRESHOLD = 0.70
+
+#: Gate do headline priority-aware (F7.7): recall das techs **ALTA** (a alavanca que importa) ≥ 0,70.
+#: Knob-free — só presença das ALTA esperadas no que a regra produz (sem peso, sem limiar de rank).
+RECALL_ALTA_THRESHOLD = 0.70
 
 #: Evidência sintética do lado-público do pilar (offline determinístico, sem `now()` — igual ao
 #: harness do §5.5/F4.8 e ao do índice/F6.4). Ancora um pilar forte (> 6) p/ a RUBRICA §0 aceitá-lo.
@@ -151,6 +164,16 @@ class EntryRecResult(BaseModel):
     tp: int = Field(ge=0)
     fp: int = Field(ge=0)
     fn: int = Field(ge=0)
+    # Priority-aware (F7.7): recall@ALTA usa a prioridade do RÓTULO (a alavanca); a precision
+    # tolerante usa a prioridade que a REGRA emitiu em cada rec (independente do rótulo = não circular).
+    expected_alta: tuple[str, ...] = Field(default=(), description="Esperadas marcadas ALTA (must-have).")
+    matched_alta: tuple[str, ...] = Field(default=(), description="ALTA esperadas que saíram (TP@ALTA).")
+    tp_alta: int = Field(default=0, ge=0)
+    fn_alta: int = Field(default=0, ge=0)
+    tp_tolerant: int = Field(default=0, ge=0, description="Produzidas não-BAIXA que eram esperadas.")
+    fp_tolerant: int = Field(
+        default=0, ge=0, description="Produzidas não-BAIXA não esperadas (FP tolerante — ignora BAIXA)."
+    )
     both_sided: bool = Field(description="Toda recomendação tem evidência dos dois lados (F4.5).")
 
 
@@ -167,6 +190,9 @@ class RegionMetrics(BaseModel):
     precision: float = Field(ge=0.0, le=1.0)
     recall: float = Field(ge=0.0, le=1.0)
     f1: float = Field(ge=0.0, le=1.0)
+    tp_alta: int = Field(default=0, ge=0)
+    fn_alta: int = Field(default=0, ge=0)
+    recall_alta: float = Field(default=0.0, ge=0.0, le=1.0, description="Recall das techs ALTA (F7.7).")
 
 
 class RecommendationMetricsReport(BaseModel):
@@ -179,9 +205,20 @@ class RecommendationMetricsReport(BaseModel):
     tp: int = Field(ge=0)
     fp: int = Field(ge=0)
     fn: int = Field(ge=0)
-    precision: float = Field(ge=0.0, le=1.0, description="Micro: ΣTP / Σ(TP+FP).")
-    recall: float = Field(ge=0.0, le=1.0, description="Micro: ΣTP / Σ(TP+FN).")
+    precision: float = Field(ge=0.0, le=1.0, description="Micro: ΣTP / Σ(TP+FP) — presença (baseline).")
+    recall: float = Field(ge=0.0, le=1.0, description="Micro: ΣTP / Σ(TP+FN) — presença.")
     f1: float = Field(ge=0.0, le=1.0)
+    # Priority-aware (F7.7) — reportadas AO LADO da presença, nunca no lugar dela.
+    tp_alta: int = Field(default=0, ge=0)
+    fn_alta: int = Field(default=0, ge=0)
+    recall_alta: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="HEADLINE knob-free: recall das techs ALTA (a alavanca)."
+    )
+    tp_tolerant: int = Field(default=0, ge=0)
+    fp_tolerant: int = Field(default=0, ge=0)
+    precision_tolerant: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Diagnóstico: precision ignorando produzidas BAIXA."
+    )
     both_sided_rate: float = Field(
         ge=0.0, le=1.0, description="Fração das recomendações com evidência dos dois lados (F4.5)."
     )
@@ -189,7 +226,10 @@ class RecommendationMetricsReport(BaseModel):
     per_region: tuple[RegionMetrics, ...]
     per_entry: tuple[EntryRecResult, ...]
     meets_threshold: bool = Field(
-        description=f"precision ≥ {PRF_THRESHOLD} E recall ≥ {PRF_THRESHOLD} E dois lados = 1,0."
+        description=f"presença: precision ≥ {PRF_THRESHOLD} E recall ≥ {PRF_THRESHOLD} E dois lados = 1,0."
+    )
+    meets_alta_gate: bool = Field(
+        default=False, description=f"headline F7.7: recall@ALTA ≥ {RECALL_ALTA_THRESHOLD} E dois lados = 1,0."
     )
 
 
@@ -212,6 +252,17 @@ def evaluate_entry(
     matched = tuple(want for want in expected if any(_matches(want, got) for got in produced))
     missing = tuple(want for want in expected if not any(_matches(want, got) for got in produced))
     extra = tuple(got for got in produced if not any(_matches(want, got) for want in expected))
+
+    # recall@ALTA (F7.7): das techs que o RÓTULO marca ALTA (a alavanca), quantas a regra produziu
+    # (presença — knob-free, qualquer prioridade do lado produzido).
+    expected_alta = tuple(t.tech for t in entry.expected_techs if t.prioridade is Priority.ALTA)
+    matched_alta = tuple(w for w in expected_alta if any(_matches(w, g) for g in produced))
+
+    # precision tolerante (F7.7): ignora como FP o que a REGRA emitiu como BAIXA (um "considere
+    # também", não uma prescrição) — a prioridade vem do rec, não do rótulo (não circular).
+    produced_non_baixa = tuple(r.tech for r in recs if r.prioridade is not Priority.BAIXA)
+    tp_tol = sum(1 for g in produced_non_baixa if any(_matches(w, g) for w in expected))
+
     both_sided = (not recs) or all(r.evidencia_gap and r.evidencia_nvidia for r in recs)
     return EntryRecResult(
         id=entry.id,
@@ -226,6 +277,12 @@ def evaluate_entry(
         tp=len(matched),
         fp=len(extra),
         fn=len(missing),
+        expected_alta=expected_alta,
+        matched_alta=matched_alta,
+        tp_alta=len(matched_alta),
+        fn_alta=len(expected_alta) - len(matched_alta),
+        tp_tolerant=tp_tol,
+        fp_tolerant=len(produced_non_baixa) - tp_tol,
         both_sided=both_sided,
     )
 
@@ -251,6 +308,14 @@ def evaluate_recommendation_metrics(
     fn = sum(r.fn for r in per_entry)
     precision, recall, f1 = _prf(tp, fp, fn)
 
+    # Priority-aware (F7.7): recall@ALTA (das ALTA esperadas) e precision tolerante (ignora BAIXA).
+    tp_alta = sum(r.tp_alta for r in per_entry)
+    fn_alta = sum(r.fn_alta for r in per_entry)
+    recall_alta = round(tp_alta / (tp_alta + fn_alta), 6) if (tp_alta + fn_alta) else 0.0
+    tp_tol = sum(r.tp_tolerant for r in per_entry)
+    fp_tol = sum(r.fp_tolerant for r in per_entry)
+    precision_tolerant = round(tp_tol / (tp_tol + fp_tol), 6) if (tp_tol + fp_tol) else 0.0
+
     n_recs = sum(len(r.produced_techs) for r in per_entry)
     both_sided_hits = sum(1 for r in per_entry if r.both_sided)
     both_sided_rate = round(both_sided_hits / len(per_entry), 6) if per_entry else 0.0
@@ -264,6 +329,9 @@ def evaluate_recommendation_metrics(
             fp=(rfp := sum(r.fp for r in per_entry if r.region == region)),
             fn=(rfn := sum(r.fn for r in per_entry if r.region == region)),
             **dict(zip(("precision", "recall", "f1"), _prf(rtp, rfp, rfn), strict=True)),
+            tp_alta=(rta := sum(r.tp_alta for r in per_entry if r.region == region)),
+            fn_alta=(rfa := sum(r.fn_alta for r in per_entry if r.region == region)),
+            recall_alta=(round(rta / (rta + rfa), 6) if (rta + rfa) else 0.0),
         )
         for region in sorted(regions)
     )
@@ -277,6 +345,12 @@ def evaluate_recommendation_metrics(
         precision=precision,
         recall=recall,
         f1=f1,
+        tp_alta=tp_alta,
+        fn_alta=fn_alta,
+        recall_alta=recall_alta,
+        tp_tolerant=tp_tol,
+        fp_tolerant=fp_tol,
+        precision_tolerant=precision_tolerant,
         both_sided_rate=both_sided_rate,
         n_recommendations=n_recs,
         per_region=per_region,
@@ -284,19 +358,23 @@ def evaluate_recommendation_metrics(
         meets_threshold=(
             precision >= PRF_THRESHOLD and recall >= PRF_THRESHOLD and both_sided_rate == 1.0
         ),
+        meets_alta_gate=(recall_alta >= RECALL_ALTA_THRESHOLD and both_sided_rate == 1.0),
     )
 
 
 def _print_report(report: RecommendationMetricsReport) -> None:
-    mark = "OK " if report.meets_threshold else "XX "
+    mark = "OK " if report.meets_alta_gate else "XX "
     print(
-        f"{mark}Recomendação×rótulos (F7.2b): precision={report.precision} recall={report.recall} "
-        f"F1={report.f1} (gate ≥ {PRF_THRESHOLD}; dois lados={report.both_sided_rate}; "
-        f"in-scope={report.n_in_scope}, fora-de-escopo={report.n_out_of_scope})"
+        f"{mark}Recomendação×rótulos (F7.7): HEADLINE recall@ALTA={report.recall_alta} "
+        f"(gate ≥ {RECALL_ALTA_THRESHOLD}; dois lados={report.both_sided_rate}); "
+        f"precision tolerante={report.precision_tolerant} | presença: P={report.precision} "
+        f"R={report.recall} F1={report.f1} (in-scope={report.n_in_scope}, "
+        f"fora-de-escopo={report.n_out_of_scope})"
     )
     for m in report.per_region:
         print(
-            f"   {m.region:16} n={m.n:2}  P={m.precision:.3f} R={m.recall:.3f} F1={m.f1:.3f}"
+            f"   {m.region:16} n={m.n:2}  recall@ALTA={m.recall_alta:.3f}"
+            f"  | presença P={m.precision:.3f} R={m.recall:.3f} F1={m.f1:.3f}"
             f"  (TP={m.tp} FP={m.fp} FN={m.fn})"
         )
 
@@ -318,6 +396,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 __all__ = [
     "PRF_THRESHOLD",
+    "RECALL_ALTA_THRESHOLD",
     "aimi_from_labels",
     "recommended_for",
     "is_in_scope",
