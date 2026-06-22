@@ -278,6 +278,61 @@ rastreável, com a limitação anotada.
 
 ---
 
+## G. Rótulo priorizado — eval de recomendação com granularidade de prioridade (F7.7)
+
+> **Aberto 2026-06-22.** É a **Limitação nº2** do [AVALIACAO.md](AVALIACAO.md) tirada da gaveta: o
+> teto honesto que sobrou da de-circularização (21/06). É a **única frente que avança 100% com
+> teclado** — C-c (draw), D (medição GPU) e o juiz RAGAS estão todos *gated por crédito/GPU/endpoint*.
+> Não muda o recommender; alinha **rótulo + métrica** ao que a regra já produz.
+
+**Motivação.** A métrica de recomendação (F7.2b, `recommendation_metrics.py`) pontua **presença**
+(TP/FP/FN por substring, micro-agregado). Isso teta a precision do recorte **maduro em 0,21**: o
+§5.5/F4.8 **exige** que a regra abra o leque (gate 7/7), mas o rótulo de uma madura é estreito
+(domínio + AI Enterprise) → as techs legítimas de baixa prioridade entram como FP. **Capar a regra
+não é o conserto** (os 7 casos exigem o leque). O conserto é medir **prioridade**, não só presença.
+
+**Meia-máquina já existe.** Cada `Recommendation` já sai com `prioridade` ALTA/MÉDIA/BAIXA
+(`recommend_rules.py:60`, enum `Priority`); quem é chapado é o **rótulo** (`expected_nvidia_techs:
+list[str]`, `dataset.py:98`) e a **métrica**. O lever é tipar o rótulo e tornar a métrica
+prioridade-aware — sem tocar a seleção de techs.
+
+**Métrica (decisão 2026-06-22): Tiered, com headline knob-free.**
+- **Headline = `recall@ALTA`** — das techs marcadas ALTA no rótulo (a alavanca que importa), quantas
+  a regra produziu como ALTA/MÉDIA. **Binária, sem peso nem tolerância** → não há botão a tunar
+  (a lição de circularidade de 21/06).
+- **Precision tolerante = diagnóstico, AO LADO da de presença (0,56), nunca no lugar dela.** Ignora
+  como FP o que a **própria regra** emitiu como BAIXA (sinal da regra, independente do rótulo) — um
+  "considere também" não é FP duro. A de presença segue visível: ganha-se leitura, não se apaga o
+  número honesto. (Ponderada `3/2/1` e NDCG/Spearman descartadas: pesos são botões; rank de ~5 techs
+  em n=7 é ruído.)
+
+**Risco nº1 — circularidade (o que mordeu em 21/06).** A prioridade do rótulo vem do **gap binding
+do perfil** (qual pilar é a restrição) + §5.5, **nunca** lida da `prioridade` que a regra emitiu.
+Documentar por entrada no `notes`, igual à de-circularização. Sem isso, o lever não vale nada.
+
+**Carga.** ~20 sintéticas in-scope + 7 reais human (BotCity é `[]`) ≈ ~25 entradas × ~4-5 techs ≈
+**100-130 julgamentos (tech → prioridade)**. Bounded; o `rationale` das reais já carrega o julgamento
+(Idwall "data moat forte → graduação"; Aquarela "P3 15 → domínio + AI Enterprise"), é formalizar.
+
+**Passos (6 dias).**
+1. **Schema + compat (sem mudar número).** `expected_nvidia_techs` aceita as **duas formas**:
+   `"NVIDIA NIM"` (sem rank) **ou** `{tech: "NVIDIA NIM", prioridade: alta}`. Loader normaliza;
+   fixtures chapadas seguem validando; métrica de presença **idêntica**. Suíte verde.
+2. **Re-curadoria (pólo longo, ~Dias 2-3).** ALTA/MÉDIA/BAIXA por tech, ancorado no gap + §5.5,
+   **independente da regra**, com `notes` por entrada. Reais primeiro (julgamento já escrito), depois
+   as sintéticas.
+3. **Métrica priority-aware + testes (~Dia 4).** Adicionar `recall@ALTA` + precision tolerante **ao
+   lado** da de presença (não substituir). Testes espelhando `test_recommend_cases.py`.
+4. **Rodar, medir, iterar (~Dia 5).** Recupera o maduro? `recall@ALTA` alto nos alvos? Se cheirar
+   circular, ajustar **rótulo**, nunca a métrica. Write-up honesto.
+5. **Buffer + docs (~Dia 6).** Fechar Limitação nº2 do `AVALIACAO.md` + checklist abaixo + commit.
+
+**DoD.** `recall@ALTA` reportado no headline (knob-free); precision tolerante ao lado da de presença
+(0,56 preservada); rótulos com prioridade ancorada no gap (notes anti-circularidade); suíte verde;
+`AVALIACAO.md` Limitação nº2 fechada com o número.
+
+---
+
 ## Sequência recomendada *(o que ainda falta, em ordem)*
 
 1. ~~**A** (validar ao vivo)~~ ✅ **feito 2026-06-16** — coorte real, stack no ar, radar coerente.
@@ -317,6 +372,10 @@ rastreável, com a limitação anotada.
 - [ ] (Opcional) **Juiz LLM da RAGAS ao vivo** (consolidado vs limiares) — gated pelo endpoint (**F7.3**)
 - [x] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)
   ✅ 2026-06-21 — `scripts/reindex_kb.py`; `tapi_kb` 256→2048, 75 pts, smoke de retrieve com citação ok
+- [ ] (Opcional) **Rótulo priorizado — eval de recomendação priority-aware (F7.7, §G)** — rótulo
+  tipado `{tech, prioridade}` (retrocompat) + `recall@ALTA` knob-free no headline + precision tolerante
+  ao lado da de presença (0,56 preservada); prioridade ancorada no gap (anti-circularidade); fecha a
+  Limitação nº2 do `AVALIACAO.md`. *Aberto 2026-06-22 (~6 dias, trabalho puro — não gated).*
 - [x] (Opcional) **Suíte offline hermética contra a `.env` de dev** ✅ **feito (2026-06-21)** —
   `tests/conftest.py` com `pytest_configure` (roda **antes da coleta**, logo antes de qualquer
   fixture) pina os 11 flags de caminho-ao-vivo (`*_USE_LLM`, `EMBEDDINGS_USE_NV`, `INDEX_USE_QDRANT`,
