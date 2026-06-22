@@ -33,6 +33,7 @@ interpretável. **Metas abaixo do alvo são reportadas como limitação honesta,
 | AIMI (F6.4) | Spearman vs rótulos | ≥ 0,70 | **0,705** (n=32, reais sobre evidência completa) · 0,815 (24 fixtures) | ✅ |
 | Recomendação (F7.2b) | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro F4.5) | ✅ |
 | Recomendação (F7.2b) | precision/recall de techs | ≥ 0,70 | recall **0,76** geral / **0,87** alvos · precision **0,56** de-circularizada (era 0,37 inflada; sintética 0,375 × real 0,90) | ✅ recall / ⚠️ precision |
+| Recomendação (F7.7) | **recall@ALTA** (a alavanca) | ≥ 0,70 | **0,72** geral · **1,00** alvo+wrapper · maduro 0,22 / periférico 0,00 (gap-driven) · precision tolerante 0,56 | ✅ headline / ⚠️ maduro-periférico |
 | RAG (F7.3) | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
 | RAG (F7.3 / F7.4) | context recall | ≥ 0,70 | 0,69 (proxy léxico) → **0,74** (reranker NeMo real) | ✅ com NeMo |
 | Briefing (F7.2c) | faithfulness do texto final | ≥ 0,80 | **0,870** (espinha; min 0,786) | ✅ |
@@ -94,13 +95,17 @@ lever fecha o gap do "1 linha", mas a calibração fina de Unico/Kunumi pede **m
 n=28 in-scope (4 `non-AI` fora de escopo, F2.13 — a Unico saiu do non-AI com a curadoria), incluindo
 as 8 reais curadas.
 
-| Recorte | precision | recall | F1 |
-|---|---|---|---|
-| **alvo_graduacao** (a coorte que importa, F6.13) | **0,69** | **0,87** ✅ | 0,77 |
-| wrapper (AIMI baixo) | 0,62 | 1,00 | 0,77 |
-| periférico (AI-enabled) | 0,00 | 0,00 | 0,00 |
-| maduro | 0,21 | 0,33 | 0,26 |
-| **geral** | **0,56** | **0,76** ✅ | 0,64 |
+| Recorte | **recall@ALTA** (F7.7) | precision | recall | F1 |
+|---|---|---|---|---|
+| **alvo_graduacao** (a coorte que importa, F6.13) | **1,00** ✅ | **0,69** | **0,87** | 0,77 |
+| wrapper (AIMI baixo) | **1,00** ✅ | 0,62 | 1,00 | 0,77 |
+| periférico (AI-enabled) | 0,00 | 0,00 | 0,00 | 0,00 |
+| maduro | 0,22 | 0,21 | 0,33 | 0,26 |
+| **geral** | **0,72** ✅ | **0,56** | **0,76** | 0,64 |
+
+> **Headline F7.7 = `recall@ALTA`** (das techs que o rótulo marca **ALTA**, a alavanca, quantas a regra
+> produz — *knob-free*, sem peso/limiar). **precision tolerante 0,56 ≈ presença** (a regra emite o leque
+> como ALTA/MÉDIA, quase nunca BAIXA → não há "leque a perdoar"). Dois lados **1,00** ✅.
 
 > **Cisão honesta sintética × real (2026-06-21):** precision **sintética 0,375** (rótulo §5.5 escrito à
 > mão = sinal genuíno) × **real 0,900** (rótulo re-curado, ver abaixo). A geral 0,56 é a mistura;
@@ -126,11 +131,26 @@ dispara p/ **core de IA provado**: suprimida em **periférico** (`AI-enabled`, a
   prioridade). Os 2 FP vêm do **matching de setor grosseiro** (AgendaJá, agendamento, casa "health" →
   Clara/MONAI errado); os 2 FN são `NeMo Guardrails` p/ chats AI-enabled (debatível).
 - **maduro 0,21** — a regra cobre o **gap mais severo** (P2 → NeMo Retriever); o rótulo de uma madura
-  foca governança/enterprise (AI Enterprise) + domínio, que a regra não prioriza. Conserto = rótulo com
-  **granularidade de prioridade** (não só presença de tech), próxima curadoria.
+  foca governança/enterprise (AI Enterprise) + domínio, que a regra não prioriza.
 
-**Capar a regra não é o conserto** (os 7 casos do §5.5/F4.8 — gate **7/7** — *exigem* o leque). Lever
-detalhado na Limitação nº2.
+**Capar a regra não é o conserto** (os 7 casos do §5.5/F4.8 — gate **7/7** — *exigem* o leque).
+
+**recall@ALTA (F7.7) — a granularidade de prioridade, feita (2026-06-22).** O rótulo ganhou **prioridade
+por tech** (ALTA/MÉDIA/BAIXA), ancorada no **gap do perfil**, não na saída da regra (anti-circular;
+**revisão humana confirmada** — ver `REVISAO-ROTULOS.md`). A métrica nova fica **ao lado** da presença,
+nunca no lugar:
+- **recall@ALTA = 1,00 em alvo_graduacao e wrapper** — a regra surfa a **alavanca nº1** (NIM/TensorRT p/
+  graduação; NeMo customização p/ wrapper) em **100%** dos casos onde o produto existe pra agir (F6.13).
+  É o sinal que importa: *acertamos o lever, não só "alguma tech"*. Global **0,72 ≥ 0,70** ✅.
+- **maduro 0,22 / periférico 0,00** — baixos **por design gap-driven**: a regra prescreve p/ fechar pilar
+  baixo, e maduro (sem gap) não recebe a venda enterprise (AI Enterprise) que o rótulo espera; periférico
+  AI-enabled recebe só setor (F4.8), não o Guardrails do copiloto. Não é overfit nem bug — **espelha a
+  presença R já baixa lá**. O conserto agora é **lever de *recommender*** (prescrever AI Enterprise a
+  maduro / Guardrails a AI-enabled com superfície conversacional), **não** de métrica.
+- **precision tolerante 0,56 ≈ presença** — a regra emite o leque quase todo como **ALTA/MÉDIA, quase
+  nunca BAIXA**, então não há "leque de baixa prioridade a perdoar". O resíduo de precision é **breadth
+  genuína** (largura p/ cobrir o §5.5 7/7), não ruído de baixa confiança — a tolerância confirmou que não
+  há o que esconder. Dois lados **1,00** ✅.
 
 ### 4. RAG — RAGAS sobre as perguntas NVIDIA (F7.3)
 
@@ -226,8 +246,12 @@ ruído**.
    (≥0,70), §5.5 **7/7**, suíte verde, **sem** alinhar rótulo à saída. **Resíduo genuíno** (não overfitável):
    `periférico 0,00` (a regra **não serve** o periférico, e isso é o desejado — baixa prioridade; FP = setor
    grosseiro na AgendaJá) e `maduro 0,21` (regra cobre o gap; rótulo de madura foca enterprise/domínio).
-   **Capar a regra segue fora** (§5.5/F4.8 *exige* o leque). Próximo lever: rótulo com **granularidade de
-   prioridade** (não só presença de tech) — re-curadoria maior, fora do escopo de hoje.
+   **Capar a regra segue fora** (§5.5/F4.8 *exige* o leque). **Lever da granularidade de prioridade FEITO
+   (F7.7, 2026-06-22):** rótulo priorizado (revisão humana confirmada) + `recall@ALTA` knob-free →
+   **1,00 em alvo+wrapper** (a regra surfa a alavanca onde importa), maduro/periférico baixos **por design
+   gap-driven**, precision tolerante 0,56 ≈ presença (a regra não emite BAIXA → nada a perdoar). Detalhe
+   em §3. O resíduo de maduro/periférico vira **lever de *recommender*** (prescrever enterprise a maduro /
+   Guardrails a AI-enabled com chat), **não** de métrica — registrado em PROXIMOS-PASSOS.
 3. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — o
    consolidado LLM-judged não rodou; vale o proxy léxico + o ganho do reranker real.
 4. ~~**Coluna Cohere do comparativo pendente** da trial key + SDK.~~ ✅ **medida (2026-06-16)** +

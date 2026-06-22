@@ -372,10 +372,19 @@ Documentar por entrada no `notes`, igual à de-circularização. Sem isso, o lev
 - [ ] (Opcional) **Juiz LLM da RAGAS ao vivo** (consolidado vs limiares) — gated pelo endpoint (**F7.3**)
 - [x] (Opcional) Re-indexar a KB em 2048 → recommender RAG ao vivo com citação (`INDEX_USE_QDRANT`)
   ✅ 2026-06-21 — `scripts/reindex_kb.py`; `tapi_kb` 256→2048, 75 pts, smoke de retrieve com citação ok
-- [ ] (Opcional) **Rótulo priorizado — eval de recomendação priority-aware (F7.7, §G)** — rótulo
-  tipado `{tech, prioridade}` (retrocompat) + `recall@ALTA` knob-free no headline + precision tolerante
-  ao lado da de presença (0,56 preservada); prioridade ancorada no gap (anti-circularidade); fecha a
-  Limitação nº2 do `AVALIACAO.md`. *Aberto 2026-06-22 (~6 dias, trabalho puro — não gated).*
+- [x] (Opcional) **Rótulo priorizado — eval de recomendação priority-aware (F7.7, §G)** ✅ **feito
+  (2026-06-22):** rótulo tipado `{tech, prioridade}` (retrocompat, 0 mudança de número) + `recall@ALTA`
+  knob-free no headline + precision tolerante ao lado da presença; prioridade ancorada no gap, **revisão
+  humana confirmada** (`REVISAO-ROTULOS.md` + `gen_label_review.py`). Resultado: **recall@ALTA 1,00 em
+  alvo+wrapper** (a regra surfa a alavanca onde importa, F6.13), global 0,72 ≥ 0,70; maduro 0,22/periférico
+  0,00 baixos **por design gap-driven**; precision tolerante 0,56 ≈ presença (a regra não emite BAIXA →
+  nada a perdoar). Limitação nº2 do `AVALIACAO.md` fechada. Commits 8681ee7→c6341d0.
+- [ ] (Opcional) **Lever de *recommender* — servir maduro/periférico (descoberto pela F7.7)** — o
+  `recall@ALTA` revelou que a regra *gap-driven* não prescreve a **venda enterprise** (AI Enterprise) a um
+  maduro (sem gap) nem **Guardrails** a um AI-enabled com superfície conversacional (recebe só setor, F4.8).
+  Não é bug de métrica nem de rótulo — é o leque da regra. Lever: estender `recommend_rules` p/ prescrever
+  AI Enterprise/governança a maduro e Guardrails a periférico-com-chat. *Aberto 2026-06-22; mexe na regra,
+  não no eval — revalidar §5.5 7/7 e o recall@ALTA depois.*
 - [x] (Opcional) **Suíte offline hermética contra a `.env` de dev** ✅ **feito (2026-06-21)** —
   `tests/conftest.py` com `pytest_configure` (roda **antes da coleta**, logo antes de qualquer
   fixture) pina os 11 flags de caminho-ao-vivo (`*_USE_LLM`, `EMBEDDINGS_USE_NV`, `INDEX_USE_QDRANT`,
