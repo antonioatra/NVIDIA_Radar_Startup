@@ -227,13 +227,23 @@ def fetch(
         raise ValueError("url vazia")
 
     static: FetchResult | None = None
+    static_error: Exception | None = None
     if not force_render:
-        static = _static(url, intent, scrape=scrape)
-        if not is_insufficient(static.text, min_chars=min_chars):
+        # O caminho estático pode **falhar duro** (ex.: Firecrawl sem crédito/quota → `PaymentRequired`,
+        # ou rede). Em vez de abortar a coleta, cai p/ o render (Playwright, F1.3, **grátis e local**) —
+        # que ainda renderiza sites JS. Sem este catch, um site `clean` (oficial) com o Firecrawl
+        # esgotado rendia 0 docs → perfil vazio → classe/AIMI falsos (rivio.ai, 2026-06-23).
+        try:
+            static = _static(url, intent, scrape=scrape)
+        except Exception as exc:  # noqa: BLE001 — qualquer falha do estático tenta o render
+            static_error = exc
+        if static is not None and not is_insufficient(static.text, min_chars=min_chars):
             return static
 
     rendered_page = (render or _real_render)(url)
     result = extract_rendered(intent, rendered_page)
     if result.is_empty and static is not None and not static.is_empty:
         return static  # render não rendeu; fica com o pouco que o estático trouxe
+    if result.is_empty and static is None and static_error is not None:
+        raise static_error  # nem estático nem render renderam → propaga o erro original (rastreável)
     return result

@@ -140,6 +140,35 @@ def test_route_keeps_static_when_render_empty() -> None:
     assert result.text == "algum texto curto"
 
 
+def test_route_falls_back_to_render_when_static_raises() -> None:
+    # Firecrawl FALHA DURO (ex.: sem crédito → PaymentRequired) → em vez de abortar a coleta, cai pro
+    # render (Playwright, grátis) e re-extrai. Regressão do rivio.ai (2026-06-23): site `clean` com
+    # Firecrawl esgotado rendia 0 docs → perfil vazio → classe/AIMI falsos.
+    def boom_scrape(url: str) -> ExtractedPage:
+        raise RuntimeError("Payment Required: Insufficient credits to perform this request")
+
+    def fake_render(url: str) -> RenderedPage:
+        return RenderedPage(url=url, html=_ARTICLE_HTML, text="basico", status_code=200)
+
+    result = route("https://x.example", intent="clean", scrape=boom_scrape, render=fake_render)
+    assert result.rendered is True
+    assert result.strategy == "playwright+trafilatura"
+    assert "rodada seed" in result.text
+
+
+def test_route_reraises_static_error_when_render_also_empty() -> None:
+    # Estático falha E o render não rende nada → propaga o erro original (rastreável no scraper),
+    # não devolve vazio silencioso que mascararia a causa (ex.: Firecrawl sem crédito).
+    def boom_scrape(url: str) -> ExtractedPage:
+        raise RuntimeError("Payment Required")
+
+    def empty_render(url: str) -> RenderedPage:
+        return RenderedPage(url=url, html="", text="")
+
+    with pytest.raises(RuntimeError, match="Payment Required"):
+        route("https://x.example", intent="clean", scrape=boom_scrape, render=empty_render)
+
+
 def test_route_rejects_empty_url() -> None:
     with pytest.raises(ValueError):
         route("   ")

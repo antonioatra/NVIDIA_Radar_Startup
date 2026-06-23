@@ -22,6 +22,13 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && pip install -r requirements.txt
 
+# Browser p/ o scraping JS-pesado (Playwright, F1.3): o worker usa o render como **fallback** quando
+# o Firecrawl falha/esgota o crédito (router F1.7) — sem ele, um site `clean` (oficial) com Firecrawl
+# esgotado rende 0 docs → perfil vazio → classe/AIMI falsos (rivio.ai, 2026-06-23). `--with-deps`
+# traz as libs apt do chromium. Camada cacheável (não muda com o código). ~400MB, aceitável p/ raspar
+# sites JS sem depender de crédito externo.
+RUN playwright install --with-deps chromium
+
 # Código: os pacotes flat + os dois apps Python. `apps` vira namespace package (PEP 420);
 # com WORKDIR /app na raiz do path, `import packages...`/`apps.api...` resolvem.
 COPY packages ./packages
@@ -34,9 +41,7 @@ COPY apps/worker ./apps/worker
 # (cohort*.db, *.bak, *.log) e o cache ficam de fora pelo .dockerignore — imagem reprodutível.
 COPY data ./data
 
-# Default: API (o serviço `worker` sobrescreve o command no compose).
-# Obs.: scraping JS-pesado (Playwright, F1.3) precisa de uma camada extra de browser
-# (`playwright install --with-deps chromium`); fora desta imagem base de propósito —
-# os caminhos Tavily/Firecrawl/trafilatura (HTTP) rodam sem ela.
+# Default: API (o serviço `worker` sobrescreve o command no compose). O chromium do Playwright
+# (scraping JS-pesado, F1.3) é instalado acima — o worker rende sites JS como fallback do Firecrawl.
 EXPOSE 8080
 CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8080"]

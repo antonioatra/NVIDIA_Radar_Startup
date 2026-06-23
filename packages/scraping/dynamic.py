@@ -193,7 +193,13 @@ def render(
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
+        # `--no-sandbox`: o chromium recusa rodar como root (worker no Docker) sem isto;
+        # `--disable-dev-shm-usage`: o `/dev/shm` pequeno do container crasha o chromium em páginas
+        # grandes. Inócuos no host (user). Necessários p/ o render rodar no worker (fallback do
+        # Firecrawl, 2026-06-23).
+        browser = pw.chromium.launch(
+            headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
+        )
         try:
             context = browser.new_context(user_agent=user_agent or DEFAULT_USER_AGENT)
             page = context.new_page()
