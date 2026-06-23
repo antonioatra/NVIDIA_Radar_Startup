@@ -244,3 +244,45 @@ def test_cached_completion_disabled_calls_every_time() -> None:
     cached_completion(p, msgs, cache=NULL_CACHE, invoke=invoke)
     cached_completion(p, msgs, cache=NULL_CACHE, invoke=invoke)
     assert calls[0] == 2  # cache off → sempre chama
+
+
+# --- retry no timeout do LLM (NIM congestionado, F7.6) ------------------------
+
+
+def test_invoke_chat_retries_on_timeout_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    # O NIM grátis congestiona por-request; a retry (conexão nova) passa. _invoke_chat re-tenta o
+    # LLMTimeout (_LLM_TIMEOUT_RETRIES=2 → 3 tentativas) e devolve o sucesso da 3ª.
+    from packages.agents import llm as llm_mod
+
+    monkeypatch.setattr(cache_mod, "_LLM_RETRY_BACKOFF_S", 0.0)  # sem sleep no teste
+    monkeypatch.setattr(llm_mod, "get_chat", lambda model: object())  # chat dummy (não é invocado)
+    n = {"c": 0}
+
+    def fake_rwt(call, *a, **k):  # noqa: ANN001, ANN002, ANN003, ANN202, ARG001
+        n["c"] += 1
+        if n["c"] < 3:
+            raise llm_mod.LLMTimeout(120.0)
+        return SimpleNamespace(content="resposta da 3a tentativa")
+
+    monkeypatch.setattr(llm_mod, "run_with_timeout", fake_rwt)
+    out = cache_mod._invoke_chat(_prompt(), _msgs("x"), config=None)
+    assert out == "resposta da 3a tentativa"
+    assert n["c"] == 3  # 2 timeouts + 1 sucesso
+
+
+def test_invoke_chat_propagates_after_exhausting_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Timeout persistente (endpoint fora) → esgota as tentativas e propaga (o nó degrada, F7.6).
+    from packages.agents import llm as llm_mod
+
+    monkeypatch.setattr(cache_mod, "_LLM_RETRY_BACKOFF_S", 0.0)
+    monkeypatch.setattr(llm_mod, "get_chat", lambda model: object())
+    n = {"c": 0}
+
+    def always_timeout(call, *a, **k):  # noqa: ANN001, ANN002, ANN003, ANN202, ARG001
+        n["c"] += 1
+        raise llm_mod.LLMTimeout(120.0)
+
+    monkeypatch.setattr(llm_mod, "run_with_timeout", always_timeout)
+    with pytest.raises(llm_mod.LLMTimeout):
+        cache_mod._invoke_chat(_prompt(), _msgs("x"), config=None)
+    assert n["c"] == 3  # 1 + 2 retries, todas timeout
