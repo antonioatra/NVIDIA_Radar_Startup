@@ -91,7 +91,25 @@ def get_chat(
     elif s.nvidia_api_key:
         kwargs["api_key"] = s.nvidia_api_key
 
-    return ChatNVIDIA(**kwargs)
+    chat = ChatNVIDIA(**kwargs)
+    _stretch_read_timeout(chat)
+    return chat
+
+
+def _stretch_read_timeout(chat: ChatNVIDIA) -> None:
+    """Estica o read timeout do cliente HTTP do SDK NVIDIA (default **60s**) p/ caber sob o guard
+    de parede (F7.6). O Super com reasoning ON + payload de extração às vezes passa de 60s e o SDK
+    levantava `requests.ReadTimeout` (diag rivio.ai: `read timeout=60`) antes do guard de 120s,
+    derrubando a extração. Alinha um pouco ABAIXO do guard p/ o read timeout (`integrate.api...`)
+    — que agora é **retryável** (`cache._invoke_chat`) — disparar limpo antes do thread-join. Best-
+    effort: mexe num atributo do cliente do SDK (`_client.timeout`), que pode mudar entre versões.
+    """
+    guard = request_timeout_seconds()
+    target = guard - 5.0 if guard > 5.0 else 115.0  # guard 0 (desligado) → valor generoso fixo
+    try:
+        chat._client.timeout = target  # noqa: SLF001 — campo do cliente do SDK, sem setter público
+    except Exception:  # noqa: BLE001 — atributo privado pode sumir entre versões → mantém o default
+        pass
 
 
 # ----------------------------------------------------------------- timeout (F7.6)

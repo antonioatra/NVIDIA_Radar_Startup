@@ -286,3 +286,26 @@ def test_invoke_chat_propagates_after_exhausting_retries(monkeypatch: pytest.Mon
     with pytest.raises(llm_mod.LLMTimeout):
         cache_mod._invoke_chat(_prompt(), _msgs("x"), config=None)
     assert n["c"] == 3  # 1 + 2 retries, todas timeout
+
+
+def test_invoke_chat_retries_on_read_timeout_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    # O read timeout do cliente HTTP (~60s) NAO e LLMTimeout, mas tambem e transiente (NIM
+    # congestiona por-request) — deve ser re-tentado (diag rivio.ai: ReadTimeout 60s na extracao).
+    import requests
+
+    from packages.agents import llm as llm_mod
+
+    monkeypatch.setattr(cache_mod, "_LLM_RETRY_BACKOFF_S", 0.0)
+    monkeypatch.setattr(llm_mod, "get_chat", lambda model: object())
+    n = {"c": 0}
+
+    def fake_rwt(call, *a, **k):  # noqa: ANN001, ANN002, ANN003, ANN202, ARG001
+        n["c"] += 1
+        if n["c"] < 3:
+            raise requests.exceptions.ReadTimeout("read timeout=60")
+        return SimpleNamespace(content="ok apos read timeout")
+
+    monkeypatch.setattr(llm_mod, "run_with_timeout", fake_rwt)
+    out = cache_mod._invoke_chat(_prompt(), _msgs("x"), config=None)
+    assert out == "ok apos read timeout"
+    assert n["c"] == 3  # 2 read timeouts + 1 sucesso

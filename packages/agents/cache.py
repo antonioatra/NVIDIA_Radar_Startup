@@ -207,31 +207,59 @@ def cache_from_settings() -> LLMCache:
 
 
 #: Re-tentativas extras quando uma chamada LLM estoura o teto (F7.6). O endpoint NIM grátis
-#: (build.nvidia.com) congestiona **por-request** e de forma transiente — uma 2ª/3ª tentativa, com
-#: conexão nova, costuma passar (provado ao vivo: 1 timeout + retry → sucesso). Só re-tenta no
-#: timeout (não em erro de parse/credencial — esses propagam na hora). Pior-caso = (1+N)×teto por
-#: chamada, mas só quando de fato estoura; o caso típico (responde de primeira) não muda.
+#: (build.nvidia.com / integrate.api.nvidia.com) congestiona **por-request** e de forma transiente —
+#: uma 2ª/3ª tentativa, com conexão nova, costuma passar (provado ao vivo: 1 timeout + retry →
+#: sucesso). Só re-tenta no **timeout** (não em erro de parse/credencial — esses propagam na hora).
+#: Pior-caso = (1+N)×teto por chamada, mas só quando de fato estoura; o caso típico não muda.
 _LLM_TIMEOUT_RETRIES = 2
 _LLM_RETRY_BACKOFF_S = 3.0
+
+
+def _retryable_timeout_types() -> tuple[type[BaseException], ...]:
+    """Exceções de timeout que merecem retry (F7.6): o `LLMTimeout` de **parede** (120s) **e** o
+    **read timeout** do cliente HTTP do SDK NVIDIA (~60s, via `requests`; alguns caminhos usam
+    `httpx`). O read timeout estoura **antes** do guard de parede e **não** é `LLMTimeout`, então
+    sem incluí-lo aqui o nó degradava na 1ª falha sem re-tentar — exatamente o que derrubou a
+    extração da rivio.ai (`ReadTimeout: ... read timeout=60` no `integrate.api.nvidia.com`).
+    Import preguiçoso: o módulo importa offline sem `requests`/`httpx`.
+    """
+    from .llm import LLMTimeout
+
+    types: list[type[BaseException]] = [LLMTimeout]
+    try:
+        from requests.exceptions import Timeout as _RequestsTimeout
+
+        types.append(_RequestsTimeout)
+    except Exception:  # noqa: BLE001 — requests ausente (offline) → só o LLMTimeout de parede
+        pass
+    try:
+        from httpx import TimeoutException as _HttpxTimeout
+
+        types.append(_HttpxTimeout)
+    except Exception:  # noqa: BLE001 — httpx ausente → idem
+        pass
+    return tuple(types)
 
 
 def _invoke_chat(prompt: Prompt, messages: Sequence[Any], config: Any) -> str:
     """Chamada real ao Nemotron (F0.7) + coerção p/ str. Import preguiçoso (offline sem lib).
 
-    A invocação passa pelo teto de tempo de parede (F7.6, `run_with_timeout`): uma chamada
-    pendurada na rede levanta `LLMTimeout`. **Re-tenta** o timeout (`_LLM_TIMEOUT_RETRIES`) — o NIM
-    grátis congestiona por-request e a retry costuma passar; esgotadas as tentativas, propaga e o
-    nó degrada p/ o determinista (o invariante F7.6 segue: a falha não trava o run).
+    A invocação passa pelo teto de tempo de parede (F7.6, `run_with_timeout`). **Re-tenta** os
+    timeouts (`_LLM_TIMEOUT_RETRIES`) — tanto o `LLMTimeout` de parede quanto o **read timeout** do
+    cliente HTTP (o NIM grátis congestiona por-request; a retry com conexão nova costuma passar).
+    Esgotadas as tentativas, propaga e o nó degrada p/ o determinista (o invariante F7.6 segue: a
+    falha não trava o run).
     """
-    from .llm import LLMTimeout, get_chat, run_with_timeout
+    from .llm import get_chat, run_with_timeout
 
+    retryable = _retryable_timeout_types()
     chat = get_chat(prompt.model)
-    last: LLMTimeout | None = None
+    last: BaseException | None = None
     for attempt in range(_LLM_TIMEOUT_RETRIES + 1):
         try:
             raw = run_with_timeout(lambda: chat.invoke(list(messages), config=config)).content
             return raw if isinstance(raw, str) else str(raw)
-        except LLMTimeout as exc:
+        except retryable as exc:
             last = exc
             if attempt < _LLM_TIMEOUT_RETRIES:
                 time.sleep(_LLM_RETRY_BACKOFF_S)  # deixa a congestão transiente do NIM aliviar
