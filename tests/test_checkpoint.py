@@ -89,6 +89,34 @@ def test_state_serde_roundtrips_httpurl_models() -> None:
     assert str(restored.retrieved[0].source_url) == "https://build.nvidia.com/nim"
 
 
+def test_state_serde_roundtrips_profile_with_generic_claims() -> None:
+    # Regressão (2026-06-25, ao vivo na rivio.ai): o `profile` é cheio de `Claim[str]`/`Claim[int]`
+    # (genéricos parametrizados). O pickle_fallback do serde estourava `PicklingError: Can't pickle
+    # Claim[str]` (qualname não existe no módulo) ao persistir o estado no **interrupt do HITL**
+    # (F2.8) — o perfil só chega lá quando a extração produz dados. O `Claim.__reduce__` picla pela
+    # base + dados, destravando o checkpoint do HITL (a review HITL vinha em branco sem isto).
+    from datetime import UTC, datetime
+
+    from packages.schemas import Evidence, StartupProfile
+    from packages.schemas.evidence import Claim
+
+    _at = datetime(2026, 1, 2, tzinfo=UTC)
+    ev = Evidence(url="https://rivio.ai", snippet="o que faz", fetched_at=_at)
+    profile = StartupProfile(
+        nome="Rivio",
+        descricao=Claim[str](value="plataforma de X", evidence=[ev], confidence=0.9),
+        ano_fundacao=Claim[int](value=2021, evidence=[ev]),
+        source_urls=["https://rivio.ai"],
+    )
+    serde = state_serde()
+    state = GraphState(run_id="r-claim", query="rivio.ai", profile=profile)
+    restored = serde.loads_typed(serde.dumps_typed(state))
+    assert restored.profile is not None
+    assert restored.profile.descricao.value == "plataforma de X"
+    assert restored.profile.descricao.is_grounded
+    assert restored.profile.ano_fundacao.value == 2021
+
+
 # --- wiring com run_pipeline --------------------------------------------------
 
 

@@ -48,6 +48,11 @@ class Evidence(BaseModel):
     )
 
 
+def _rebuild_claim(data: dict) -> Claim:
+    """Reconstrói um `Claim` (base, não parametrizado) a partir do dump — alvo do `__reduce__`."""
+    return Claim.model_validate(data)
+
+
 class Claim(BaseModel, Generic[T]):
     """Um valor extraído + as evidências que o sustentam.
 
@@ -63,3 +68,15 @@ class Claim(BaseModel, Generic[T]):
     def is_grounded(self) -> bool:
         """True se há ao menos uma evidência citável."""
         return len(self.evidence) > 0
+
+    def __reduce__(self) -> tuple:
+        """Pickla pela **base `Claim`** + os dados, não pela classe parametrizada (`Claim[str]`).
+
+        O parâmetro de tipo (`T`) é só p/ checagem estática; em runtime `Claim` aceita qualquer
+        `value`. Sem isto o pickle resolve a classe pelo `__qualname__` `Claim[str]`, que **não
+        existe** como atributo do módulo → `PicklingError`. Isso estourava ao persistir o estado no
+        **interrupt do HITL** (F2.8/checkpoint F2.2): um perfil real (cheio de `Claim`) só chega ao
+        `human_review` quando a extração produz dados — diag ao vivo (rivio.ai). `mode="json"` deixa
+        o dump em primitivos (mais robusto p/ pickle); `model_validate` revalida no load.
+        """
+        return (_rebuild_claim, (self.model_dump(mode="json"),))
