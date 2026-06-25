@@ -147,6 +147,16 @@ class Settings(BaseSettings):
         default=False, description="scraper (F2.4) coleta as fontes de verdade (rede/F1)."
     )
 
+    # Pula o Firecrawl (F1.2) e vai direto ao render local (Playwright + trafilatura, F1.3/F1.4)
+    # no intent `clean`. Para rodar **sem crédito de Firecrawl**: o render é grátis/local e já é o
+    # fallback do roteador (F1.7) — esta flag o torna o caminho primário, evitando a 1ª tentativa
+    # ao Firecrawl esgotado (que atrasa e às vezes falha em vez de cair limpo). `article`/
+    # `structured` já são trafilatura/bs4 (sem Firecrawl), então não dependem disto.
+    scraper_force_render: bool = Field(
+        default=False,
+        description="scraper (F2.4) pula o Firecrawl e usa só o render local (F1.3) no clean.",
+    )
+
     # --- HITL (F2.8) ------------------------------------------------------------
     # Por padrão o grafo roda **sem** pausa humana (espinha verde, M2/DoD). Ligue p/ o nó
     # human_review pausar antes do briefing: bloqueante no modo sync (single-company, exige

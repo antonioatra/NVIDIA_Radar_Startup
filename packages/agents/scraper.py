@@ -203,10 +203,19 @@ def _collect_source(
 
 
 def _default_fetch(url: str, intent: ContentKind) -> FetchResult:
-    """Adapter real de coleta: o roteador estático↔dinâmico da F1.7 (import preguiçoso)."""
+    """Adapter real de coleta: o roteador estático↔dinâmico da F1.7 (import preguiçoso).
+
+    `scraper_force_render` (F0.3) pula o Firecrawl e usa só o render local (Playwright +
+    trafilatura) no intent `clean` — o jeito de rodar **sem crédito de Firecrawl** (o render
+    já é grátis/local e era o fallback; a flag o torna primário). Não afeta `article`/`structured`,
+    que já não usam Firecrawl.
+    """
     from packages.scraping.router import fetch as route
 
-    return route(url, intent=intent)
+    # Só o intent `clean` usa Firecrawl; `article`/`structured` já são trafilatura/bs4 (grátis),
+    # então não há o que pular neles — forçar render lá só adicionaria custo de Playwright.
+    force_render = get_settings().scraper_force_render and intent == "clean"
+    return route(url, intent=intent, force_render=force_render)
 
 
 def _default_search(query: str) -> Sequence[SearchResult]:
