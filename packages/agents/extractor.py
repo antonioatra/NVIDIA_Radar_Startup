@@ -36,6 +36,7 @@ conta fontes do perfil; o roteamento OUT_OF_SCOPE (F2.13) usa o `br_scope` da pe
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable, Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any
@@ -56,6 +57,8 @@ from packages.schemas.profile import (
 )
 from packages.scraping.provenance import make_snippet
 from packages.scraping.source_policy import annotate as source_policy_for
+
+logger = logging.getLogger(__name__)
 
 # Adapter de extração injetável: (query, docs) -> JSON cru do modelo. Default = Nemotron-Super.
 ExtractFn = Callable[[str, "Sequence[RawDocument]"], str]
@@ -348,11 +351,17 @@ def extract_profile(
     Núcleo testável do nó: o adapter (`extract`) é injetado (fake nos testes, Nemotron-Super
     em produção) e devolve o JSON cru; aqui só se faz parse + tipagem com proveniência. Erro
     de rede/JSON/validação vira `None` (não alucina) — o caller registra e segue (F2.7 julga).
+    A causa exata (timeout do Super, JSON inválido, validação) é **logada** (`logger.warning`)
+    p/ o run não falhar mudo: uma empresa forte com perfil `None` é quase sempre LLM/parse, não
+    ausência de dado — sem o log, o porquê some no `except` largo (diag de runs como rivio.ai).
     """
     try:
         raw = extract(query, docs)
         return parse_profile(raw, query=query, docs=docs, run_id=run_id)
-    except Exception:  # noqa: BLE001 — LLM/parse/validação falhou → degrada sem derrubar o run
+    except Exception as exc:  # noqa: BLE001 — LLM/parse/validação falhou → degrada sem derrubar
+        logger.warning(
+            "extractor: extração falhou para %r (%s: %s)", query, type(exc).__name__, exc
+        )
         return None
 
 
@@ -424,7 +433,21 @@ def extractor(
     adapter: ExtractFn = extract or (lambda q, d: _default_extract(q, d, run_id=state.run_id))
     profile = extract_profile(state.query, docs, extract=adapter, run_id=state.run_id)
     if profile is None:
-        return {"errors": [*state.errors, "extractor: extração não produziu um perfil utilizável"]}
+        # Desambigua a falha p/ o trace/briefing (F5.7/F2.12): sem nenhum doc com texto é coleta
+        # vazia (página JS/anti-bot — problema de scraper); com texto e ainda assim sem perfil é
+        # falha do modelo/parse (timeout do Super, JSON inválido — ver `logger.warning` acima).
+        com_conteudo = sum(1 for d in docs if d.content.strip())
+        causa = (
+            "conteúdo coletado mas o modelo/parse não estruturou um perfil "
+            "(timeout/JSON — ver log do worker)"
+            if com_conteudo
+            else "nenhum documento com texto aproveitável (provável página JS/anti-bot)"
+        )
+        note = (
+            f"extractor: extração não produziu um perfil utilizável — "
+            f"{len(docs)} doc(s) coletado(s), {com_conteudo} com conteúdo; {causa}"
+        )
+        return {"errors": [*state.errors, note]}
 
     update: dict = {"profile": profile}
     if persist is not None:
