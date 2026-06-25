@@ -174,6 +174,17 @@ def default_queue(*, connection: Redis | None = None) -> Queue:
     return Queue("tapi", connection=connection or _redis_from_settings())
 
 
+def _job_timeout() -> int:
+    """Teto do job RQ por run (F2.10), do settings; `-1` = sem teto (convenção do RQ).
+
+    O default do RQ (180s) mata um run real no meio (coleta + LLM com reasoning + retries F7.6):
+    foi o `JobTimeoutException` que degradou a extração da rivio.ai mesmo com o read timeout já
+    esticado. `worker_job_timeout_seconds=0` vira `-1` (sem teto).
+    """
+    secs = get_settings().worker_job_timeout_seconds
+    return secs if secs > 0 else -1
+
+
 def enqueue_run(
     query: str,
     *,
@@ -198,6 +209,7 @@ def enqueue_run(
         mode=mode.value,
         hitl=hitl.value,
         job_id=run_id,
+        job_timeout=_job_timeout(),
     )
     return run_id
 
@@ -220,5 +232,7 @@ def enqueue_resume(run_id: str, decision: Any, *, queue: Queue) -> str:
     que pode seguir no registro do RQ — mesmo `run_id` (= thread/canal de progresso), job RQ
     distinto. Só argumentos planos viajam na fila; o job abre Redis/Postgres ao rodar.
     """
-    queue.enqueue(resume_graph_job, run_id, decision, job_id=resume_job_id(run_id))
+    queue.enqueue(
+        resume_graph_job, run_id, decision, job_id=resume_job_id(run_id), job_timeout=_job_timeout()
+    )
     return run_id

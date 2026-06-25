@@ -64,6 +64,13 @@ class Settings(BaseSettings):
         default=False, description="extractor (F2.5) usa o Super p/ estruturar o StartupProfile."
     )
 
+    # Reasoning do Super na extração (F2.5): ON por padrão (qualidade, eval F7). Desligar deixa a
+    # extração MUITO mais rápida (sem a cadeia de raciocínio longa) — útil quando o NIM está lento/
+    # limitado, evitando o read timeout e o teto do job RQ (demo). Custa um pouco de qualidade.
+    extractor_reasoning: bool = Field(
+        default=True, description="extractor (F2.5) liga o reasoning do Super (lento, +qualidade)."
+    )
+
     # classifier (F2.6): por padrão usa a heurística AIMI v0 determinista/offline (reproduzível).
     # Ligue p/ o nó diagnosticar classe+AIMI com o Nemotron-Super (requer nvidia_api_key).
     classifier_use_llm: bool = Field(
@@ -195,6 +202,13 @@ class Settings(BaseSettings):
         default=120.0,
         ge=0,
         description="Teto de tempo (s) por chamada de LLM (F7.6); 0 = sem teto.",
+    )
+
+    # Teto do **job RQ** por run (F2.10). O default do RQ é 180s — curto p/ um run real (coleta +
+    # LLM com reasoning + retries do F7.6), morto no meio com `JobTimeoutException`. Generoso por
+    # padrão p/ caber o caminho completo; 0 = sem teto (RQ `-1`).
+    worker_job_timeout_seconds: int = Field(
+        default=900, ge=0, description="Teto do job RQ por run em s (F2.10); 0 = sem teto."
     )
 
     # --- Cache de inferência LLM por prompt+modelo+versão (F2.14) ----------------

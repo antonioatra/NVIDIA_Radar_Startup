@@ -167,6 +167,14 @@ def test_enqueue_run_generates_run_id_when_absent() -> None:
     assert queue.calls[0]["kwargs"]["job_id"] == run_id
 
 
+def test_enqueue_run_sets_generous_job_timeout() -> None:
+    # Run real (coleta + LLM com reasoning + retries F7.6) passa do default de 180s do RQ e era
+    # morto no meio (JobTimeoutException). O enqueue passa um teto generoso (> default do RQ).
+    queue = _RecordingQueue()
+    enqueue_run("Acme AI", queue=queue, run_id="r1")
+    assert queue.calls[0]["kwargs"]["job_timeout"] > 180
+
+
 def test_enqueue_resume_uses_distinct_resume_job_id() -> None:
     queue = _RecordingQueue()
     run_id = enqueue_resume("r1", {"approved": True}, queue=queue)

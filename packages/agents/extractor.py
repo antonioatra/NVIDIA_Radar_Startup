@@ -398,9 +398,11 @@ def _default_extract(
 
     prompt = get_prompt("extractor")
     config = traced_config(node="extractor", prompt_version=prompt.version_tag, run_id=run_id)
-    messages: list = []
-    if prompt.reasoning:
-        messages.append(reasoning_system_message(True))
+    # Reasoning é do prompt (F0.12), mas gateável por settings: desligar deixa a extração em
+    # segundos (sem CoT longa) quando o NIM está lento — manda o directive **explícito** "off" p/
+    # o Super não cair no default. Default ON preserva a qualidade do caminho real (eval F7).
+    reasoning = prompt.reasoning and get_settings().extractor_reasoning
+    messages: list = [reasoning_system_message(reasoning)]
     messages.append(SystemMessage(content=prompt.template))
     messages.append(HumanMessage(content=_user_payload(query, docs, doc_chars=DEFAULT_DOC_CHARS)))
     return cached_completion(prompt, messages, config=config)  # cache F2.14
