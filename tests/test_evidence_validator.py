@@ -34,6 +34,7 @@ from packages.schemas import (
     Evidence,
     GraphState,
     PillarScore,
+    RawDocument,
     RunStatus,
     StartupProfile,
 )
@@ -105,6 +106,26 @@ def test_node_no_profile_continues_without_retry() -> None:
     cmd = evidence_validator(_state(None))
     assert cmd.goto == CONTINUE_TARGET
     assert cmd.update is None
+
+
+def test_node_no_profile_after_collection_routes_to_insufficient_data() -> None:
+    # Extração falhou (coletou docs mas não produziu perfil, F2.5): NÃO pode seguir como a espinha
+    # offline — isso concluiria o run COMPLETED sem briefing (o /briefings 404, o front oferece um
+    # PDF inexistente). Salta ao briefing terminal F2.12, marcando INSUFFICIENT_DATA + nota.
+    doc = RawDocument(url="https://rivio.ai", content="conteúdo", fetched_at=_FETCHED)
+    cmd = evidence_validator(_state(None, raw_docs=[doc]))
+    assert cmd.goto == TERMINAL_TARGET
+    assert cmd.update["status"] is RunStatus.INSUFFICIENT_DATA
+    assert any("não produziu um perfil" in e for e in cmd.update["errors"])
+
+
+def test_node_no_profile_with_errors_routes_to_insufficient_data() -> None:
+    # Coleta rodou e registrou erro (ex.: scraper/extractor), mas sem perfil → mesmo terminal F2.12
+    # (em vez de fingir conclusão sem briefing). A nota da extração é preservada e acumulada.
+    cmd = evidence_validator(_state(None, errors=["extractor: extração não produziu um perfil"]))
+    assert cmd.goto == TERMINAL_TARGET
+    assert cmd.update["status"] is RunStatus.INSUFFICIENT_DATA
+    assert cmd.update["errors"][0] == "extractor: extração não produziu um perfil"  # preserva
 
 
 def test_node_sufficient_continues() -> None:

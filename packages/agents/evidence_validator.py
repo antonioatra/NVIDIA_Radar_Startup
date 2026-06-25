@@ -27,10 +27,13 @@ incremento, criando ambiguidade de fronteira (a 2ª e a última tentativa ficari
 indistinguíveis). Em troca, o `evidence_validator` **não** recebe aresta estática de saída na
 montagem (graph.py): as duas pontas são alcançadas pelo `goto` do nó.
 
-**Offline é o default (igual F2.3–F2.6):** sem `profile` (espinha offline sem extração, M2/DoD)
-não há o que corroborar — o nó **segue limpo** para o nvidia_rag, sem retry (re-coletar sem rede
-seria loop sem ganho) e sem alucinar. Determinista/puro: a contagem de hosts é reprodutível
-(ethos F2.14), sem rede/LLM/GPU.
+**Offline é o default (igual F2.3–F2.6):** sem `profile` **e sem coleta** (espinha offline, M2/DoD:
+`raw_docs`/`errors` vazios) não há o que corroborar — o nó **segue limpo** para o nvidia_rag, sem
+retry (re-coletar sem rede seria loop sem ganho) e sem alucinar. Determinista/puro: a contagem de
+hosts é reprodutível (ethos F2.14), sem rede/LLM/GPU. **Distinto da extração que falhou:** quando a
+coleta rodou (há `raw_docs`/`errors`) mas a extração (F2.5) não produziu perfil, o nó **não** segue
+adiante — isso concluiria o run COMPLETED **sem briefing** (o `/briefings` 404 e o front ofereceria
+um PDF inexistente); trata como "dados insuficientes" (F2.12, abaixo).
 
 **Terminal de baixa confiança (F2.12):** quando o retry esgota e a evidência segue insuficiente,
 o nó **não trava nem alucina** — marca o run `INSUFFICIENT_DATA`, deixa a nota rastreável em
@@ -113,8 +116,11 @@ def evidence_validator(
 ) -> Command[Literal["scraper", "nvidia_rag", "briefing"]]:
     """F2.7/F2.12/F2.13 — valida a corroboração (N fontes) e roteia: retry, segue ou terminal.
 
-    - Sem perfil (offline/extração vazia): segue limpo (nada a corroborar — não se entra em loop
-      sem coleta nem se alucina; a espinha M2/DoD termina em COMPLETED).
+    - Sem perfil **e sem coleta** (espinha offline M2/DoD, `raw_docs`/`errors` vazios): segue limpo
+      (nada a corroborar — não se entra em loop sem coleta nem se alucina; termina em COMPLETED).
+    - Sem perfil mas **com coleta** (`raw_docs`/`errors` presentes — extração F2.5 falhou): salta ao
+      `briefing` marcando `INSUFFICIENT_DATA` (F2.12), em vez de concluir COMPLETED sem briefing
+      (que faria o `/briefings` 404 e o front oferecer um PDF inexistente).
     - Fontes suficientes (≥ N hosts) **e `non-AI` de alta confiança (F2.13)**: salta ao `briefing`
       marcando `OUT_OF_SCOPE` — corroborado o suficiente p/ dizer que não é alvo Inception, não se
       força recomendação NVIDIA (o nó emite o terminal "fora de escopo").
@@ -127,6 +133,24 @@ def evidence_validator(
     """
     profile = state.profile
     if profile is None:
+        # Sem perfil há dois casos distintos. A **espinha offline** (M2/DoD) não coletou nada
+        # (sem `raw_docs` nem `errors`): não há o que corroborar → segue limpo (re-coletar sem
+        # rede seria loop sem ganho; o run termina COMPLETED sem briefing). Mas quando a coleta
+        # **rodou de verdade** e a extração (F2.5) não produziu um perfil utilizável — há
+        # `raw_docs` coletados e/ou erro registrado —, seguir adiante deixaria o run concluir
+        # COMPLETED **sem briefing**: o `GET /briefings/{id}` responde 404 ("briefing não
+        # encontrado para o run") e o front oferece um PDF inexistente. Isso é "dados
+        # insuficientes" (F2.12): salta ao briefing com o terminal honesto em vez de fingir que
+        # concluiu um diagnóstico que não existe.
+        if state.raw_docs or state.errors:
+            note = (
+                "evidência insuficiente: a coleta rodou mas a extração não produziu um perfil "
+                "utilizável para diagnóstico (F2.5)"
+            )
+            return Command(
+                goto=TERMINAL_TARGET,
+                update={"status": RunStatus.INSUFFICIENT_DATA, "errors": [*state.errors, note]},
+            )
         return Command(goto=CONTINUE_TARGET)
 
     sources = evidence_sources(profile)
