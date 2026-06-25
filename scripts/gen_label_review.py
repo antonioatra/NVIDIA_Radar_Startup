@@ -1,4 +1,4 @@
-"""Gera `docs/REVISAO-ROTULOS.md` — folha de revisão humana do eval set (F1.12/F7.1/F7.7).
+"""Gera `data/eval/REVISAO-ROTULOS.md` — folha de revisão humana do eval set (F1.12/F7.1/F7.7).
 
 Motivo (2026-06-22): `label_source: human` afirma revisão humana, mas as entradas reais foram
 auto-rotuladas pelo pipeline e **promovidas** sem o humano (você) ter conferido linha a linha. Até
@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from packages.eval.dataset import LabeledStartup, load_eval_set  # noqa: E402
 
-_OUT = Path(__file__).resolve().parents[1] / "docs" / "REVISAO-ROTULOS.md"
+_OUT = Path(__file__).resolve().parents[1] / "data" / "eval" / "REVISAO-ROTULOS.md"
 _EMO = {"alta": "🔴", "media": "🟡", "baixa": "⚪"}
 
 
@@ -84,7 +84,7 @@ def main() -> int:
         "de inconsistência): **AI-native** (`classifier.md`) = IA é o *núcleo do valor/produto*, **não** "
         "'IA própria' → uma plataforma que orquestra NLP de terceiros mas cuja conversa **é** o produto "
         "é AI-native **e** wrapper (a região captura a falta de moat). **P3 / Technical Optimization** "
-        "(`RUBRICA-AIMI.md §4`) = *serving/otimização de inferência próprios* (self-host/Triton/"
+        "(rubrica AIMI, `docs/ARQUITETURA.md §3.6`) = *serving/otimização de inferência próprios* (self-host/Triton/"
         "TensorRT/quantização), **não** posse de modelos → quem tem modelo próprio mas serve em cloud "
         "fica **P3 baixo** (o moat de modelo é P1, não P3). **NeMo Guardrails** entra quando há "
         "*superfície generativa/conversacional* ao usuário (copiloto/chat/gerador = risco de "
@@ -102,7 +102,7 @@ def main() -> int:
     out.append(f"## B. Fixtures sintéticas (andaime de medição, NÃO empresas reais) — {len(synth)}")
     out.append("")
     out.append(
-        "Ancoradas na `RUBRICA-AIMI.md` para dar *span* à métrica (cobrir todas as regiões × "
+        "Ancoradas na rubrica AIMI (`docs/ARQUITETURA.md §3.6`) para dar *span* à métrica (cobrir todas as regiões × "
         "classes). Não há empresa real por trás — revise se a prioridade bate com a região/AIMI."
     )
     out.append("")

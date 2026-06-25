@@ -22,7 +22,7 @@ As camadas precisam **escalar juntas**: o valor está no topo (aplicação), mas
 commodity.
 
 ## Grounding da rubrica AIMI
-Mapeia sobretudo no **P3 — Technical Optimization** (★ gatilho primário; ver `docs/RUBRICA-AIMI.md`):
+Mapeia sobretudo no **P3 — Technical Optimization** (★ gatilho primário; ver `docs/ARQUITETURA.md §3.6`):
 uma startup AI-native que vive só na camada de aplicação sobre **API crua** é frágil; "graduar"
 descendo para modelos/infra próprios (**NIM, TensorRT-LLM, Triton, RAPIDS**) é exatamente "puxar as
 camadas abaixo". Combina com a "corrida contra o modelo" da Sequoia: é a base conceitual do **GPU

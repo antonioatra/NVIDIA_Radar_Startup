@@ -1,22 +1,26 @@
-# Guia Completo do TAPI — Arquitetura, Tecnologias e Código Explicados
+# TAPI — Arquitetura, Tecnologias e Decisões de Engenharia
 
-> **Para que serve este documento.** Você construiu o TAPI (NVIDIA Startup AI Radar) com ajuda de IA e quer entender, sem caixa-preta, **todas** as tecnologias usadas, **como cada uma funciona**, **em qual arquivo ela vive**, **o código mais importante de cada parte** e **como tudo se conecta**. Este guia é autossuficiente: foi escrito para ser jogado inteiro no NotebookLM.
+**Projeto:** NVIDIA Startup AI Radar.
+**Autor:** Antônio Augusto Tavares Ribeiro André.
+**Produto:** plataforma multi-agente que **mapeia** startups brasileiras AI-native, **diagnostica** a maturidade técnica com um índice próprio (AIMI), **prescreve** a stack NVIDIA adequada com **evidência rastreável dos dois lados** e **quantifica** o ROI da graduação de API externa para GPU própria. O próprio TAPI roda na stack que recomenda (Nemotron + NeMo Retriever + NIM) — dogfooding.
+
+> **O que este documento é.** A referência técnica **única** do repositório: tese de produto e posicionamento de mercado (§1), arquitetura multi-agente (§2), conceitos centrais + a rubrica AIMI (§3), tecnologias e decisões de stack (§4), **o raio-x do código módulo a módulo** (§5), como tudo se conecta (§6), os fluxos de ponta a ponta (§7), os padrões de engenharia (§8), a avaliação contra metas (§9) e como rodar (§10). O guia de execução rápido — comandos de "revisão inicial" — está no [README.md](README.md).
 >
-> O documento **não cobre o frontend** (a pedido). A **§5 é o raio-x do código** — os trechos que importam de cada módulo, comentados. A **§6 mostra como os arquivos se conectam**.
+> A **§5** detalha o pipeline de backend (os 10 nós + RAG + persistência); o **frontend** (Entregável 5) é descrito no nível de arquitetura em §2.3, não em raio-x de código.
 
 ---
 
 ## Índice
 
-1. [Visão geral](#1-visão-geral)
-2. [O mapa mental da arquitetura](#2-mapa-mental-da-arquitetura)
-3. [Os conceitos centrais](#3-conceitos-centrais)
-4. [Glossário profundo de tecnologias (com caminho de arquivo)](#4-glossário-profundo-de-tecnologias)
+1. [Visão geral e posicionamento de mercado](#1-visão-geral)
+2. [Mapa mental da arquitetura](#2-mapa-mental-da-arquitetura)
+3. [Conceitos centrais (+ rubrica AIMI)](#3-conceitos-centrais)
+4. [Tecnologias e decisões de stack](#4-tecnologias-e-decisões-de-stack)
 5. [**Raio-x do código: as partes mais importantes de cada módulo**](#5-raio-x-do-código)
 6. [Conexões: como todos os arquivos se ligam](#6-conexões)
 7. [Fluxos completos de ponta a ponta](#7-fluxos-completos)
 8. [Padrões de engenharia recorrentes](#8-padrões-de-engenharia)
-9. [Avaliação](#9-avaliação)
+9. [Avaliação (resultados × metas)](#9-avaliação)
 10. [Como rodar](#10-como-rodar)
 11. [Apêndice: arquivo → responsabilidade](#11-apêndice)
 
@@ -29,6 +33,8 @@
 O TAPI ("NVIDIA Startup AI Radar") é uma **plataforma multi-agente** que faz três coisas sobre startups brasileiras de IA: **mapeia** (coleta dados públicos), **diagnostica** a maturidade técnica com um índice próprio (o **AIMI**), e **prescreve** a stack NVIDIA adequada com **evidência rastreável dos dois lados** e **ROI quantificado** da graduação de API externa para GPU própria.
 
 O contexto é o programa **NVIDIA Inception**. O case critica startups que são meros "wrappers de LLM". A resposta do TAPI: (1) ele **não é wrapper** — o valor está na orquestração multi-agente, no dataset coletado, no RAG com evidência e no motor de recomendação; (2) ele **roda na própria stack que recomenda** (Nemotron + NeMo Retriever + NIM) — dogfooding.
+
+**Posicionamento de mercado (o espaço em branco).** As plataformas de *sourcing* de startups — Harmonic, Specter, Tracxn, PitchBook, Dealroom, CB Insights — são bases de **firmographics e funding** (quem captou, de quem, quando; sinais de time). Nenhuma faz **diagnóstico técnico de maturidade de IA + prescrição de stack com evidência + ROI quantificado**. É exatamente aí que o TAPI vive: não compete em cobertura de cadastro, e sim em **profundidade de diagnóstico** sobre o eixo que importa para o Inception — *quão AI-native, e o quanto a NVIDIA pode acelerar a graduação da stack*. É um produto de **apoio à decisão** (DSS) para o gerente do programa, não mais um diretório.
 
 ### 1.2 O que está construído
 
@@ -58,8 +64,11 @@ case_NVIDIA/
   packages/eval/       RAGAS + métricas
   packages/db/         modelos SQLModel
   data/    knowledge_base · seeds · eval · benchmark
-  migrations/  Alembic     docs/  documentação     scripts/  demo, run, bench
+  migrations/  Alembic     scripts/  demo, run, seed, bench, reindex
   docker-compose.yml
+  README.md             guia de execução (a "revisão inicial")
+  ROTEIRO-VIDEO-5MIN.md roteiro do vídeo de apresentação (5 min)
+  docs/ARQUITETURA.md   este documento (a referência técnica única)
 ```
 
 ---
@@ -68,34 +77,64 @@ case_NVIDIA/
 
 ### 2.1 O fluxo do grafo
 
-Uma consulta entra e sai um briefing. Dez nós trabalham em sequência sobre um estado compartilhado (`GraphState`):
+Uma consulta entra (o nome ou a URL de uma startup) e sai um briefing executivo. Por baixo, **dez nós** rodam em sequência sobre um **estado compartilhado** (`GraphState`): cada nó é uma função `GraphState → update parcial`, o LangGraph mescla esse update no estado e passa adiante para o próximo. A jornada de uma consulta, passo a passo:
+
+1. **`search_planner`** (`search_planner.py`, Nemotron-**Nano**) — recebe a consulta crua e devolve um **plano de coleta**: os `search_terms` (o que buscar) e as `sources` (onde buscar). É o único nó "rápido"; também é aqui que se detecta se a consulta é um *discovery* em lote.
+2. **`scraper`** (`scraper.py`, sem LLM) — executa o plano: um **map paralelo** (pool de threads, porque coleta é I/O-bound) sobre as fontes, com o gate de ToS aplicado **antes** do fetch e dedup por `(url, hash)`. Entrega os `raw_docs` com proveniência (de onde veio cada texto).
+3. **`extractor`** (`extractor.py`, Nemotron-**Super**) — lê os `raw_docs` e destila um **`StartupProfile`** estruturado (o que a empresa faz, setor, sinais técnicos). O perfil é **persistido** no banco.
+4. **`classifier`** (`classifier.py`, Super) — sobre o perfil, atribui a **classe** (non-AI / AI-enabled / AI-native, §5.1) e pontua o **AIMI** (os 4 pilares de 0–25, cada sub-score acima de 6 exigindo evidência citada).
+5. **`evidence_validator`** (`evidence_validator.py`, decisão via `Command`) — o **único nó que desvia o fluxo**. Aplica a regra de **N fontes**: se a corroboração é insuficiente e ainda há orçamento de retry, **volta ao `scraper`** para coletar mais; se é suficiente, segue em frente; se o retry esgotou, corta para um **briefing terminal** ("dados insuficientes" — sem inventar).
+6. **`nvidia_rag`** (`nvidia_rag.py`, RAG híbrido) — a partir dos **gaps** do AIMI, busca na base de conhecimento NVIDIA (Qdrant denso + BM25 + fusão RRF + rerank) a **evidência citável** do lado NVIDIA.
+7. **`recommender`** (`recommender.py`, Super) — cruza os **gaps da startup × a evidência NVIDIA** e emite as **recomendações**. Cada recomendação exige evidência dos **dois lados** (a evidência nunca vem do LLM — só a redação).
+8. **`gpu_benchmark`** (`nodes.py`, condicional) — para as recomendações de graduação, anexa o **ROI** de servir o modelo na GPU (matriz de benchmark → `ROIEstimate`).
+9. **`human_review`** (`human_review.py`, HITL) — ponto de **pausa para revisão humana** (`interrupt`); o checkpointer Postgres permite retomar o run de onde ele parou.
+10. **`briefing`** (`briefing.py`, Super + Guardrails) — monta o **relatório executivo** final (Markdown + PDF), com o rail de evidência (NeMo Guardrails) garantindo que nada citado seja alucinado.
+
+A montagem do grafo está em `packages/agents/graph.py`; o registro dos nós, em `packages/agents/nodes.py`. A mesma sequência, em visão rápida:
 
 ```
-[query] → search_planner → scraper → extractor → classifier → evidence_validator
-          → nvidia_rag → recommender → gpu_benchmark → human_review → briefing → [briefing executivo]
-            (Nano)         (—)        (Super)       (Super)      (decisão/Command)
-                                                                  (RAG)   (Super)   (HITL)  (Guardrails)
+query → search_planner → scraper → extractor → classifier → evidence_validator
+      → nvidia_rag → recommender → gpu_benchmark → human_review → briefing → briefing executivo
 ```
 
-Cada nó é uma função `GraphState → update parcial`. O LangGraph mescla o update no estado e passa adiante. O `evidence_validator` é o único que desvia o fluxo (retry → scraper, ou terminal → briefing). Montagem em `packages/agents/graph.py`; registro em `packages/agents/nodes.py`.
+(O `evidence_validator` é a única bifurcação: pode voltar ao `scraper` — retry de coleta — ou cortar direto para um `briefing` terminal.)
 
 ### 2.2 A topologia física
 
+Os dez nós acima rodam **dentro do worker**, não no request HTTP. O motivo: um run faz coleta de rede + 3–4 chamadas de LLM (dezenas de segundos a minutos) — não cabe num request síncrono. Por isso a **API e o worker são processos separados**. O ciclo de vida de uma requisição:
+
+1. O **browser** chama a **API** (`apps/api/main.py`, FastAPI) para iniciar um run.
+2. A API **enfileira** o trabalho no **Redis** (fila RQ) e devolve **na hora** o `run_id` — sem esperar o run terminar.
+3. O **worker** (`apps/worker/jobs.py`) puxa o job da fila e roda o grafo (os 10 nós da §2.1).
+4. Conforme avança, o worker **publica o progresso** via **pub/sub do Redis**; o browser acompanha por **SSE** (server-sent events) e consegue reabrir o stream se a tela for fechada e reaberta (a consulta sobrevive à navegação).
+5. Ao terminar, o briefing fica **persistido** e o browser baixa o **PDF**.
+
+Os serviços de apoio que API e worker compartilham:
+- **PostgreSQL** — dados do domínio + o **checkpoint** do grafo (habilita resume/retry por `run_id`).
+- **Qdrant** — banco vetorial da base de conhecimento (o RAG da §6).
+- **Langfuse** (+ **ClickHouse** + **MinIO**) — observabilidade/tracing de cada chamada de LLM.
+- **NIM** (GPU, build.nvidia.com) — a inferência Nemotron de verdade.
+
+Em visão rápida:
+
 ```
-Browser ─HTTP/SSE─▶ API (apps/api/main.py) ─enfileira─▶ Redis (fila RQ) ─▶ worker (apps/worker/jobs.py)
-                         │  ▲                                                      │
-                         │  └──────── pub/sub progresso (Redis) ──────────────────┘
-                  Postgres (dados + checkpoint) · Qdrant (vetores) · Langfuse(+ClickHouse+MinIO) · NIM(GPU)
+browser  ──HTTP/SSE──▶  API  ──enfileira──▶  Redis (fila RQ)  ──▶  worker
+   ▲                                                                  │
+   └───────────────  pub/sub de progresso (Redis)  ──────────────────┘
+
+apoio:  Postgres (dados + checkpoint) · Qdrant (vetores) · Langfuse (+ClickHouse +MinIO) · NIM (GPU)
 ```
 
-API e worker são separados porque um run faz coleta + 3–4 chamadas de LLM (não cabe num request). A API enfileira e devolve o `run_id`; o worker processa e publica progresso.
+### 2.3 O frontend (Entregável 5)
+
+O `apps/frontend/` (Next.js + React + TypeScript + Tailwind/shadcn) é a camada de apresentação — descrita aqui no nível de arquitetura, não em raio-x de código. Ele consome a API (§5.27) e renderiza quatro vistas: **(1)** consulta single-company com o **trace do pipeline ao vivo** (SSE, nó a nó); **(2)** o **radar AIMI** da coorte (scatter `classe × AIMI`, clusters do DSS nível 3); **(3)** o **detalhe da empresa** (diagnóstico + recomendações com evidência dos dois lados + export PDF); **(4)** o **chat de descoberta** por setor/região. Todo dado renderizado é o mesmo `Briefing`/`AIMIScore`/`Recommendation` dos contratos Pydantic — a UI não recalcula nada, só apresenta o que o backend aterrou.
 
 ---
 
 ## 3. Conceitos centrais
 
-### 3.1 AIMI (`packages/schemas/aimi.py` + `classifier.py` + `docs/RUBRICA-AIMI.md`)
-Índice 0–100, 4 pilares de 0–25: **Data Moat** (P1), **Workflow Depth** (P2), **Technical Optimization** (P3), **Distribution & Moat** (P4). Regras: cada sub-score > 6 exige evidência; **P3 baixo dispara** as recs de graduação (NIM/TensorRT-LLM/Triton); definição imutável, heurística evolutiva (v0→v1); "wrapper" é região (AI-native + AIMI baixo), não classe.
+### 3.1 AIMI (`packages/schemas/aimi.py` + `classifier.py` — definição completa em §3.6)
+Índice 0–100, 4 pilares de 0–25: **Data Moat** (P1), **Workflow Depth** (P2), **Technical Optimization** (P3), **Distribution & Moat** (P4). Regras: cada sub-score > 6 exige evidência; **P3 baixo dispara** as recs de graduação (NIM/TensorRT-LLM/Triton); definição imutável, heurística evolutiva (v0→v1); "wrapper" é região (AI-native + AIMI baixo), não classe. A **definição estável** dos pilares e da escala 0–25 — a referência de rotulagem do eval set e o contrato que o `classifier` preenche — está em §3.6.
 
 ### 3.2 Evidência dos dois lados (`recommendation.py` + `recommender.py` + `guardrails.py`)
 Toda recomendação exige `evidencia_gap` (lado startup) **E** `evidencia_nvidia` (lado NVIDIA). Faltando um, é descartada. Reforçado em 3 camadas (schema + nó + guardrail). **A evidência nunca vem do LLM** — só a redação.
@@ -109,13 +148,93 @@ Cada peça de rede/LLM/GPU tem substituto offline determinístico como default; 
 ### 3.5 DSS de 3 níveis
 1. Recomendação (`recommender.py`) · 2. Inception Priority (`inception.py`) · 3. Radar de coorte (`cohort_cluster.py`).
 
+### 3.6 Rubrica AIMI — definição dos 4 pilares (a referência de rotulagem)
+
+Esta é a **definição estável** do AI-Native Maturity Index: a semântica dos 4 pilares e a escala 0–25 de cada um. É a referência de rotulagem do eval set e o contrato semântico que o `classifier` (`packages/agents/classifier.py`) e a heurística refinada preenchem. **AIMI = soma dos 4 pilares**, cada um de **0 a 25** → score total **0–100**.
+
+> **Definição × heurística (regra de ouro).** Esta seção fixa **o que** cada pilar mede e **o que** significa cada faixa de pontos — isso **não muda** entre versões. A **heurística de pontuação** (como o modelo decide o número a partir das evidências) evolui (v0 provisória → v1 refinada). Os rótulos de ground-truth do eval set dependem **só desta definição**, nunca da versão da heurística — por isso a escala 0–25 é imutável.
+
+> **Grounding conceitual.** Os 4 pilares **não são invenção arbitrária**: derivam da definição de *AI-native service vs. wrapper de LLM*, fundamentada em Sequoia ("Services: The New Software" — copiloto × autopiloto), Emergence ("The AI-Native Services Playbook" — data flywheel + teste "Mirage PMF") e NVIDIA ("AI Is a 5-Layer Cake"). Esses materiais foram **ingeridos na KB** (`source_type: grounding`) e a redação dos pilares foi reconciliada com eles — sem mexer na escala 0–25.
+
+**Visão geral dos pilares:**
+
+| Pilar | O que mede | Dispara recomendação NVIDIA? |
+|---|---|---|
+| **P1 — Data Moat** | Dados proprietários, feedback loops, ativo de dados defensável | — (mede defensabilidade, não gap de stack) |
+| **P2 — Workflow Depth** | Profundidade de automação multi-passo, agentes, integrações | Sim: NeMo Guardrails, orquestração de agentes |
+| **P3 — Technical Optimization** | Inferência/fine-tuning/serving próprios vs. API crua | **Sim — principal gatilho:** NIM, TensorRT-LLM, Triton, RAPIDS |
+| **P4 — Distribution & Moat** | GTM claro, integração enterprise, lock-in, distribuição | Sim: AI Enterprise |
+
+**Acoplamento arquitetural:** **P3 baixo** é o gatilho primário das recomendações de graduação API → stack otimizada — é o pilar que o GPU Graduation Engine quantifica em ROI. O índice **alimenta** o recommender; não é decoração. **Regra de evidência:** todo sub-score é exigido com evidência (Evidence Validator); sem evidência citável (URL + `fetched_at`), o sub-score **não pode subir** acima da faixa "sinais públicos mínimos" (≤ 6).
+
+**Faixas genéricas da escala 0–25** (a semântica por pilar está abaixo):
+
+| Faixa | Pontos | Significado |
+|---|---|---|
+| **Ausente** | 0–6 | Sem sinal, ou wrapper puro nessa dimensão. |
+| **Emergente** | 7–12 | Sinais iniciais; ainda dependente / raso / não defensável. |
+| **Estabelecido** | 13–18 | Capacidade real e recorrente, com evidência clara. |
+| **Forte / Defensável** | 19–25 | Diferencial sustentável; difícil de replicar pelos grandes labs. |
+
+**P1 — Data Moat.** Quanto a empresa tem **dados proprietários** e **feedback loops** que melhoram o produto com o uso — o oposto do wrapper, que não acumula nada além do prompt. `0–6`: só consome API externa, sem dado proprietário. `7–12`: coleta dados de uso, mas sem loop claro; dataset não defensável. `13–18`: dataset proprietário de domínio + sinais de feedback loop. `19–25`: ativo de dados único e crescente, central ao produto.
+
+**P2 — Workflow Depth.** Profundidade do **workflow** entregue — automação multi-passo, agentes, integrações — vs. "uma caixa de texto na frente de uma API". `0–6`: chat/prompt único, sem orquestração. `7–12`: alguns passos encadeados; ainda assistivo. `13–18`: workflow multi-passo real, agentes/ferramentas, integrado ao processo do cliente. `19–25`: automação end-to-end de um resultado de negócio; substitui processo. **Gap → NVIDIA:** workflow sem controle de comportamento → **NeMo Guardrails**; orquestração em produção → stack de agentes/governança.
+
+**P3 — Technical Optimization (★ gatilho primário).** Quanto a empresa **otimiza a própria stack de inferência** — serving, fine-tuning, quantização, batching — vs. depender 100% de API externa crua. **Pilar baixo = maior upside de graduação** e gatilho das recomendações NVIDIA + alvo do ROI quantificado. `0–6`: 100% API externa, sem serving próprio. `7–12`: começou a sentir dor de custo/latência; experimentos pontuais. `13–18`: serving próprio de parte da carga; otimização ou fine-tuning em produção. `19–25`: stack de inferência própria madura. **Gap → NVIDIA (quanto menor P3, mais forte):** **NIM** (deploy otimizado), **TensorRT-LLM** (otimização de inferência), **Triton** (serving), **RAPIDS/cuDF/cuML** (pipeline de dados em GPU).
+
+**P4 — Distribution & Moat.** **Distribuição** e **defensabilidade de mercado** — GTM claro, integração enterprise, lock-in, contratos. `0–6`: sem GTM claro, sem clientes públicos. `7–12`: tração inicial; canal único. `13–18`: clientes enterprise, integrações, GTM repetível. `19–25`: distribuição defensável, lock-in real. **Gap → NVIDIA:** escala enterprise → **NVIDIA AI Enterprise**; programa/benefícios → **NVIDIA Inception**.
+
+**Da rubrica ao produto — o plano `classe × AIMI`.** A caracterização cruza **dois eixos sem confundi-los**: o **qualitativo** (classe — o *papel* da IA: `AI-native`/`AI-enabled`/`non-AI`, decidido sobretudo pela descrição do produto e por Workflow Depth, **não** pelo total) e o **quantitativo** (AIMI 0–100 — a *maturidade/defensabilidade*). Por isso **wrapper não é uma classe**: é uma **região** do plano (`AI-native` + AIMI baixo, sobretudo P1/P3 baixos) — exatamente o público que a NVIDIA quer identificar e ajudar a graduar.
+
+| Região | classe | AIMI | Leitura para o Inception |
+|---|---|---|---|
+| Fora de escopo | `non-AI` | — | não é alvo (briefing `fora_de_escopo`) |
+| Periférico | `AI-enabled` | qualquer | baixa prioridade (IA não é o núcleo) |
+| **Wrapper frágil** | `AI-native` | baixo em ~todos os pilares | risco de substituição; potencial não comprovado |
+| **Alvo de graduação ★** | `AI-native` | **P1/P2 alto · P3 baixo** | **maior upside NVIDIA** → topo da fila |
+| Maduro / defensável | `AI-native` | alto em todos | já forte; foco em comunidade/enterprise (P4) |
+
+**Inception Priority** (DSS nível 2) deriva do AIMI = **potencial AI-native × upside NVIDIA** (alto P1/P2 com **P3 baixo** = maior prioridade de outreach). Cada sub-score sai com as evidências que o sustentam ("score de crédito de AI-nativeness") — auditável célula a célula.
+
 ---
 
-## 4. Glossário profundo de tecnologias
+## 4. Tecnologias e decisões de stack
 
-(Resumo — o detalhe de código de cada uma está na §5.)
+### 4.1 Decisões de stack (kickoff) e o porquê
 
-- **Python 3.12 / TypeScript** — backend / (frontend, fora do escopo).
+| Eixo | Decisão | Razão |
+|---|---|---|
+| Cérebro dos agentes | **NVIDIA Nemotron** via `build.nvidia.com` (créditos grátis) | Dogfooding; reasoning toggle; sem plano pago |
+| Self-hosted | **NIM/vLLM na GPU local** (diferencial) | Demonstra graduação API → stack otimizada |
+| Vector DB | **Qdrant** (dense + sparse/BM25 nativo) | Híbrido nativo, named vectors |
+| Dados estruturados | **PostgreSQL** (+ pgvector opcional) | Empresas, founders, evidências, scores |
+| Embeddings | **NeMo Retriever `nv-embedqa`** | Multilíngue (PT-BR), grátis |
+| Reranking | **NeMo Retriever `nv-rerankqa`** (build/testes, grátis) · **Cohere Rerank** (validação) | Plugável; NeMo no build, Cohere só no comparativo final |
+| Frontend | **Next.js + React + TypeScript + Tailwind/shadcn** | Entrega polida, streaming do pipeline |
+| Backend | **FastAPI + SSE** | Stream do progresso dos agentes |
+
+**Modelos Nemotron por tarefa (custo × raciocínio):** **Nano** (rápido/barato) para `search_planner`, roteamento, normalização; **Super** (`reasoning ON`) para `extractor`, `classifier`, `recommender`, `briefing`.
+
+### 4.2 Tecnologias que faltavam alinhar (gaps fora do brief)
+
+| Camada | Decisão | Por quê |
+|---|---|---|
+| Orquestração | LangGraph + **checkpointer Postgres** + **interrupts (HITL)** | Retry, resume e intervenção humana |
+| LLM SDK | `langchain-nvidia-ai-endpoints` | Integração nativa Nemotron/NIM |
+| Busca web | **Tavily** (free tier) | O brief lista fontes, não o motor de busca |
+| Contrato de dados | **Pydantic v2** (proveniência nos tipos) | Extração estruturada confiável |
+| Guardrails | **NeMo Guardrails** no briefing | On-narrative; evita recomendação alucinada |
+| Observabilidade | **Langfuse** (self-host grátis) | Depuração de multi-agente |
+| Avaliação | **RAGAS** + eval de classificação + eval de rerankers | Avaliação de qualidade contra metas |
+| Data eng (GPU) | **RAPIDS/cuDF** (dedup/normalização) + **cuML** (clustering) | Usa GPU, on-narrative, alimenta o índice |
+| Fila | **Redis + worker** (RQ) | Pipeline longo não cabe em request síncrono |
+| Deploy | **Docker Compose** + NVIDIA Container Toolkit | Postgres/Qdrant/Redis/API/worker/front/NIM |
+| CI | **GitHub Actions** (lint + pytest + smoke RAGAS, sem GPU) | RAGAS no CI + contribuições incrementais |
+| Governança | Tabela de evidências (URL, hash, `fetched_at`); founder só info profissional pública | Só dado público, rastreável (LGPD) |
+
+### 4.3 Glossário (resumo — o detalhe de código de cada uma está na §5)
+
+- **Python 3.12 / TypeScript** — backend / frontend.
 - **LangGraph** — grafo de estado dos agentes. `packages/agents/graph.py`, `state.py`, `evidence_validator.py` (`Command`), `human_review.py` (`interrupt`), `checkpoint.py`.
 - **LangChain** — mensagens, `RunnableConfig`, callbacks. Em todo nó LLM e em `observability/`.
 - **`langchain-nvidia-ai-endpoints`** — `ChatNVIDIA` (`llm.py`), `NVIDIAEmbeddings` (`rag/embed.py`), `NVIDIARerank` (`rag/rerank.py`).
@@ -1524,19 +1643,55 @@ Decididos no `evidence_validator.py`, emitidos no `briefing.py` (via `terminals.
 ---
 
 ## 9. Avaliação
-**Arquivos:** `packages/eval/`; resultados em `docs/AVALIACAO.md`.
 
-| Métrica | Meta | Resultado |
-|---|---|---|
-| Classificação macro-F1 (`classification_metrics.py`) | ≥ 0,75 | **0,875** (Super real) |
-| AIMI Spearman (`aimi_correlation.py`) | ≥ 0,70 | **0,815** |
-| Recomendação — evidência dos 2 lados | = 1,00 | **1,00** (invariante duro) |
-| Recomendação — recall de techs (`recommendation_metrics.py`) | ≥ 0,70 | **0,78** nos alvos |
-| RAG faithfulness · context recall (`ragas.py`) | ≥ 0,80 · ≥ 0,70 | **1,00** · 0,69→**0,74** com NeMo |
-| Briefing faithfulness (`briefing_faithfulness.py`) | ≥ 0,80 | **0,870** |
-| Reranker NeMo × Cohere (`reranker_comparison.py`) | decisão com dados | NeMo **0,823** |
+**Arquivos:** `packages/eval/`. Cada métrica é reprodutível por um comando (§9 final). O relatório reúne, contra **metas declaradas**, a qualidade aferida de cada peça do pipeline — metas abaixo do alvo são reportadas como limitação honesta, não escondidas.
 
-**RAGAS** mede faithfulness/context recall (substituto lexical no CI, juiz Nemotron real na F7.3). **Spearman** mede correlação de ranking. **macro-F1** é a média do F1 por classe. Os números headline saem sobre **24 fixtures humanas**; a coorte auto-rotulada fica fora do headline.
+### 9.1 Metodologia (ler antes dos números)
+
+- **Conjunto de avaliação:** o headline tem **32 entradas `human`** = 24 fixtures sintéticas (cobrindo todas as regiões do plano `classe × AIMI`) **+ 8 empresas reais BR curadas** (`evidence_urls` rastreáveis, raspadas/diagnosticadas pelo pipeline e **revisadas por humano contra a evidência pública**). Logo, o headline **não é mais 100% sintético** — o gap nº1 de credibilidade endereçado. O RAG usa um conjunto à parte de **7 perguntas NVIDIA**.
+- **Espinha verde / real atrás de flag:** cada peça que precisa de rede/LLM/GPU tem um **substituto offline determinístico como _default_** (roda no CI, reprodutível), com o backend real plugável. Onde o LLM **muda o resultado** (classificação, briefing), medimos o **real ao vivo**; onde **não muda por design** (seleção de techs do recommender), explicamos e ficamos no determinístico.
+
+### 9.2 Resumo executivo (cada métrica × meta)
+
+| Entregável | Métrica | Meta | Resultado | Veredito |
+|---|---|---|---|---|
+| Classificação | macro-F1 | ≥ 0,75 | **0,875** (24 fixtures) · **0,720** (n=32 c/ reais) · 0,314 piso offline | ⚠️✅ fixtures ✅ · reais ↓ (AI-enabled n=6) |
+| AIMI | Spearman vs. rótulos | ≥ 0,70 | **0,705** (n=32, sobre evidência completa) · 0,815 (24 fixtures) | ✅ |
+| Recomendação | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro) | ✅ |
+| Recomendação | precision/recall de techs | ≥ 0,70 | recall **0,89** geral / **0,87** alvos · precision **0,60** | ✅ recall / ⚠️ precision |
+| Recomendação | **recall@ALTA** (a alavanca) | ≥ 0,70 | **0,97** geral · **1,00** alvo+wrapper+periférico · **0,89** maduro | ✅ |
+| RAG | RAGAS faithfulness | ≥ 0,80 | **1,00** | ✅ |
+| RAG | context recall | ≥ 0,70 | 0,69 (proxy léxico) → **0,74** (reranker NeMo real) | ✅ com NeMo |
+| Briefing | faithfulness do texto final | ≥ 0,80 | **0,870** (mín. 0,786) | ✅ |
+| Reranker | qualidade (NeMo × Cohere) | decisão com dados | NeMo **0,823** > Cohere 0,816 (offline) · Cohere 0,864 ≳ NeMo 0,859 (nv-embed) — empate no ruído n=7, NeMo grátis | ✅ |
+
+### 9.3 Leituras honestas
+
+- **Classificação:** a classe que importa para achar alvos — **AI-native — segue forte (recall 0,96)**. O macro-F1 caiu 0,875→0,720 ao incluir as reais, puxado pelo **AI-enabled (recall 0,33, n=6)**: com 6 exemplos cada erro custa caro no macro. É o **custo honesto de sair do sintético**; não um colapso do classificador.
+- **AIMI:** o lever que cruzou o gate foi pontuar a empresa real sobre a **evidência raspada completa** (não a `descricao` de 1 linha). 7 das 9 reais correlacionam quase perfeito; **Unico** e **Kunumi** seguem outliers (rótulo humano excede a evidência raspada / scrape raso).
+- **Recomendação:** **`recall@ALTA`** (das techs que o rótulo marca ALTA, quantas a regra produz — *knob-free*) é a headline e expôs dois levers de recommender: **maduro → AI Enterprise** (quem já graduou não precisa de graduação) e **AI-enabled com chat → NeMo Guardrails**. A precision real (0,90) é alta; a sintética (0,375, rótulo §5.5 escrito à mão) puxa a geral para 0,60. O `expected_nvidia_techs` das reais foi **de-circularizado** (era a saída do próprio recommender → re-curado por julgamento §5.5 independente da regra).
+- **Reranker:** NeMo × Cohere ficam **empatados no ruído** (n=7) nos dois substratos; o desempate é **custo + narrativa**: **NeMo é grátis** (catálogo/dogfood), Cohere é pago ($2/1k). A escolha do NeMo no build fica justificada **com dados**.
+
+### 9.4 Limitações honestas (o que ainda não bate a meta / não é real)
+
+1. **Curadoria das 8 reais é *light*** (verificação + correção dos erros do modelo, não rotulagem independente do zero); 3 linhas onde o humano confirmou o score do modelo conservam resíduo circular na correlação AIMI.
+2. **Juiz LLM da RAGAS bloqueado pelo ambiente** (conflito `ragas`/`langchain-community`) — vale o proxy léxico + o ganho do reranker real; o backend `RagasJudge` fica reservado.
+3. **ROI/GPU não construído como medição ao vivo** — depende de serving GPU; o briefing sai sem linha de ROI por padrão (engine atrás de flag). A **camada de coorte (clustering + radar) está entregue em CPU**, com qualidade de demo limitada por embeddings hashing-offline + AIMI subavaliado por evidência rasa.
+
+### 9.5 Reprodução
+
+Defaults offline (CI); flags fazem rede/créditos.
+
+```bash
+python -m packages.eval.classification_metrics [--llm]        # classe macro-F1
+python -m packages.eval.aimi_correlation                      # AIMI Spearman
+python -m packages.eval.recommendation_metrics                # recall@ALTA + precision/recall
+python -m packages.eval.briefing_faithfulness [--llm]         # faithfulness do briefing
+python -m packages.eval.ragas [--gate] [--llm]                # RAGAS consolidado
+python -m packages.eval.reranker_comparison [--nv] [--cohere] # NeMo × Cohere
+```
+
+Baseline RAGAS versionado: `data/eval/rag/baseline.json` (conferido por `ragas --check`).
 
 ---
 
@@ -1599,4 +1754,6 @@ As flags por nó vivem em `packages/config/settings.py`.
 
 ---
 
-*Fim do guia. Para a justificativa de produto de cada decisão: `ARQUITETURA.md`, `docs/ALINHAMENTO-CRITERIOS-E-DECISAO.md`, `docs/RUBRICA-AIMI.md`, `docs/AVALIACAO.md`, `docs/COBERTURA-TECNOLOGIAS.md`.*
+*Fim do documento. Este é o **documento técnico único** do repositório (arquitetura, tecnologias, decisões de stack, rubrica AIMI e avaliação). O guia de execução rápido está no [README.md](README.md).*
+
+*Autor: Antônio Augusto Tavares Ribeiro André.*

@@ -1,6 +1,6 @@
 # TAPI Frontend (Next.js)
 
-Dashboard — Entregável 5 (ver [`../../docs/tasks/05-frontend.md`](../../docs/tasks/05-frontend.md)).
+Dashboard — Entregável 5 (ver [`../../docs/ARQUITETURA.md` §2.3](../../docs/ARQUITETURA.md)).
 
 Stack: **Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui**, UI em **PT-BR** (F0.13).
 Consome a API (FastAPI, F5.2) com SSE para progresso ao vivo do pipeline. Telas planejadas:

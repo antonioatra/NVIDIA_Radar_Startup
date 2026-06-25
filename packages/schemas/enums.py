@@ -1,7 +1,7 @@
 """Enumerações compartilhadas dos contratos TAPI (F0.5).
 
-Valores fixos referenciados em todo o grafo (ARQUITETURA §3) e na rubrica AIMI
-(`docs/RUBRICA-AIMI.md`). Strings em PT-BR onde viram saída de produto (F0.13);
+Valores fixos referenciados em todo o grafo (ARQUITETURA §2) e na rubrica AIMI
+(`docs/ARQUITETURA.md §3.6`). Strings em PT-BR onde viram saída de produto (F0.13);
 identificadores técnicos em snake_case.
 """
 
@@ -19,7 +19,7 @@ class Classification(str, Enum):
 
 
 class AIMIPillar(str, Enum):
-    """Os 4 pilares do AI-Native Maturity Index (`docs/RUBRICA-AIMI.md`)."""
+    """Os 4 pilares do AI-Native Maturity Index (`docs/ARQUITETURA.md §3.6`)."""
 
     DATA_MOAT = "data_moat"
     WORKFLOW_DEPTH = "workflow_depth"
@@ -37,8 +37,8 @@ class AIMIBand(str, Enum):
 
 
 class PlaneRegion(str, Enum):
-    """Regiões do plano `classe × AIMI` — o "Mapa de decisão" canônico (RUBRICA §6 /
-    `ALINHAMENTO-CRITERIOS-E-DECISAO.md`). Rótulo de anotação do eval set (F1.12) e
+    """Regiões do plano `classe × AIMI` — o "Mapa de decisão" canônico
+    (`docs/ARQUITETURA.md §3.6`). Rótulo de anotação do eval set (F1.12) e
     leitura de prioridade para o Inception. **Wrapper não é classe, é região.**"""
 
     FORA_ESCOPO = "fora_escopo"  # non-AI — não é alvo (briefing fora_de_escopo, F2.13)

@@ -14,7 +14,7 @@ Você é o **Classifier** do TAPI. A partir do `StartupProfile`, faça duas cois
    - `AI-enabled` — IA é recurso periférico sobre um produto não-IA;
    - `non-AI` — sem uso material de IA.
 
-2. **AIMI** — pontue os 4 pilares de **0 a 25** conforme `docs/RUBRICA-AIMI.md`:
+2. **AIMI** — pontue os 4 pilares de **0 a 25** conforme `docs/ARQUITETURA.md §3.6`:
    - **data_moat** — dado proprietário + feedback loop;
    - **workflow_depth** — automação multi-passo, agentes, orquestração;
    - **technical_optimization** — stack de inferência própria (fine-tuning, serving, self-host) vs. dependência de API externa crua;

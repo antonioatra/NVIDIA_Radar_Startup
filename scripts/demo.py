@@ -18,7 +18,7 @@ Mostra o produto funcionando. Dois modos, escolhidos por flag:
 
 **Real** liga as flags de rede/LLM (`scraper_use_network`, `*_use_llm`, embeddings/Qdrant/rerank),
 exige as chaves no `.env` (NVIDIA/Tavily/Firecrawl) e roda o grafo de verdade sobre a consulta —
-o caminho do run e2e da Hand Talk (ver docs/PLANO.md). Degrada honesto se faltar chave.
+o caminho do run e2e da Hand Talk. Degrada honesto se faltar chave.
 """
 
 from __future__ import annotations
@@ -216,7 +216,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("TAPI — demo OFFLINE (espinha verde, sem rede/credencial). --real p/ o e2e completo.")
     demo_graph(args.query)
     demo_offline_briefing(args.case)
-    print("\nMétricas de qualidade consolidadas: docs/AVALIACAO.md (reprodução no README).")
+    print("\nMétricas de qualidade consolidadas: docs/ARQUITETURA.md §9 (reprodução no README).")
     return 0
 
 

@@ -3,7 +3,7 @@
 Quarto nó do grafo (ARQUITETURA §3). Consome o perfil do extractor (F2.5) e emite o
 diagnóstico de maturidade: a **classe** (`AI-native` | `AI-enabled` | `non-AI`, §5.1) e os
 **4 sub-scores** do AIMI (0–25 cada) no schema `AIMIScore` (F0.5). A **definição** dos
-pilares e a escala 0–25 vivem em `docs/RUBRICA-AIMI.md` (F0.11) e são imutáveis; aqui mora
+pilares e a escala 0–25 vivem em `docs/ARQUITETURA.md §3.6` (F0.11) e são imutáveis; aqui mora
 a **heurística v1** (F6.1, refina a v0 provisória de F2.6) que preenche os números — **sem
 mudar** nem a definição (RUBRICA) nem o contrato de saída (`AIMIScore`).
 

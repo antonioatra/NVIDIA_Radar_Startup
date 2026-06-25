@@ -13,7 +13,7 @@ sobre sequências `gold`/`pred` — testável com casos conhecidos, sem tocar o 
 offline/determinístico, em Python puro (sem scikit-learn, fora do CI), como a espinha do F2–F6.
 
 A correlação do AIMI (F6.4) e a aderência dos 7 casos §5.5 (F4.8) seguem em seus harnesses;
-a **F7.5** consolida os três num `docs/AVALIACAO.md` único.
+a **F7.5** consolida os três em `docs/ARQUITETURA.md §9`.
 """
 
 from __future__ import annotations

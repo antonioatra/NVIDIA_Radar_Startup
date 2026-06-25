@@ -12,7 +12,7 @@ O §2 do brief pede coletar os "sinais de uso intensivo de IA". Este módulo é 
   foca o grafo nas empresas que importam.
 
 **Não** é o classificador nem o AIMI: é um filtro de *sourcing* (lexical, alto
-recall). A **classe** (§5.1) e os **pilares** (`docs/RUBRICA-AIMI.md`, F2.6) seguem
+recall). A **classe** (§5.1) e os **pilares** (`docs/ARQUITETURA.md §3.6`, F2.6) seguem
 sendo decididos depois, com evidência. O `CATEGORY_PILLAR` é só uma **dica** de para
 onde cada categoria de sinal aponta (Workflow Depth / Technical Optimization), não um
 sub-score — daí pesos pequenos e a regra de manter (não cravar).
@@ -160,7 +160,7 @@ CATEGORY_WEIGHT: dict[SignalCategory, int] = {
 }
 
 # Dica (não-vinculante) de para qual pilar AIMI a categoria tende a apontar. O score
-# real dos pilares é F2.6 (RUBRICA-AIMI), com evidência — aqui é só orientação.
+# real dos pilares é F2.6 (rubrica AIMI, ARQUITETURA §3.6), com evidência — aqui é só orientação.
 CATEGORY_PILLAR: dict[SignalCategory, AIMIPillar] = {
     "model_ai": AIMIPillar.WORKFLOW_DEPTH,
     "ml_hiring": AIMIPillar.TECHNICAL_OPTIMIZATION,

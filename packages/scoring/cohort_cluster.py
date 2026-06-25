@@ -1,6 +1,6 @@
 """Camada de coorte do diferencial — clustering + radar do ecossistema (F6.5–F6.7).
 
-Nível 3 do DSS (`docs/ALINHAMENTO-CRITERIOS-E-DECISAO.md`): a visão de **portfólio**. Sobre a tabela
+Nível 3 do DSS (`docs/ARQUITETURA.md §3.5`): a visão de **portfólio**. Sobre a tabela
 `company` acumulada (F1.14), agrupa as startups por perfil (setor/descrição/stack) e ranqueia os
 clusters por **prontidão de graduação** — quais blocos do ecossistema BR são o melhor alvo de
 outreach do Inception. Pipeline:

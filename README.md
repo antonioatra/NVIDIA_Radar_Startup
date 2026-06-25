@@ -1,13 +1,19 @@
 # TAPI — NVIDIA Startup AI Radar
 
+**Autor:** Antônio Augusto Tavares Ribeiro André
+
 Plataforma **multi-agente** que mapeia startups brasileiras AI-native, **diagnostica** a
 maturidade técnica (índice AIMI), **prescreve** a stack NVIDIA adequada com **evidência
 rastreável dos dois lados** e **quantifica** o ROI da graduação API → GPU. O próprio TAPI roda
 na stack que recomenda (Nemotron + NeMo Retriever + NIM) — dogfooding da jornada que prescreve.
 
+> **Começe por aqui (revisão inicial):** a [Demo em 30 segundos](#demo-em-30-segundos-offline-sem-credencial)
+> roda offline, sem credencial. A documentação técnica completa — arquitetura, tecnologias,
+> decisões de stack, rubrica AIMI e avaliação — está em **[docs/ARQUITETURA.md](docs/ARQUITETURA.md)**.
+
 > **Tese:** o mercado de *sourcing* (Harmonic, Specter, Tracxn, PitchBook…) faz firmographics e
 > funding. Ninguém faz **diagnóstico técnico de maturidade AI + prescrição de stack com evidência
-> + ROI quantificado**. É aí que o TAPI vive. Detalhe em [ARQUITETURA.md](ARQUITETURA.md).
+> + ROI quantificado**. É aí que o TAPI vive. Detalhe em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ## O que está construído (entregáveis × fases)
 
@@ -19,7 +25,7 @@ na stack que recomenda (Nemotron + NeMo Retriever + NIM) — dogfooding da jorna
 | 4 | **Motor de recomendação** AIMI → gaps × tech NVIDIA, saída §5.5 com evidência dos dois lados | `packages/agents/recommender.py`, `recommend_rules.py` |
 | 5 | **Frontend** Next.js (radar AIMI, trace do pipeline ao vivo, export PDF) | `apps/frontend`, `apps/api` |
 | 6 | **Diferencial:** AIMI v1 + clustering de coorte (RAPIDS/cuML) + GPU Graduation Engine (ROI) | `packages/scoring`, `packages/benchmark` |
-| 7 | **Validação:** eval set rotulado, métricas, comparativo de reranker, relatório | `packages/eval`, [docs/AVALIACAO.md](docs/AVALIACAO.md) |
+| 7 | **Validação:** eval set rotulado, métricas, comparativo de reranker, relatório | `packages/eval`, [docs/ARQUITETURA.md §9](docs/ARQUITETURA.md#9-avaliação) |
 
 ## Demo em 30 segundos (offline, sem credencial)
 
@@ -38,22 +44,24 @@ recomendações com evidência dos dois lados → relatório) a partir de um cas
 set, pela mesma espinha determinista que a avaliação mede. `--list` mostra os casos; `--case <id>`
 escolhe um; `--real` roda o e2e de verdade (abaixo).
 
-## Avaliação (contra as metas do §7 — detalhe em [docs/AVALIACAO.md](docs/AVALIACAO.md))
+## Avaliação (contra as metas declaradas — detalhe em [docs/ARQUITETURA.md §9](docs/ARQUITETURA.md#9-avaliação))
 
 | Entregável | Métrica | Meta | Resultado |
 |---|---|---|---|
-| Classificação | macro-F1 | ≥ 0,75 | **0,875** (Nemotron-Super real) ✅ |
-| AIMI | Spearman vs rótulos | ≥ 0,70 | **0,815** ✅ |
+| Classificação | macro-F1 | ≥ 0,75 | **0,875** (24 fixtures) · **0,720** (n=32 com reais) ✅ / ⚠️ |
+| AIMI | Spearman vs rótulos | ≥ 0,70 | **0,705** (n=32) · 0,815 (24 fixtures) ✅ |
 | Recomendação | evidência dos 2 lados | = 1,00 | **1,00** (invariante duro) ✅ |
-| Recomendação | recall de techs | ≥ 0,70 | **0,78** nos alvos de graduação ✅ / 0,69 geral ⚠️ |
+| Recomendação | precision/recall de techs | ≥ 0,70 | recall **0,89** geral / **0,87** alvos · precision **0,60** ✅ / ⚠️ |
+| Recomendação | **recall@ALTA** (a alavanca) | ≥ 0,70 | **0,97** geral · **1,00** alvo+wrapper+periférico · 0,89 maduro ✅ |
 | RAG | faithfulness · context recall | ≥ 0,80 · ≥ 0,70 | **1,00** ✅ · 0,69→**0,74** com reranker NeMo ✅ |
 | Briefing | faithfulness do texto | ≥ 0,80 | **0,870** ✅ |
-| Reranker | NeMo × Cohere | decisão com dados | NeMo **0,823** > léxico; Cohere pendente ⚠️ |
+| Reranker | NeMo × Cohere | decisão com dados | NeMo **0,823** > Cohere 0,816 (offline); empate no ruído n=7, NeMo grátis ✅ |
 
 **Disciplina "espinha verde / real atrás de flag":** cada peça que precisa de rede/LLM/GPU tem um
 **substituto offline determinístico como default** (roda no CI), com o backend real plugável por
-flag. Os números headline saem sobre 24 fixtures rotuladas (`label_source: human`); a coorte real
-auto-rotulada (F7.1) fica **fora do headline** (baseline circular) — ver `data/eval/README.md`.
+flag. O headline sai sobre **32 entradas `human`** (24 fixtures sintéticas + 8 empresas reais BR
+curadas contra evidência pública); a coorte **auto-rotulada** (F7.1) fica **fora do headline**
+(baseline circular) — ver `data/eval/README.md` e `docs/ARQUITETURA.md §9.1`.
 
 ## Arquitetura (resumo)
 
@@ -72,7 +80,7 @@ auto-rotulada (F7.1) fica **fora do headline** (baseline circular) — ver `data
 ```
 
 Modos: **single-company** (1 consulta → 1 perfil) e **coorte** em lote (cohort builder F1.14 →
-clustering). Diagrama e decisões de stack completas em [ARQUITETURA.md](ARQUITETURA.md).
+clustering). Diagrama e decisões de stack completas em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ## Reprodução completa
 
@@ -112,8 +120,7 @@ O smoke do LLM real é `python -m packages.agents.llm`. As flags por nó vivem e
 ```
 Sobe postgres · qdrant · redis · langfuse · api · worker · frontend, cria o schema, popula as
 empresas reais da coorte (`scripts/seed_postgres.py`) e abre o navegador. `-Down` derruba;
-`-Gpu` inclui o NIM (requer entitlement NGC + NVIDIA Container Toolkit — opcional, ver
-[EVOLUCOES-DIFERENCIAL §A](docs/EVOLUCOES-DIFERENCIAL.md)).
+`-Gpu` inclui o NIM (requer entitlement NGC + NVIDIA Container Toolkit — opcional).
 
 **Manual / outros SO:**
 ```bash
@@ -132,9 +139,9 @@ python -m alembic upgrade head   # cria o schema (do host, contra o Postgres do 
 apps/        api (FastAPI+SSE) · worker (LangGraph runtime, RQ) · frontend (Next.js)
 packages/    schemas · agents · scraping · rag · scoring · benchmark · eval · config · observability · db
 data/        knowledge_base (fontes NVIDIA §10) · seeds (fontes de startups §9) · eval (set rotulado)
-docs/        PLANO + tasks por fase + ALINHAMENTO + RUBRICA-AIMI + AVALIACAO + COBERTURA + EVOLUCOES
-scripts/     run.ps1 (sobe a stack) · seed_postgres.py (coorte→Postgres) · demo.py · loop-tasks.ps1
+scripts/     run.ps1 (sobe a stack) · seed_postgres.py (coorte→Postgres) · demo.py · reindex_kb.py
 notebooks/   geração da matriz de benchmark (GPU)
+docs/ARQUITETURA.md   documento técnico único (arquitetura, tecnologias, rubrica AIMI, avaliação)
 ```
 
 ## Princípios de engenharia
@@ -147,9 +154,12 @@ notebooks/   geração da matriz de benchmark (GPU)
 - **PT-BR** na saída (briefing/recomendações/UI); embeddings seguem multilíngues.
 
 ## Documentação
-- **Arquitetura:** [ARQUITETURA.md](ARQUITETURA.md)
-- **Plano + tasks por fase:** [docs/PLANO.md](docs/PLANO.md) · [docs/tasks/](docs/tasks/)
-- **Caracterização & decisão:** [docs/ALINHAMENTO-CRITERIOS-E-DECISAO.md](docs/ALINHAMENTO-CRITERIOS-E-DECISAO.md) · [docs/RUBRICA-AIMI.md](docs/RUBRICA-AIMI.md)
-- **Avaliação:** [docs/AVALIACAO.md](docs/AVALIACAO.md)
-- **Diferencial & evoluções (visão de produto):** [docs/EVOLUCOES-DIFERENCIAL.md](docs/EVOLUCOES-DIFERENCIAL.md)
-- **Cobertura de tecnologias:** [docs/COBERTURA-TECNOLOGIAS.md](docs/COBERTURA-TECNOLOGIAS.md)
+
+Toda a documentação técnica vive num **documento único**: **[docs/ARQUITETURA.md](docs/ARQUITETURA.md)**.
+
+- **Tese & posicionamento de mercado** — [§1](docs/ARQUITETURA.md#1-visão-geral)
+- **Arquitetura multi-agente** — [§2](docs/ARQUITETURA.md#2-mapa-mental-da-arquitetura)
+- **Conceitos centrais + rubrica AIMI** — [§3](docs/ARQUITETURA.md#3-conceitos-centrais)
+- **Tecnologias & decisões de stack** — [§4](docs/ARQUITETURA.md#4-tecnologias-e-decisões-de-stack)
+- **Raio-x do código** — [§5](docs/ARQUITETURA.md#5-raio-x-do-código)
+- **Avaliação (resultados × metas)** — [§9](docs/ARQUITETURA.md#9-avaliação)

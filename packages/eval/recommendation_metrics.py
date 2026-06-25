@@ -39,7 +39,7 @@ precision/recall é a **mesma** online e offline e roda 100% no CI — não há 
 contrário do classificador/F7.2, onde o LLM **muda a predição**). Python puro, como a espinha verde.
 
 A consolidação dos números (classificação F7.2 + AIMI F6.4 + recomendação F7.2b + 7 casos F4.8) num
-`docs/AVALIACAO.md` único é da **F7.5**.
+`docs/ARQUITETURA.md §9` é da **F7.5**.
 """
 
 from __future__ import annotations

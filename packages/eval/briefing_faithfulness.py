@@ -35,7 +35,7 @@ faithfulness com **juiz LLM** (lib `ragas` + Nemotron) sobre o briefing é a con
 
 **Fora de escopo (F2.13):** `non-AI` é roteada ao briefing fora-de-escopo (sem recomendação) — o
 harness as exclui (in-scope = AI-native + AI-enabled, como na produção e no F7.2b). A consolidação
-num `docs/AVALIACAO.md` único é da **F7.5**.
+em `docs/ARQUITETURA.md §9` é da **F7.5**.
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ _INCEPTION_PROGRAM = (
     "tecnologias recomendadas."
 )
 
-#: O **framework de decisão** do produto (ALINHAMENTO-CRITERIOS-E-DECISAO §5/§8, RUBRICA §4) — a
+#: O **framework de decisão** do produto (`docs/ARQUITETURA.md §3.6`) — a
 #: fonte do eixo comercial (`acao_comercial`). É conhecimento de domínio **fixo e documentado**, não
 #: evidência por-empresa: o briefing **aplica** este framework ao diagnóstico (não o inventa). Como
 #: o `_INCEPTION_PROGRAM`, entra no contexto p/ a métrica medir extrapolação **além** do framework —

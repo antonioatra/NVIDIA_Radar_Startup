@@ -4,7 +4,7 @@ A F3.1 já garante (em `test_ingest.py`) que toda tech do §5.4 + MONAI está **
 Esta suíte fecha o outro lado do marco M3: que cada uma é de fato **recuperável pelo pipeline
 real** (F3.1→F3.5, offline/determinístico) — não basta estar indexada, a busca híbrida tem de
 trazê-la. Em especial cobre **NeMo Evaluator/avaliação**: o §5.5 recomenda governança como
-*Guardrails + NeMo* (ver `docs/tasks/04-recomendacao.md`), então uma consulta de avaliação/
+*Guardrails + NeMo* (§5.5 do case), então uma consulta de avaliação/
 governança precisa recuperar o Evaluator, **não só o Guardrails**.
 
 Tudo roda sobre a espinha verde (HashingEmbedder + BM25 in-memory): sem rede/GPU e reprodutível.

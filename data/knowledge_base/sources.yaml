@@ -247,8 +247,8 @@ sources:
   # do classifier (F2.6) — NÃO são docs de produto NVIDIA. Entram como `grounding` (tipo já
   # previsto em KBSourceType na F3.1, sem reabrir o loader), `tech` uniforme "AI-Native
   # (grounding)" para NÃO se misturarem com as techs recomendáveis do §5.4 (CORE_TECHS).
-  # Ao ingerir, a redação dos pilares em docs/RUBRICA-AIMI.md foi reconciliada com estes
-  # materiais — sem mexer na escala 0–25 (ver changelog do doc).
+  # Ao ingerir, a redação dos pilares (rubrica AIMI, ARQUITETURA §3.6) foi reconciliada
+  # com estes materiais — sem mexer na escala 0–25.
   - id: sequoia-services-as-software
     tech: "AI-Native (grounding)"
     title: "Sequoia — Services: The New Software (copiloto × autopiloto)"

@@ -11,7 +11,7 @@ F7 **consolida/expande** este conjunto — não cria do zero.
 
 ## Como os rótulos são feitos
 Por **revisão humana** sobre a definição de pilares/escala de
-[`docs/RUBRICA-AIMI.md`](../../docs/RUBRICA-AIMI.md) (F0.11). O ground-truth depende **só
+[`docs/ARQUITETURA.md §3.6`](../../docs/ARQUITETURA.md) (F0.11). O ground-truth depende **só
 da definição** (escala 0–25 imutável), nunca da heurística de pontuação (v0 F2.6 / v1
 F6.1) — trocar a heurística não invalida os rótulos. Cada entrada carrega a **região do
 plano `classe × AIMI`** (RUBRICA §6): `fora_escopo` · `periferico` · `wrapper` ·

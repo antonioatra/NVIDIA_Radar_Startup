@@ -25,7 +25,7 @@ qualidade/velocidade/custo). Sem IA fazendo trabalho material a alta margem, é 
 serviços que usa ferramentas de IA".
 
 ## Grounding da rubrica AIMI
-Mapeia nos 4 pilares (ver `docs/RUBRICA-AIMI.md`):
+Mapeia nos 4 pilares (ver `docs/ARQUITETURA.md §3.6`):
 - **P1 Data Moat** ≙ data flywheel / dados de engajamento que compõem vantagem.
 - **P2 Workflow Depth** ≙ "você É a implementação" — IA executa o resultado, não assiste.
 - **P3 Technical Optimization** ≙ o teste Mirage PMF (margem/escala não-linear) — IA precisa fazer

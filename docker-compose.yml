@@ -134,7 +134,7 @@ services:
   # NIM self-hosted na GPU local (F6). Requer NVIDIA Container Toolkit.
   # Triton + TensorRT-LLM (F6.8) NÃO estão neste compose base: o serving de
   # benchmark roda fora dele (notebook/ad-hoc na GPU), pois o compose base é o
-  # ambiente de build (NIM hospedado). Ver docs/tasks/06-diferencial.md.
+  # ambiente de build (NIM hospedado). Ver docs/ARQUITETURA.md §5.19.
   nim:
     image: nvcr.io/nim/nvidia/llama-3.1-nemotron-nano-8b:latest
     profiles: ["gpu"]

@@ -21,7 +21,7 @@ AIMI (F0.11) — não é documentação de produto NVIDIA.
   dados** — julgamento proprietário de domínio que aprofunda a defensabilidade com o uso.
 
 ## Grounding da rubrica AIMI
-Mapeia direto nos 4 pilares (ver `docs/RUBRICA-AIMI.md`):
+Mapeia direto nos 4 pilares (ver `docs/ARQUITETURA.md §3.6`):
 - **P2 Workflow Depth** ≙ vender o **trabalho** (autopiloto end-to-end), não a caixa de texto.
 - **P1 Data Moat** ≙ **composição de dados** / julgamento proprietário que melhora com o uso.
 - **P3 Technical Optimization** ≙ não ficar "em corrida contra o modelo" sobre API crua — o gatilho

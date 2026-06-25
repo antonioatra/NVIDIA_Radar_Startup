@@ -87,7 +87,7 @@ PILLAR_QUERIES: dict[AIMIPillar, str] = {
 
 #: Domínio da startup (setor/descrição) → tecnologia NVIDIA de domínio recomendável (§5.5). Os
 #: stems são casados por substring no texto minúsculo do perfil; o primeiro que casar vira a busca
-#: de setor (uma startup tem um domínio primário). Espelha a COBERTURA-TECNOLOGIAS §5.4/§5.5.
+#: de setor (uma startup tem um domínio primário). Espelha o §5.4/§5.5 do case (techs por domínio).
 SECTOR_QUERIES: tuple[tuple[tuple[str, ...], str], ...] = (
     (
         ("saúde", "saude", "health", "clínic", "clinic", "médic", "medic", "hospital",

@@ -1,7 +1,7 @@
 """Nó **recommender** (F4.2/F4.3): gaps do AIMI × evidência NVIDIA → `Recommendation` dos 2 lados.
 
 Sétimo nó do grafo (ARQUITETURA §3), entre o `nvidia_rag` (F3.7) e o `gpu_benchmark` (F6). É o
-**núcleo do apoio à decisão** (DSS nível 1, `docs/ALINHAMENTO-CRITERIOS-E-DECISAO.md`): converte o
+**núcleo do apoio à decisão** (DSS nível 1, `docs/ARQUITETURA.md §3.5/§3.6`): converte o
 diagnóstico (perfil + AIMI) na **prescrição** acionável — *o que ofereço a esta startup?* Cruza as
 duas pontas já preparadas pelas tasks anteriores:
 

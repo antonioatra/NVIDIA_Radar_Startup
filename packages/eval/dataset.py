@@ -3,7 +3,7 @@
 Conjunto de ground-truth (~20–30 startups) com **classificação** (§5.1) e **AIMI
 esperado** (4 pilares × 0–25) por empresa, criado **cedo** porque F6.4 (correlação do
 índice) e F7.1/F7.2 (métricas) o **consomem** — F7 só consolida/expande, não cria do
-zero. Os rótulos seguem a **definição** de `docs/RUBRICA-AIMI.md` (F0.11), nunca a
+zero. Os rótulos seguem a **definição** de `docs/ARQUITETURA.md §3.6` (F0.11), nunca a
 heurística de pontuação (v0 F2.6 / v1 F6.1): a escala 0–25 é imutável, então mudar a
 heurística não invalida o ground-truth.
 
@@ -101,7 +101,7 @@ class LabeledStartup(BaseModel):
 
     `label_source` distingue a origem do rótulo: **human** = revisado por humano (headline, default do
     `load_eval_set`) — as reais curadas contra evidência pública (F7.1) e as fixtures sintéticas
-    escritas à mão sobre a `RUBRICA-AIMI.md`; **model** = auto-rotulada pelo pipeline (F7.1), baseline
+    escritas à mão sobre a rubrica (`docs/ARQUITETURA.md §3.6`); **model** = auto-rotulada pelo pipeline (F7.1), baseline
     **circular**, fora do headline (só com `include_model=True`). Nem toda entrada é human-reviewed.
     """
 

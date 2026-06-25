@@ -1,8 +1,8 @@
 # Eval set rotulado inicial (F1.12) — ground-truth de classificação + AIMI esperado.
 #
 # IMPORTANTE: estas 24 entradas são FIXTURES-SEMENTE sintéticas (`synthetic: true`),
-# ancoradas na definição de pilares/escala de `docs/RUBRICA-AIMI.md` (F0.11) e no plano
-# `classe × AIMI` da RUBRICA §6 / ALINHAMENTO. NÃO são empresas reais — servem para
+# ancoradas na definição de pilares/escala de `docs/ARQUITETURA.md §3.6` (F0.11) e no plano
+# `classe × AIMI` (ARQUITETURA §3.6). NÃO são empresas reais — servem para
 # (a) destravar F6.4 (correlação do índice) e F7.1/F7.2 (métricas) desde já, e (b) cobrir
 # todas as regiões do "Mapa de decisão". Entradas REAIS (synthetic: false) devem trazer
 # `evidence_urls` rastreáveis e são adicionadas por revisão humana (F1.14 + F7.1). Ver README.

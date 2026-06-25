@@ -1,7 +1,7 @@
 """AIMIScore — AI-Native Maturity Index (F0.5).
 
 Contrato de saída do `classifier` (v0, F2.6) e da heurística refinada (v1, F6.1).
-A **definição** (pilares + escala 0–25) vive em `docs/RUBRICA-AIMI.md` (F0.11) e é
+A **definição** (pilares + escala 0–25) vive em `docs/ARQUITETURA.md §3.6` (F0.11) e é
 imutável; só a heurística que preenche os números evolui — por isso `heuristic_version`
 é carimbado aqui. Regra de evidência (RUBRICA §0): sub-score > 6 exige evidência.
 """
