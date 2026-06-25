@@ -8,6 +8,9 @@
 #   .\scripts\run.ps1 -Gpu       # inclui o NIM self-hosted (requer entitlement NGC + Container Toolkit)
 #   .\scripts\run.ps1 -Down      # derruba a stack
 #   .\scripts\run.ps1 -NoSeed    # sobe sem popular (UI vazia)
+#   .\scripts\run.ps1 -Demo      # config a prova de rate limit do NIM p/ o video: aplica .env.demo
+#                                # POR CIMA do .env (cache ON, so extractor no LLM, render local,
+#                                # HITL ON). NAO altera o .env padrao (config completa p/ a arquitetura).
 #
 # Pre-requisitos: Docker Desktop ABERTO ("Engine running") + .env preenchido + .venv criado.
 #
@@ -18,7 +21,8 @@
 param(
     [switch]$Down,
     [switch]$Gpu,
-    [switch]$NoSeed
+    [switch]$NoSeed,
+    [switch]$Demo
 )
 
 $repo = Split-Path $PSScriptRoot -Parent
@@ -47,9 +51,16 @@ $python = "$repo\.venv\Scripts\python.exe"
 if (-not (Test-Path $python)) { Fail ".venv nao encontrado em .venv\Scripts\python.exe." }
 
 # 1) Sobe a stack. A 1a vez COMPILA as imagens (api/worker + frontend) -> pode levar 10-20 min.
+# -Demo: sobrepoe .env.demo ao .env (so api/worker) via override do compose, sem tocar no .env.
+$demoFiles = @()
+if ($Demo) {
+    if (-not (Test-Path "$repo\.env.demo")) { Fail ".env.demo nao encontrado (necessario p/ -Demo)." }
+    $demoFiles = @("-f", "docker-compose.yml", "-f", "docker-compose.demo.yml")
+    Step "Modo DEMO: .env + .env.demo (cache ON, so extractor no LLM, render local, HITL ON)."
+}
 Step "Subindo a stack (1a vez compila as imagens; pode levar 10-20 min)..."
-if ($Gpu) { docker compose --profile gpu up -d --build }
-else { docker compose up -d --build }
+if ($Gpu) { docker compose @demoFiles --profile gpu up -d --build }
+else { docker compose @demoFiles up -d --build }
 if ($LASTEXITCODE -ne 0) { Fail "docker compose up falhou (veja o log acima)." }
 
 # 2) Espera o Postgres aceitar conexao (ate ~60s).
