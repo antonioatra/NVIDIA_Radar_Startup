@@ -417,7 +417,11 @@ class RagasJudge:
 
     def __init__(self, *, model: str | None = None, api_key: str | None = None) -> None:
         s = get_settings()
-        self.model = model or s.nemotron_model_reason
+        # Juiz no Nano (fast, greedy, SEM reasoning): o Super-reasoning emitia a CoT em prosa e o
+        # parser JSON do RAGAS estourava (statement_generator/fix_output_format → NaN → degradava
+        # p/ o léxico). O Nano segue o formato estruturado que cada métrica do RAGAS exige. Override
+        # por `model=` se precisar do Super.
+        self.model = model or s.nemotron_model_fast
         self.api_key = api_key if api_key is not None else s.nvidia_api_key
 
     def score(self, sample: RagSample) -> RagasMetrics:
@@ -445,7 +449,10 @@ class RagasJudge:
         try:
             from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings
 
-            judge = LangchainLLMWrapper(ChatNVIDIA(model=self.model, api_key=self.api_key))
+            # temperature=0: juiz determinístico + adesão estrita ao JSON que o RAGAS parseia.
+            judge = LangchainLLMWrapper(
+                ChatNVIDIA(model=self.model, api_key=self.api_key, temperature=0.0)
+            )
             embeddings = LangchainEmbeddingsWrapper(
                 NVIDIAEmbeddings(model=get_settings().nv_embed_model, api_key=self.api_key)
             )
