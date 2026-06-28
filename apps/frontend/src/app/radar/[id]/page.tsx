@@ -6,7 +6,7 @@ import { CompanyDetailView } from "./detail";
 // `GET /companies/{id}` (F5.2) e desenha o radar AIMI dos 4 pilares + evidencias por pilar.
 // UI PT-BR (F0.13). Em Next 16 o `params` e Promise (App Router) — resolvido com await.
 export const metadata: Metadata = {
-  title: "Detalhe da startup — TAPI",
+  title: "Detalhe da startup — NVIDIA Radar",
   description: "Diagnostico AIMI (radar dos 4 pilares) com evidencias citadas por pilar.",
 };
 

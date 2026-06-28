@@ -1,4 +1,4 @@
-# TAPI Frontend (Next.js)
+# Frontend (Next.js) — NVIDIA Startup AI Radar
 
 Dashboard — Entregável 5 (ver [`../../docs/ARQUITETURA.md` §2.3](../../docs/ARQUITETURA.md)).
 

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 // UI em PT-BR (F0.13): publico e o gerente de Startups & VCs da NVIDIA Brasil.
 export const metadata: Metadata = {
-  title: "TAPI — NVIDIA Startup AI Radar",
+  title: "NVIDIA Startup AI Radar",
   description:
     "Painel interno para mapear startups brasileiras AI-native, diagnosticar " +
     "maturidade tecnica (AIMI) e recomendar tecnologias NVIDIA para o Inception.",

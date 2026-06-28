@@ -6,7 +6,7 @@ import { DiscoveryChat } from "./chat";
 // Descoberta da coorte (F5.12): casca server (metadata + cabecalho) sobre o chat client que
 // pergunta em PT-BR ao `GET /discover` (F3.10) e desenha as empresas como conversa. UI PT-BR (F0.13).
 export const metadata: Metadata = {
-  title: "Descoberta da coorte — TAPI",
+  title: "Descoberta da coorte — NVIDIA Radar",
   description:
     "Chat em linguagem natural sobre a coorte: pergunte por classe, maturidade (AIMI) ou " +
     "tecnologia NVIDIA e receba as startups ordenadas por Inception Priority.",
@@ -18,7 +18,7 @@ export default function DescobertaPage() {
       <div className="flex w-full max-w-3xl flex-col px-6 py-16 sm:py-24">
         <header className="flex flex-col gap-3">
           <Link href="/" className="w-fit text-sm text-muted-foreground hover:text-foreground">
-            ← TAPI
+            ← NVIDIA Radar
           </Link>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Descoberta da coorte</h1>
           <p className="text-muted-foreground">

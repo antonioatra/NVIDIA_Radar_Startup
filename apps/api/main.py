@@ -62,7 +62,7 @@ from .schemas import (
 )
 from .trace import build_run_trace
 
-app = FastAPI(title="TAPI API", version="0.1.0")
+app = FastAPI(title="NVIDIA Startup AI Radar API", version="0.1.0")
 
 # CORS (F5.2 ↔ F5.3): o front (origem :3000) chama a API (:8080) cross-origin; sem estes
 # cabeçalhos o browser bloqueia a resposta mesmo com a API devolvendo 200. Origens vêm do

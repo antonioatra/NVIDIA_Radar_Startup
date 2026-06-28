@@ -7,7 +7,7 @@ import { RunTraceView } from "./trace-view";
 // link Langfuse. UI PT-BR (F0.13). Em Next 16 o `params` e Promise (App Router) — resolvido
 // com await, como no detalhe da startup (F5.5).
 export const metadata: Metadata = {
-  title: "Trace do run — TAPI",
+  title: "Trace do run — NVIDIA Radar",
   description: "Passos dos agentes de um run (estado do grafo) com custo e link ao Langfuse.",
 };
 

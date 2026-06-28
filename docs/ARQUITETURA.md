@@ -1,4 +1,4 @@
-# TAPI — Arquitetura, Tecnologias e Decisões de Engenharia
+# Arquitetura, Tecnologias e Decisões de Engenharia
 
 **Projeto:** NVIDIA Startup AI Radar.
 **Autor:** Antônio Augusto Tavares Ribeiro André.

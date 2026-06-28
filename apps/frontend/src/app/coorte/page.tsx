@@ -6,7 +6,7 @@ import { CohortRadar } from "./radar";
 // Radar de coorte (F6.5–F6.7): casca server (metadata + cabecalho) sobre o radar client que
 // consome o `GET /cohort/clusters` (F5.2) e desenha o ecossistema agrupado por perfil. UI PT-BR.
 export const metadata: Metadata = {
-  title: "Radar de coorte — TAPI",
+  title: "Radar de coorte — NVIDIA Radar",
   description:
     "Visao de portfolio do ecossistema: startups agrupadas por perfil (clustering) e " +
     "ranqueadas por prontidao de graduacao para o NVIDIA Inception.",
@@ -18,7 +18,7 @@ export default function CoortePage() {
       <div className="w-full max-w-4xl px-6 py-16 sm:py-24">
         <header className="flex flex-col gap-3">
           <Link href="/" className="w-fit text-sm text-muted-foreground hover:text-foreground">
-            ← TAPI
+            ← NVIDIA Radar
           </Link>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Radar de coorte</h1>
           <p className="text-muted-foreground">

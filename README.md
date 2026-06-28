@@ -1,4 +1,4 @@
-# TAPI — NVIDIA Startup AI Radar
+# NVIDIA Startup AI Radar
 
 **Autor:** Antônio Augusto Tavares Ribeiro André
 

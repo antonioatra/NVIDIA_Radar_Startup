@@ -1,4 +1,4 @@
-# Roteiro — vídeo de demonstração (TAPI · só o funcionamento do app)
+# Roteiro — vídeo de demonstração (NVIDIA Startup AI Radar · só o funcionamento do app)
 
 **Autor:** Antônio Augusto Tavares Ribeiro André
 **Formato:** screencast **sem narração** — só mostrar o app funcionando ponta a ponta.
@@ -22,7 +22,7 @@ Arquitetura, tese e decisões ficam para **outro vídeo**. Duração-alvo ~5 min
 
 | Tempo | Tela (rota) | Ação na tela (o que fazer/mostrar) |
 |---|---|---|
-| **0:00–0:20** | **Home** `/` | Abrir a home. Deixar ler o título "TAPI — NVIDIA Startup AI Radar" e o subtítulo. Passar o mouse pelos 4 cards (Consulta · Radar de startups · Descoberta · Radar de coorte) sem clicar. |
+| **0:00–0:20** | **Home** `/` | Abrir a home. Deixar ler o título "NVIDIA Startup AI Radar" e o subtítulo. Passar o mouse pelos 4 cards (Consulta · Radar de startups · Descoberta · Radar de coorte) sem clicar. |
 | **0:20–0:40** | `/consulta` | Clicar **"Nova consulta"**. Garantir o modo **"Empresa"** selecionado. Digitar o domínio da empresa-alvo no campo. Clicar **"Consultar"**. |
 | **0:40–1:30** | `/consulta` (pipeline) | Mostrar a seção **"Pipeline"** aparecer: a barra de progresso enchendo e a **escada de nós** marcando ✓ um a um (spinner no nó ativo) — o grafo multi-agente rodando ao vivo via SSE. *Se a espera passar de ~40 s, acelere o trecho (time-lapse) ou corte.* |
 | **1:30–2:05** | `/consulta` (HITL) | O run pausa e abre o painel **"Revisão humana (HITL)"**: mostrar **Classe**, **AIMI (x/100)** e **Recomendações**. Clicar **"Editar diagnóstico"** (aparecem os selects de classe/AIMI) só para mostrar; depois **"Aprovar e retomar"**. |
@@ -40,7 +40,7 @@ Arquitetura, tese e decisões ficam para **outro vídeo**. Duração-alvo ~5 min
 ## Notas de gravação
 
 - **A estrela é o item 0:40–1:30 (pipeline ao vivo) + 1:30–2:05 (HITL).** É o que prova que o app *funciona de verdade*. Grave com folga; se a consulta ao vivo falhar, troque pelo **plano B** (abrir uma empresa já processada no `/radar/[id]`) sem interromper a gravação.
-- **Sem narração:** não fale nem adicione legendas explicativas — a UI em PT-BR já rotula tudo. Se quiser, só um **título de abertura** mudo ("TAPI — demonstração") e um **corte final** limpo.
+- **Sem narração:** não fale nem adicione legendas explicativas — a UI em PT-BR já rotula tudo. Se quiser, só um **título de abertura** mudo ("NVIDIA Startup AI Radar — demonstração") e um **corte final** limpo.
 - **Ritmo:** o tempo morto da consulta ao vivo é o maior risco de arrastar. Acelere/corte a espera; mantenha cheio o resto.
 - **Se for editar para < 5 min:** corte primeiro o `/runs/[id]/trace` (2:25–2:50) e o `/descoberta`; o núcleo é consulta → pipeline → HITL → briefing PDF → radar.
 - **Plano alternativo 100% sem credencial** (se não quiser depender de chave/rede): rodar `python scripts/demo.py --case <id>` num terminal e gravar o briefing determinístico saindo — menos visual, mas reproduz o resultado sem a stack no ar.

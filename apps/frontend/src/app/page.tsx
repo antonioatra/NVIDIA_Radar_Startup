@@ -42,7 +42,7 @@ export default function Home() {
             NVIDIA Inception · ferramenta interna
           </span>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            TAPI — NVIDIA Startup AI Radar
+            NVIDIA Startup AI Radar
           </h1>
           <p className="max-w-2xl text-lg text-muted-foreground">
             Mapeia startups brasileiras AI-native, diagnostica a maturidade tecnica (AIMI) e
