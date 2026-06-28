@@ -35,3 +35,6 @@ benchmark_results/
 .DS_Store
 .idea/
 .vscode/
+
+# Apresentacao de referencia (design) — nao versionar
+/APRESENTACAO.pdf
