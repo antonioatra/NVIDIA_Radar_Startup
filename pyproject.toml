@@ -2,7 +2,7 @@
 # este arquivo NÃO declara [project] de propósito — só configura ruff e pytest p/ o CI (F0.10).
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
 extend-exclude = [".venv", "migrations/versions"]
 

@@ -101,8 +101,8 @@ class LabeledStartup(BaseModel):
 
     `label_source` distingue a origem do rótulo: **human** = revisado por humano (headline, default do
     `load_eval_set`) — as reais curadas contra evidência pública (F7.1) e as fixtures sintéticas
-    escritas à mão sobre a rubrica (`docs/ARQUITETURA.md §3.6`); **model** = auto-rotulada pelo pipeline (F7.1), baseline
-    **circular**, fora do headline (só com `include_model=True`). Nem toda entrada é human-reviewed.
+    escritas à mão sobre a rubrica (`docs/ARQUITETURA.md §3.6`); **model** = auto-rotulada pelo pipeline (F7.1),
+    baseline **circular**, fora do headline (só com `include_model=True`). Nem toda entrada é human-reviewed.
     """
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
